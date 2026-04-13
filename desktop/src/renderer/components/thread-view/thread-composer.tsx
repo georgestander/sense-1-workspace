@@ -4,7 +4,6 @@ import { BrainCircuit, Mic, MicOff, Paperclip, Send, Square } from "lucide-react
 import { Button } from "../ui/button";
 import { ShortcutPillRow } from "../composer/shortcut-pill-row.js";
 import { ShortcutSuggestionMenu } from "../composer/shortcut-suggestion-menu.js";
-import { folderDisplayName } from "../../state/session/session-selectors.js";
 import { buildThreadComposerIdentity } from "../../state/session/tenant-identity.js";
 import { useComposerDictation } from "../../features/session/use-composer-dictation.js";
 import { type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopExtensionOverviewResult, type DesktopModelEntry } from "../../../main/contracts";
@@ -13,7 +12,6 @@ import { replaceActivePromptShortcut, resolvePromptShortcutSuggestions } from ".
 type ThreadComposerProps = {
   tenant: DesktopBootstrapTenant | null;
   teamSetup: DesktopBootstrapTeamSetup;
-  activeWorkspaceRoot: string | null;
   extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
   taskError: string | null;
   selectedThreadId: string;
@@ -39,7 +37,6 @@ type ThreadComposerProps = {
 function ThreadComposerInner({
   tenant,
   teamSetup,
-  activeWorkspaceRoot,
   extensionOverview,
   taskError,
   selectedThreadId,
@@ -147,11 +144,6 @@ function ThreadComposerInner({
   return (
     <div className="sticky bottom-0 z-10 bg-white/94 px-6 py-3 backdrop-blur-sm">
       <div className="flex w-full flex-col gap-3 rounded-[1.7rem] bg-white p-3 shadow-[0_-12px_28px_rgba(10,15,20,0.04)]">
-        {activeWorkspaceRoot ? (
-          <div className="flex min-w-0 items-center gap-[0.2rem] text-xs text-muted">
-            <span className="truncate">{folderDisplayName(activeWorkspaceRoot)}</span>
-          </div>
-        ) : null}
         {taskError ? (
           <p className="rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft" role="alert">
             {taskError}

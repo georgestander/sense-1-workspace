@@ -43,10 +43,6 @@ type BuildThreadViewPropsArgs = {
     | "reasoningOptions"
     | "handleModelSelection"
   >;
-  workspace: Pick<
-    ThreadViewProps,
-    | "activeWorkspaceRoot"
-  >;
   rightRail: Pick<
     ThreadViewProps,
     | "threadInteractionState"
@@ -137,7 +133,6 @@ export function buildThreadViewProps({
   ui,
   composer,
   modelState,
-  workspace,
   rightRail,
   transcript,
 }: BuildThreadViewPropsArgs): ThreadViewProps | null {
@@ -196,7 +191,6 @@ export function buildThreadViewProps({
     pendingPermission: sessionState.pendingPermission,
     grantWorkspacePermission: sessionState.grantWorkspacePermission,
     cancelWorkspacePermission: sessionState.cancelWorkspacePermission,
-    activeWorkspaceRoot: workspace.activeWorkspaceRoot,
     rightRailChangeGroups: rightRail.rightRailChangeGroups,
     transcriptContainerRef: transcript.transcriptContainerRef,
     transcriptEndRef: transcript.transcriptEndRef,

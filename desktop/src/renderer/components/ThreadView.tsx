@@ -61,7 +61,6 @@ export interface ThreadViewProps {
   } | null;
   grantWorkspacePermission: (mode: "always" | "once") => Promise<void>;
   cancelWorkspacePermission: () => void;
-  activeWorkspaceRoot: string | null;
   rightRailChangeGroups: DesktopThreadChangeGroup[];
   transcriptContainerRef: RefObject<HTMLDivElement | null>;
   transcriptEndRef: RefObject<HTMLDivElement | null>;
@@ -114,7 +113,6 @@ export function ThreadView(props: ThreadViewProps) {
     pendingPermission,
     grantWorkspacePermission,
     cancelWorkspacePermission,
-    activeWorkspaceRoot,
     rightRailChangeGroups,
     transcriptContainerRef,
     transcriptEndRef,
@@ -168,7 +166,6 @@ export function ThreadView(props: ThreadViewProps) {
       />
 
       <ThreadComposer
-        activeWorkspaceRoot={activeWorkspaceRoot}
         availableModels={availableModels}
         effectiveThreadBusy={effectiveThreadBusy}
         extensionOverview={extensionOverview}

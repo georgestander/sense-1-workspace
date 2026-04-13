@@ -183,9 +183,6 @@ export function useAuthenticatedDesktopApp({
       modelOptions: content.modelSettings.modelOptions,
       reasoningOptions: content.modelSettings.reasoningOptions,
     },
-    workspace: {
-      activeWorkspaceRoot: content.activeWorkspaceRoot,
-    },
     rightRail: {
       threadInteractionState: content.rightRail.threadInteractionState,
       structuredQuestions: content.rightRail.structuredQuestions,
