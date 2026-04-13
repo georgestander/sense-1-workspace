@@ -6,7 +6,7 @@
 
 An open-source desktop AI workspace built on [OpenAI's Codex app server](https://github.com/openai/codex). Local folder-bound sessions for working with AI on your files.
 
-Who needs the upcoming ChatGPT super app when you can just build your own?
+Who needs the upcoming ChatGPT super app?
 
 ## Why Codex app server?
 
