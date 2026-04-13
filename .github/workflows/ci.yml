@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  desktop:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: desktop/pnpm-lock.yaml
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: pnpm install --frozen-lockfile
+
+      - name: Check public repo boundary
+        run: node scripts/check-public-boundary.mjs
+
+      - name: Typecheck desktop
+        working-directory: desktop
+        run: pnpm typecheck
+
+      - name: Run desktop unit tests
+        working-directory: desktop
+        run: pnpm test:unit
+
+      - name: Check desktop structure
+        working-directory: desktop
+        run: pnpm check:structure
+
+      - name: Build desktop
+        working-directory: desktop
+        run: pnpm build

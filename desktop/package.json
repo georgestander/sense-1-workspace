@@ -1,0 +1,129 @@
+{
+  "name": "sense-1-workspace",
+  "version": "0.7.0",
+  "description": "Sense-1 Workspace Electron desktop app shell",
+  "author": "George Stander",
+  "type": "module",
+  "main": "./dist/main/main.js",
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "dev:full": "node ./scripts/dev-full.mjs",
+    "build": "node ./scripts/prepare-codex-runtime.mjs && electron-vite build",
+    "dist:mac": "pnpm build && electron-builder --project . --mac --arm64 --publish never",
+    "release:mac": "pnpm build && electron-builder --project . --mac --arm64 --publish always",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check:structure": "node ./scripts/check-desktop-structure.mjs",
+    "check:structure:strict": "node ./scripts/check-desktop-structure.mjs --strict",
+    "check": "pnpm check:structure:strict && node ./scripts/check-native-validation-target.mjs",
+    "test:main": "node --test \"src/main/*.test.js\" \"src/main/**/*.test.js\"",
+    "test:renderer": "node --test \"src/renderer/*.test.js\" \"src/renderer/**/*.test.js\"",
+    "test:unit": "pnpm test:main && pnpm test:renderer",
+    "qa:electron:smoke": "node ./scripts/playwright-electron-runner.mjs --module ./scripts/playwright-electron-smoke.mjs",
+    "test:e2e": "pnpm build && npx playwright test",
+    "test:e2e:headed": "pnpm build && npx playwright test --headed"
+  },
+  "dependencies": {
+    "@openai/codex": "0.115.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "electron-updater": "6.8.3",
+    "highlight.js": "^11.11.1",
+    "lucide-react": "^0.577.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1",
+    "tailwind-merge": "^3.5.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/node": "~25.3.3",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "electron": "^35.2.1",
+    "electron-builder": "26.8.1",
+    "electron-vite": "^5.0.0",
+    "playwright": "^1.58.2",
+    "tailwindcss": "^4.2.1",
+    "typescript": "5.9.3",
+    "vite": "7.3.1"
+  },
+  "build": {
+    "appId": "com.sense1.workspace",
+    "productName": "Sense-1 Workspace",
+    "electronUpdaterCompatibility": ">=2.16",
+    "directories": {
+      "output": "release",
+      "buildResources": "resources"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/",
+        "to": "resources/"
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*"
+    ],
+    "mac": {
+      "icon": "resources/icon.icns",
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.developer-tools",
+      "hardenedRuntime": true
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "win": {
+      "icon": "resources/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "georgestander",
+        "repo": "sense-1-workspace",
+        "releaseType": "release",
+        "tagNamePrefix": "v"
+      }
+    ],
+    "npmRebuild": true
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron"
+    ]
+  }
+}

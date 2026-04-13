@@ -1,0 +1,126 @@
+import type { DesktopAppServerInputItem, DesktopThreadDelta, DesktopThreadSummary, DesktopInputQuestion, DesktopInputRequestState, DesktopThreadInputState } from "./thread.js";
+import type { DesktopRunContext } from "./run.js";
+import type { DesktopUpdateState } from "./runtime.js";
+import type { DesktopWorkspacePermissionRequest } from "./workspace.js";
+
+export type DesktopApprovalDecision = "accept" | "acceptForSession" | "decline";
+
+export interface DesktopApprovalEvent {
+  readonly id: number;
+  readonly kind: "command" | "file" | "permissions" | "network";
+  readonly threadId: string;
+  readonly reason: string | null;
+  readonly command: string[];
+  readonly cwd: string | null;
+  readonly grantRoot: string | null;
+  readonly permissions?: {
+    readonly fileSystem?: {
+      readonly read?: string[] | null;
+      readonly write?: string[] | null;
+    } | null;
+    readonly network?: {
+      readonly enabled?: boolean | null;
+    } | null;
+  } | null;
+  readonly runContext: DesktopRunContext | null;
+}
+
+export interface DesktopApprovalResponseRequest {
+  readonly requestId: number;
+  readonly decision: DesktopApprovalDecision;
+}
+
+export interface DesktopInputResponseRequest {
+  readonly requestId: number;
+  readonly text: string;
+}
+
+export interface DesktopTaskRunRequest {
+  readonly prompt: string;
+  readonly threadId?: string;
+  readonly cwd?: string | null;
+  readonly workspaceRoot?: string | null;
+  readonly contextPaths?: string[];
+  readonly model?: string;
+  readonly personality?: string;
+  readonly reasoningEffort?: string;
+  readonly attachments?: string[];
+  readonly inputItems?: DesktopAppServerInputItem[];
+  readonly runContext?: DesktopRunContext | null;
+}
+
+export interface DesktopStartedTaskRunResult {
+  readonly status: "started" | "approvalRequired";
+  readonly cwd: string | null;
+  readonly workspaceRoot: string | null;
+  readonly runContext: DesktopRunContext | null;
+  readonly permissionRequest: null;
+  readonly thread: DesktopThreadSummary;
+  readonly threadId: string;
+  readonly turnId: string | null;
+}
+
+export interface DesktopPermissionRequiredTaskRunResult {
+  readonly status: "permissionRequired";
+  readonly cwd: string | null;
+  readonly workspaceRoot: string | null;
+  readonly runContext: DesktopRunContext | null;
+  readonly permissionRequest: DesktopWorkspacePermissionRequest;
+  readonly thread: null;
+  readonly threadId: null;
+  readonly turnId: null;
+}
+
+export type DesktopTaskRunResult =
+  | DesktopStartedTaskRunResult
+  | DesktopPermissionRequiredTaskRunResult;
+
+export interface DesktopInterruptTurnRequest {
+  readonly threadId: string;
+  readonly turnId?: string | null;
+}
+
+export interface DesktopSteerTurnRequest {
+  readonly threadId: string;
+  readonly input: string;
+}
+
+export interface DesktopSteerTurnResult {
+  readonly status: "steered" | "queued";
+  readonly threadInputState: DesktopThreadInputState | null;
+}
+
+export interface DesktopQueueTurnInputRequest {
+  readonly threadId: string;
+  readonly input: string;
+}
+
+export type DesktopRuntimeEvent =
+  | {
+      readonly kind: "approvalRequested";
+      readonly approval: DesktopApprovalEvent;
+    }
+  | {
+      readonly kind: "approvalResolved";
+      readonly requestId: number;
+    }
+  | {
+      readonly kind: "accountChanged";
+    }
+  | {
+      readonly kind: "threadContentChanged";
+      readonly threadId: string | null;
+    }
+  | {
+      readonly kind: "threadListChanged";
+      readonly threadId: string | null;
+    }
+  | {
+      readonly kind: "permissionRequired";
+      readonly rootPath: string;
+      readonly displayName: string;
+    }
+  | {
+      readonly kind: "updateStateChanged";
+      readonly update: DesktopUpdateState;
+    };

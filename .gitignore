@@ -1,0 +1,26 @@
+.DS_Store
+
+# Dependencies
+/node_modules/
+/desktop/node_modules/
+
+# Package manager state
+/.pnpm-store/
+
+# Local editor and tool state
+.claude/
+.omx/
+.env*.local
+
+# Build output
+/desktop/dist/
+/desktop/out/
+/desktop/release/
+
+# Test output
+/desktop/playwright-report/
+/desktop/test-results/
+
+# Local artifacts
+/output/
+/tmp/
