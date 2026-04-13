@@ -7,6 +7,14 @@ import type {
   SubstrateWorkspaceRecord,
 } from "../../../main/contracts";
 import { perfCount } from "../../lib/perf-debug.ts";
+import {
+  findSubstrateWorkspaceByRoot,
+  matchesWorkspaceSession,
+  projectSubstrateSessionToProjectedSession,
+  projectSubstrateWorkspaceToProjectedWorkspace,
+  sortProjectedSessionsByContinuity,
+  synthesizeProjectedWorkspaceFromSessions,
+} from "./workspace-continuity.js";
 
 type WorkspaceCollectionsResult = {
   activeWorkspaceProjection: ProjectedWorkspaceRecord | null;
@@ -101,7 +109,8 @@ export function useWorkspaceCollections({
     }
 
     const bridge = window.sense1Desktop;
-    if (!bridge?.projections?.workspaceByRoot || !bridge?.projections?.sessions) {
+    if ((!bridge?.projections?.workspaceByRoot || !bridge?.projections?.sessions)
+      && (!bridge?.substrate?.recentSessions || !bridge?.substrate?.recentWorkspaces)) {
       activeWorkspaceRequestIdRef.current += 1;
       setActiveWorkspaceProjection(null);
       setWorkspaceSessions([]);
@@ -115,14 +124,30 @@ export function useWorkspaceCollections({
     perfCount("workspace-collections.load-active-workspace");
     void (async () => {
       try {
-        const wsResult = await bridge.projections.workspaceByRoot({ rootPath: activeWorkspaceRoot });
+        const [wsResult, recentSessionResult, recentWorkspaceResult] = await Promise.all([
+          bridge?.projections?.workspaceByRoot
+            ? bridge.projections.workspaceByRoot({ rootPath: activeWorkspaceRoot })
+            : Promise.resolve({ workspace: null }),
+          bridge?.substrate?.recentSessions
+            ? bridge.substrate.recentSessions({ limit: 200 }) as Promise<{ sessions: SubstrateSessionRecord[] }>
+            : Promise.resolve({ sessions: [] }),
+          bridge?.substrate?.recentWorkspaces
+            ? bridge.substrate.recentWorkspaces({ limit: 200 }) as Promise<{ workspaces: SubstrateWorkspaceRecord[] }>
+            : Promise.resolve({ workspaces: [] }),
+        ]);
         if (!isActive || requestId !== activeWorkspaceRequestIdRef.current) {
           return;
         }
 
-        const workspace = wsResult.workspace ?? null;
-        setActiveWorkspaceProjection(workspace);
-        if (workspace) {
+        const fallbackWorkspaceRecord = findSubstrateWorkspaceByRoot(recentWorkspaceResult.workspaces, activeWorkspaceRoot);
+        let workspace = wsResult.workspace ?? (
+          fallbackWorkspaceRecord
+            ? projectSubstrateWorkspaceToProjectedWorkspace(fallbackWorkspaceRecord)
+            : null
+        );
+
+        let sessions: ProjectedSessionRecord[] = [];
+        if (workspace && bridge?.projections?.sessions) {
           const sessResult = await bridge.projections.sessions({
             workspaceId: workspace.workspace_id,
             limit: WORKSPACE_SESSION_HISTORY_LIMIT,
@@ -130,10 +155,30 @@ export function useWorkspaceCollections({
           if (!isActive || requestId !== activeWorkspaceRequestIdRef.current) {
             return;
           }
-          setWorkspaceSessions(sessResult.sessions);
-        } else {
-          setWorkspaceSessions([]);
+          sessions = Array.isArray(sessResult.sessions) ? sessResult.sessions : [];
         }
+
+        if (sessions.length === 0) {
+          const fallbackSessions = (Array.isArray(recentSessionResult.sessions) ? recentSessionResult.sessions : [])
+            .filter((session) => matchesWorkspaceSession(session, {
+              workspaceId: workspace?.workspace_id ?? fallbackWorkspaceRecord?.id ?? null,
+              workspaceRoot: activeWorkspaceRoot,
+            }))
+            .map((session) => projectSubstrateSessionToProjectedSession(
+              session,
+              workspace?.workspace_id ?? fallbackWorkspaceRecord?.id ?? null,
+            ));
+          sessions = sortProjectedSessionsByContinuity(fallbackSessions).slice(0, WORKSPACE_SESSION_HISTORY_LIMIT);
+        }
+        if (!workspace && sessions.length > 0) {
+          workspace = synthesizeProjectedWorkspaceFromSessions({
+            profileId: sessions[0]?.profile_id ?? selectedProfileId,
+            rootPath: activeWorkspaceRoot,
+            sessions,
+          });
+        }
+        setActiveWorkspaceProjection(workspace);
+        setWorkspaceSessions(sessions);
       } catch {
         if (!isActive || requestId !== activeWorkspaceRequestIdRef.current) {
           return;

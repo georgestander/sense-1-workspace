@@ -61,6 +61,11 @@ interface ReadSessionRecordOptions {
   sessionId: string;
 }
 
+interface ReadSessionSummaryOptions {
+  artifactRoot: string;
+  sessionId: string;
+}
+
 interface UpdateSessionRecordPathsWrittenOptions {
   artifactRoot: string;
   path: string;
@@ -163,6 +168,21 @@ export async function readSessionRecord({
     const raw = await fs.readFile(sessionRecordPath, "utf8");
     const parsed = JSON.parse(raw) as SessionRecordInput;
     return buildSessionRecord(parsed);
+  } catch {
+    return null;
+  }
+}
+
+export async function readSessionSummary({
+  artifactRoot,
+  sessionId,
+}: ReadSessionSummaryOptions): Promise<string | null> {
+  const { summaryPath } = resolveSessionRecordPaths(artifactRoot, sessionId);
+
+  try {
+    const raw = await fs.readFile(summaryPath, "utf8");
+    const trimmed = raw.trim();
+    return trimmed || null;
   } catch {
     return null;
   }
