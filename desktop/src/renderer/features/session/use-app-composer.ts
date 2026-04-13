@@ -6,6 +6,7 @@ import {
 } from "./app-composer-utils.js";
 
 type UseAppComposerParams = {
+  canSteerSelectedThread: boolean;
   currentRequestId: number | string | null;
   clearSelectedThread: () => Promise<void>;
   effectiveThreadBusy: boolean;
@@ -28,6 +29,7 @@ type UseAppComposerParams = {
 };
 
 export function useAppComposer({
+  canSteerSelectedThread,
   currentRequestId,
   clearSelectedThread,
   effectiveThreadBusy,
@@ -72,22 +74,24 @@ export function useAppComposer({
       threadPrompt,
     });
     if (!request) {
-      return;
+      return false;
     }
-    if (effectiveThreadBusy && attachedFiles.length > 0) {
+    if (canSteerSelectedThread && attachedFiles.length > 0) {
       setTaskError("Finish the current run before sending attachments.");
-      return;
+      return false;
     }
     setThreadPromptOverride("");
     setAttachedFiles([]);
+    setTaskError(null);
     requestAnimationFrame(() => {
       transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
     });
-    if (effectiveThreadBusy) {
+    if (canSteerSelectedThread) {
       await steerTurn(request.prompt);
-      return;
+      return true;
     }
     await runTask(request);
+    return true;
   }
 
   async function queueSelectedThreadPrompt(threadPrompt: string) {
@@ -97,18 +101,24 @@ export function useAppComposer({
       threadPrompt,
     });
     if (!request) {
-      return;
+      return false;
     }
-    if (attachedFiles.length > 0) {
+    if (canSteerSelectedThread && attachedFiles.length > 0) {
       setTaskError("Finish the current run before sending attachments.");
-      return;
+      return false;
     }
     setThreadPromptOverride("");
     setAttachedFiles([]);
+    setTaskError(null);
     requestAnimationFrame(() => {
       transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
     });
-    await queueTurnInput(request.prompt);
+    if (canSteerSelectedThread) {
+      await queueTurnInput(request.prompt);
+      return true;
+    }
+    await runTask(request);
+    return true;
   }
 
   function submitDraftTask() {

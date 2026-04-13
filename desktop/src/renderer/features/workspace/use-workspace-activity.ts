@@ -6,6 +6,7 @@ import type {
   ProjectedSessionRecord,
   SubstrateEventRecord,
 } from "../../../main/contracts";
+import { perfCount } from "../../lib/perf-debug.ts";
 
 type WorkspaceActivitySummary = {
   approvalsGranted: number;
@@ -27,6 +28,7 @@ export function useWorkspaceActivity({
   workspacePolicy: DesktopWorkspacePolicyRecord | null;
   workspaceSessions: ProjectedSessionRecord[];
 }) {
+  perfCount("render.useWorkspaceActivity");
   const [persistedSessionWrittenPaths, setPersistedSessionWrittenPaths] = useState<string[]>([]);
   const [persistedSessionActivitySummary, setPersistedSessionActivitySummary] = useState<WorkspaceActivitySummary | null>(null);
   const [persistedSessionActivityLoading, setPersistedSessionActivityLoading] = useState(false);
@@ -39,6 +41,10 @@ export function useWorkspaceActivity({
         : null
     ),
     [selectedThreadId, workspaceSessions],
+  );
+  const selectedWorkspaceSessionId = useMemo(
+    () => resolveSessionId(selectedWorkspaceSession),
+    [selectedWorkspaceSession],
   );
 
   function extractWrittenPath(event: SubstrateEventRecord): string | null {
@@ -77,17 +83,17 @@ export function useWorkspaceActivity({
     const requestId = ++activityRequestIdRef.current;
     let isActive = true;
     setPersistedSessionActivityLoading(true);
+    perfCount("workspace-activity.fetch-session-events");
 
     void (async () => {
       try {
-        const recentSessionsResult = selectedWorkspaceSession
+        const recentSessionsResult = selectedWorkspaceSessionId
           ? null
           : await bridge.substrate.recentSessions({ limit: 200 });
         const fallbackSession = Array.isArray(recentSessionsResult?.sessions)
           ? recentSessionsResult.sessions.find((session: { codex_thread_id?: string | null }) => session.codex_thread_id === selectedThreadId) ?? null
           : null;
-        const session = selectedWorkspaceSession ?? fallbackSession;
-        const sessionId = resolveSessionId(session);
+        const sessionId = selectedWorkspaceSessionId ?? resolveSessionId(fallbackSession);
         if (!sessionId || requestId !== activityRequestIdRef.current || !isActive) {
           if (isActive) {
             setPersistedSessionWrittenPaths([]);
@@ -151,7 +157,7 @@ export function useWorkspaceActivity({
     return () => {
       isActive = false;
     };
-  }, [selectedThreadId, selectedWorkspaceSession]);
+  }, [selectedThreadId, selectedWorkspaceSessionId]);
 
   useEffect(() => {
     const rootPath = selectedThreadWorkspaceRoot;
@@ -167,6 +173,7 @@ export function useWorkspaceActivity({
 
     let cancelled = false;
     setWorkspaceStructureRefreshing(true);
+    perfCount("workspace-activity.hydrate-structure");
     void hydrateWorkspace(rootPath).finally(() => {
       if (!cancelled) {
         setWorkspaceStructureRefreshing(false);
@@ -183,6 +190,7 @@ export function useWorkspaceActivity({
     }
 
     setWorkspaceStructureRefreshing(true);
+    perfCount("workspace-activity.manual-refresh");
     try {
       await hydrateWorkspace(selectedThreadWorkspaceRoot);
     } finally {

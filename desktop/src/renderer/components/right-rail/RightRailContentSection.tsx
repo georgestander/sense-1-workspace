@@ -13,6 +13,7 @@ import type {
 } from "../../../main/contracts";
 
 import { RightRailSection, type RightRailSectionSharedProps, resolveWorkspaceFilePath } from "./RightRailSection";
+import { buildRightRailChangedFiles } from "./right-rail-content";
 
 export type RightRailContentSectionProps = RightRailSectionSharedProps & {
   activeWorkspaceProjection: ProjectedWorkspaceRecord | null;
@@ -60,51 +61,22 @@ export function RightRailContentSection({
       return [];
     }
 
-    const persistedChangedFiles = persistedSessionWrittenPaths.map((filePath) => [filePath, null] as const);
-    const changeGroupFiles = rightRailChangeGroups.flatMap((group) => group.files);
-    const reviewArtifacts = rightRailThread?.reviewSummary?.changedArtifacts ?? [];
-    const reviewOutputArtifacts = rightRailThread?.reviewSummary?.outputArtifacts ?? [];
-    const reviewCreatedFiles = rightRailThread?.reviewSummary?.createdFiles ?? [];
-    const transcriptArtifacts = (selectedThread?.entries ?? []).flatMap((entry) => {
-      if (!("body" in entry) || typeof entry.body !== "string") {
-        return [];
-      }
-
-      return extractArtifactPathsFromText(entry.body, folderRoot || null);
+    return buildRightRailChangedFiles({
+      artifactRoots,
+      extractArtifactPathsFromText,
+      isVisibleRightRailArtifactPath,
+      persistedSessionWrittenPaths,
+      rightRailChangeGroups,
+      rightRailThread,
+      selectedThread,
     });
-    const changedFileMap = new Map<string, string | null>();
-    for (const [filePath, action] of persistedChangedFiles) {
-      if (!changedFileMap.has(filePath)) changedFileMap.set(filePath, action);
-    }
-    for (const filePath of changeGroupFiles) {
-      if (!changedFileMap.has(filePath)) changedFileMap.set(filePath, null);
-    }
-    for (const artifact of [...reviewArtifacts, ...reviewOutputArtifacts, ...reviewCreatedFiles]) {
-      if (artifact.path && !changedFileMap.has(artifact.path)) {
-        changedFileMap.set(artifact.path, artifact.action);
-      } else if (artifact.path && artifact.action) {
-        changedFileMap.set(artifact.path, artifact.action);
-      }
-    }
-    for (const filePath of transcriptArtifacts) {
-      if (!changedFileMap.has(filePath)) {
-        changedFileMap.set(filePath, "created");
-      }
-    }
-
-    return Array.from(changedFileMap.entries()).filter(([filePath]) =>
-      isVisibleRightRailArtifactPath(filePath, artifactRoots),
-    );
   }, [
     artifactRoots,
     contentOpen,
-    folderRoot,
     persistedSessionWrittenPaths,
     rightRailChangeGroups,
-    rightRailThread?.reviewSummary?.changedArtifacts,
-    rightRailThread?.reviewSummary?.createdFiles,
-    rightRailThread?.reviewSummary?.outputArtifacts,
-    selectedThread?.entries,
+    rightRailThread,
+    selectedThread,
   ]);
   const recentFilePaths = useMemo(() => {
     if (!contentOpen) {

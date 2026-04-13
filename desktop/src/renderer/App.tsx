@@ -5,6 +5,7 @@ import { useSettingsController } from "./features/settings/use-settings-controll
 import { useAuthenticatedDesktopApp } from "./features/app/use-authenticated-desktop-app.js";
 import { useDesktopManagement } from "./features/management/use-desktop-management.js";
 import { useDesktopAutomations } from "./features/automation/use-desktop-automations.js";
+import { perfCount } from "./lib/perf-debug.ts";
 
 import { AutomationsPage } from "./components/AutomationsPage";
 import { AuthScreens } from "./components/AuthScreens";
@@ -25,6 +26,7 @@ const DEFAULT_REASONING_EFFORT = "";
 // ---------------------------------------------------------------------------
 
 export default function App() {
+  perfCount("render.App");
   // ── Local UI state ──
   const previousSelectedThreadIdRef = useRef<string | null>(null);
   const [activeView, setActiveView] = useState<"home" | "plugins" | "automations">("home");

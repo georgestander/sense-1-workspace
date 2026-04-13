@@ -29,6 +29,7 @@ import {
   readCachedModelCatalog,
   writeCachedModelCatalog,
 } from "./lib/model-catalog.js";
+import { perfCount, perfMeasure } from "./lib/perf-debug.ts";
 import { listVisibleSubstrateSessions } from "./features/workspace/substrate-thread-enrichment.js";
 import { createDesktopSessionActions } from "./features/session/use-desktop-session-actions.js";
 import { DESKTOP_BRIDGE_UNAVAILABLE_MESSAGE, getDesktopBridge, requireDesktopBridge } from "./state/session/desktop-bridge.js";
@@ -265,14 +266,14 @@ export function useDesktopSessionState({ model, reasoningEffort }: { model: stri
     });
   }, []);
 
-  const sessionView = buildDesktopSessionViewState({
+  const sessionView = perfMeasure("session-view.build", () => buildDesktopSessionViewState({
     activeTurnIdsByThread,
     pendingApprovals,
     perThreadSidebar,
     selectedThreadId,
     taskPending,
     threads,
-  });
+  }));
   const {
     activeRoot,
     activeTurnId,
@@ -387,6 +388,7 @@ export function useDesktopSessionState({ model, reasoningEffort }: { model: stri
     workspacePolicy,
     workspaceHydrateSummary,
     pendingPermission,
+    activeTurnId,
     requestWorkspacePermission: (rootPath: string, displayName: string, originalRequest?: { prompt: string; workspaceRoot?: string | null }) => {
       setPendingPermission({
         rootPath,
@@ -396,3 +398,4 @@ export function useDesktopSessionState({ model, reasoningEffort }: { model: stri
     },
   };
 }
+  perfCount("render.useDesktopSessionState");

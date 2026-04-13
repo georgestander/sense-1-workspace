@@ -4,25 +4,14 @@ import { BrainCircuit, Mic, MicOff, Paperclip, Send, Square } from "lucide-react
 import { Button } from "../ui/button";
 import { ShortcutPillRow } from "../composer/shortcut-pill-row.js";
 import { ShortcutSuggestionMenu } from "../composer/shortcut-suggestion-menu.js";
-import { cn } from "../../lib/cn";
-import { folderDisplayName } from "../../state/session/session-selectors.js";
 import { buildThreadComposerIdentity } from "../../state/session/tenant-identity.js";
 import { useComposerDictation } from "../../features/session/use-composer-dictation.js";
-import { type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopExtensionOverviewResult, type DesktopModelEntry, type DesktopOperatingMode } from "../../../main/contracts";
+import { type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopExtensionOverviewResult, type DesktopModelEntry } from "../../../main/contracts";
 import { replaceActivePromptShortcut, resolvePromptShortcutSuggestions } from "../../../shared/prompt-shortcuts.ts";
-
-const OPERATING_MODE_OPTIONS: Array<{ label: string; value: DesktopOperatingMode }> = [
-  { label: "Preview", value: "preview" },
-  { label: "Auto", value: "auto" },
-  { label: "Apply", value: "apply" },
-];
 
 type ThreadComposerProps = {
   tenant: DesktopBootstrapTenant | null;
   teamSetup: DesktopBootstrapTeamSetup;
-  activeWorkspaceRoot: string | null;
-  activeOperatingMode: DesktopOperatingMode | null;
-  changeWorkspaceOperatingMode: (mode: DesktopOperatingMode) => Promise<void>;
   extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
   taskError: string | null;
   selectedThreadId: string;
@@ -34,7 +23,7 @@ type ThreadComposerProps = {
   availableModels: DesktopModelEntry[];
   selectedModel: string;
   handleModelSelection: (nextModel: string) => void;
-  queueSelectedThreadPrompt: (threadPrompt: string) => Promise<void>;
+  queueSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
   queuedMessageCount: number;
   reasoningOptions: string[];
   REASONING_LABELS: Record<string, string>;
@@ -42,15 +31,12 @@ type ThreadComposerProps = {
   setReasoning: Dispatch<SetStateAction<string>>;
   effectiveThreadBusy: boolean;
   interruptTurn: () => Promise<void>;
-  submitSelectedThreadPrompt: (threadPrompt: string) => Promise<void>;
+  submitSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
 };
 
 function ThreadComposerInner({
   tenant,
   teamSetup,
-  activeWorkspaceRoot,
-  activeOperatingMode,
-  changeWorkspaceOperatingMode,
   extensionOverview,
   taskError,
   selectedThreadId,
@@ -152,38 +138,40 @@ function ThreadComposerInner({
       return;
     }
     event.preventDefault();
-    void submitSelectedThreadPrompt(threadPrompt);
+    void handleSubmit();
+  }
+
+  async function handleSubmit() {
+    const submittedPrompt = threadPrompt.trim();
+    if (!submittedPrompt) {
+      return;
+    }
+    const didSubmit = await submitSelectedThreadPrompt(submittedPrompt);
+    if (!didSubmit) {
+      return;
+    }
+    setThreadPrompt("");
+    setShortcutCursorIndex(0);
+    setShortcutSelectionIndex(0);
+  }
+
+  async function handleQueue() {
+    const queuedPrompt = threadPrompt.trim();
+    if (!queuedPrompt) {
+      return;
+    }
+    const didQueue = await queueSelectedThreadPrompt(queuedPrompt);
+    if (!didQueue) {
+      return;
+    }
+    setThreadPrompt("");
+    setShortcutCursorIndex(0);
+    setShortcutSelectionIndex(0);
   }
 
   return (
     <div className="sticky bottom-0 z-10 bg-white/94 px-6 py-3 backdrop-blur-sm">
       <div className="flex w-full flex-col gap-3 rounded-[1.7rem] bg-white p-3 shadow-[0_-12px_28px_rgba(10,15,20,0.04)]">
-        {activeWorkspaceRoot ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex min-w-0 items-center gap-[0.2rem] text-xs text-muted">
-              <span className="truncate">{folderDisplayName(activeWorkspaceRoot)}</span>
-            </div>
-            {activeOperatingMode ? (
-              <div className="inline-flex items-center rounded-full border border-line/60 bg-surface-soft p-1 text-[0.6875rem] uppercase tracking-[0.08em] text-ink-faint">
-                {OPERATING_MODE_OPTIONS.map((option) => {
-                  const isActive = option.value === activeOperatingMode;
-                  return (
-                    <button
-                      className={cn("rounded-full px-2.5 py-1 transition-colors", isActive ? "bg-ink text-white" : "hover:bg-surface-high hover:text-ink")}
-                      disabled={composerDisabled}
-                      key={option.value}
-                      onClick={() => void changeWorkspaceOperatingMode(option.value)}
-                      type="button"
-                    >
-                      {option.label}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-        {activeWorkspaceRoot && activeOperatingMode ? <p className="text-[0.6875rem] text-ink-muted">Operating mode applies on the next turn.</p> : null}
         {taskError ? (
           <p className="rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft" role="alert">
             {taskError}
@@ -312,10 +300,10 @@ function ThreadComposerInner({
             ) : null}
             {effectiveThreadBusy ? (
               <>
-                <Button disabled={sendDisabled} onClick={() => void queueSelectedThreadPrompt(threadPrompt)} size="sm" variant="secondary">
+                <Button disabled={sendDisabled} onClick={() => void handleQueue()} size="sm" variant="secondary">
                   Queue
                 </Button>
-                <Button aria-label="Send now to active run" disabled={sendDisabled} onClick={() => void submitSelectedThreadPrompt(threadPrompt)} size="sm" variant="default">
+                <Button aria-label="Send now to active run" disabled={sendDisabled} onClick={() => void handleSubmit()} size="sm" variant="default">
                   <Send />
                   Send now
                 </Button>
@@ -324,7 +312,7 @@ function ThreadComposerInner({
                 </Button>
               </>
             ) : (
-              <Button aria-label="Send message" disabled={sendDisabled} onClick={() => void submitSelectedThreadPrompt(threadPrompt)} size="icon" variant="default">
+              <Button aria-label="Send message" disabled={sendDisabled} onClick={() => void handleSubmit()} size="icon" variant="default">
                 <Send />
               </Button>
             )}

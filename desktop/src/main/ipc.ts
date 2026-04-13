@@ -81,6 +81,9 @@ import {
 } from "../shared/contracts/index";
 
 let desktopIpcHandlersRegistered = false;
+const THREAD_DELTA_FLUSH_MS = 16;
+let pendingThreadDeltas: DesktopThreadDelta[] = [];
+let pendingThreadDeltaFlushTimer: NodeJS.Timeout | null = null;
 
 type DesktopIpcServices = {
   getBootstrap(): Promise<DesktopBootstrap>;
@@ -545,10 +548,37 @@ export function emitDesktopRuntimeEvent(payload: DesktopRuntimeEvent): void {
 }
 
 export function emitDesktopThreadDelta(delta: DesktopThreadDelta): void {
-  const window = getMainWindow();
-  if (!window || window.isDestroyed()) {
+  pendingThreadDeltas.push(delta);
+  scheduleThreadDeltaFlush();
+}
+
+function scheduleThreadDeltaFlush(): void {
+  if (pendingThreadDeltaFlushTimer) {
     return;
   }
 
-  window.webContents.send(IPC_CHANNELS.threadDelta, delta);
+  pendingThreadDeltaFlushTimer = setTimeout(() => {
+    pendingThreadDeltaFlushTimer = null;
+    flushPendingThreadDeltas();
+  }, THREAD_DELTA_FLUSH_MS);
+}
+
+function flushPendingThreadDeltas(): void {
+  const window = getMainWindow();
+  if (!window || window.isDestroyed()) {
+    pendingThreadDeltas = [];
+    return;
+  }
+
+  if (pendingThreadDeltas.length === 0) {
+    return;
+  }
+
+  const deltasToSend = pendingThreadDeltas;
+  pendingThreadDeltas = [];
+
+  window.webContents.send(
+    IPC_CHANNELS.threadDelta,
+    deltasToSend.length === 1 ? deltasToSend[0] : deltasToSend,
+  );
 }

@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { Check, ChevronRight, Copy } from "lucide-react";
 
 import { ThreadMarkdown } from "../../thread-markdown.js";
@@ -6,16 +6,19 @@ import {
   coerceDisplayText,
   firstLinePreview,
   groupThreadEntries,
+  reuseGroupedThreadEntries,
   resolveFileChangeTarget,
   type ThreadGroupedEntry,
 } from "./thread-view-utils.js";
 import { type DesktopThreadEntry } from "../../lib/live-thread-data.js";
 import { getFileIcon, getFileLabel } from "../../lib/file-icons";
 import { resolveWorkspaceFilePath } from "../right-rail/RightRailSection";
+import { useStreamingEntryBody } from "../../state/session/session-stream-live-bodies.ts";
 
 type ThreadEntryListProps = {
   entries: DesktopThreadEntry[];
   suppressFileChanges?: boolean;
+  threadId: string;
   workspaceRoot: string | null;
 };
 
@@ -70,10 +73,12 @@ function EntryCopyButton({ text }: { text: string }) {
 function ActivityGroupCard({
   group,
   suppressFileChanges = false,
+  threadId,
   workspaceRoot,
 }: {
   group: Extract<ThreadGroupedEntry, { kind: "activity-group" }>;
   suppressFileChanges?: boolean;
+  threadId: string;
   workspaceRoot: string | null;
 }) {
   const allCompleted = group.entries.every((entry) => "status" in entry && entry.status === "completed");
@@ -107,19 +112,35 @@ function ActivityGroupCard({
           </div>
         </summary>
         <div className="mt-1.5 space-y-0.5 pl-5">
-          {visibleEntries.map((entry) => renderThreadEntry(entry, workspaceRoot))}
+          {visibleEntries.map((entry) => (
+            <ThreadEntryCard entry={entry} key={entry.id} threadId={threadId} workspaceRoot={workspaceRoot} />
+          ))}
         </div>
       </details>
     </article>
   );
 }
 
-function renderThreadEntry(entry: DesktopThreadEntry, workspaceRoot: string | null = null) {
-  const entryBody = "body" in entry ? coerceDisplayText(entry.body) : "";
+const ThreadEntryCard = memo(function ThreadEntryCard({
+  entry,
+  threadId,
+  workspaceRoot,
+}: {
+  entry: DesktopThreadEntry;
+  threadId: string;
+  workspaceRoot: string | null;
+}) {
+  const liveStreamingBody = useStreamingEntryBody(threadId, entry.id);
+  const entryBody =
+    typeof liveStreamingBody === "string"
+      ? liveStreamingBody
+      : "body" in entry
+        ? coerceDisplayText(entry.body)
+        : "";
 
   if (entry.kind === "user") {
     return (
-      <article className="ml-auto w-full max-w-[78%] rounded-xl bg-[color-mix(in_oklch,var(--color-ink)_5%,white)] px-3 py-2 text-[0.8125rem]" key={entry.id}>
+      <article className="ml-auto w-full max-w-[78%] rounded-xl bg-[color-mix(in_oklch,var(--color-ink)_5%,white)] px-3 py-2 text-[0.8125rem]">
         <ThreadMarkdown className="thread-markdown-user" workspaceRoot={workspaceRoot}>
           {entryBody}
         </ThreadMarkdown>
@@ -129,7 +150,7 @@ function renderThreadEntry(entry: DesktopThreadEntry, workspaceRoot: string | nu
 
   if (entry.kind === "assistant") {
     return (
-      <article className="mr-auto w-full px-4 py-2" key={entry.id}>
+      <article className="mr-auto w-full px-4 py-2">
         {"status" in entry && entry.status === "streaming" ? (
           <div className="text-sm leading-[1.6] whitespace-pre-wrap text-ink">{entryBody}</div>
         ) : (
@@ -147,7 +168,7 @@ function renderThreadEntry(entry: DesktopThreadEntry, workspaceRoot: string | nu
   if (entry.kind === "command") {
     const commandPreview = firstLinePreview(entry.command, "Command execution");
     return (
-      <article className="px-4 py-1 text-xs" key={entry.id}>
+      <article className="px-4 py-1 text-xs">
         <details className="group">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs text-ink-muted">
             <p className="min-w-0 truncate font-mono">{commandPreview}</p>
@@ -172,7 +193,7 @@ function renderThreadEntry(entry: DesktopThreadEntry, workspaceRoot: string | nu
   if (entry.kind === "tool") {
     const toolPreview = firstLinePreview(entryBody, "Sense-1 used a connected tool.");
     return (
-      <article className="px-4 py-2 text-sm" key={entry.id}>
+      <article className="px-4 py-2 text-sm">
         <details className="group">
           <summary className="flex cursor-pointer list-none items-start justify-between gap-3 text-sm text-muted">
             <div className="min-w-0">
@@ -194,7 +215,7 @@ function renderThreadEntry(entry: DesktopThreadEntry, workspaceRoot: string | nu
 
   if (entry.kind === "fileChange") {
     return (
-      <article className="px-4 py-2 text-sm" key={entry.id}>
+      <article className="px-4 py-2 text-sm">
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs uppercase tracking-[0.11em] text-muted">{entry.title}</p>
           <span className="text-xs text-muted">{entry.status}</span>
@@ -247,7 +268,7 @@ function renderThreadEntry(entry: DesktopThreadEntry, workspaceRoot: string | nu
 
   if (entry.kind === "plan") {
     return (
-      <article className="px-4 py-2 text-sm" key={entry.id}>
+      <article className="px-4 py-2 text-sm">
         <p className="text-xs uppercase tracking-[0.11em] text-muted">{entry.title}</p>
         <ThreadMarkdown className="mt-2" workspaceRoot={workspaceRoot}>
           {entryBody}
@@ -267,7 +288,7 @@ function renderThreadEntry(entry: DesktopThreadEntry, workspaceRoot: string | nu
 
   if (entry.kind === "reasoning") {
     return (
-      <article className="rounded-none border-l-2 border-line bg-surface-soft px-4 py-3 text-sm" key={entry.id}>
+      <article className="rounded-none border-l-2 border-line bg-surface-soft px-4 py-3 text-sm">
         <details className="thread-reasoning-toggle">
           <summary className="flex cursor-pointer items-center gap-2">
             <ChevronRight className="size-3.5 text-muted transition-transform [[open]>&]:rotate-90" />
@@ -283,7 +304,7 @@ function renderThreadEntry(entry: DesktopThreadEntry, workspaceRoot: string | nu
   }
 
   return (
-    <article className="px-4 py-2 text-sm" key={entry.id}>
+    <article className="px-4 py-2 text-sm">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs uppercase tracking-[0.11em] text-muted">{entry.title}</p>
         {"status" in entry && entry.status ? <span className="text-xs text-muted">{coerceDisplayText(entry.status)}</span> : null}
@@ -293,18 +314,31 @@ function renderThreadEntry(entry: DesktopThreadEntry, workspaceRoot: string | nu
       </ThreadMarkdown>
     </article>
   );
-}
+});
 
-function ThreadEntryListInner({ entries, suppressFileChanges = false, workspaceRoot }: ThreadEntryListProps) {
-  const groupedEntries = useMemo(() => groupThreadEntries(entries), [entries]);
+function ThreadEntryListInner({
+  entries,
+  suppressFileChanges = false,
+  threadId,
+  workspaceRoot,
+}: ThreadEntryListProps) {
+  const previousEntriesRef = useRef<DesktopThreadEntry[] | null>(null);
+  const previousGroupedEntriesRef = useRef<ThreadGroupedEntry[] | null>(null);
+
+  const groupedEntries =
+    reuseGroupedThreadEntries(previousEntriesRef.current, entries, previousGroupedEntriesRef.current)
+    ?? groupThreadEntries(entries);
+
+  previousEntriesRef.current = entries;
+  previousGroupedEntriesRef.current = groupedEntries;
 
   return (
     <>
       {groupedEntries.map((grouped) =>
         grouped.kind === "passthrough" ? (
-          grouped.entry.kind === "fileChange" && suppressFileChanges ? null : renderThreadEntry(grouped.entry, workspaceRoot)
+          grouped.entry.kind === "fileChange" && suppressFileChanges ? null : <ThreadEntryCard entry={grouped.entry} key={grouped.entry.id} threadId={threadId} workspaceRoot={workspaceRoot} />
         ) : (
-          <ActivityGroupCard key={grouped.id} group={grouped} suppressFileChanges={suppressFileChanges} workspaceRoot={workspaceRoot} />
+          <ActivityGroupCard key={grouped.id} group={grouped} suppressFileChanges={suppressFileChanges} threadId={threadId} workspaceRoot={workspaceRoot} />
         ),
       )}
     </>

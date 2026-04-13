@@ -5,6 +5,7 @@ import type { useDesktopSessionState } from "../../use-desktop-session-state.js"
 import type { useSettingsController } from "../settings/use-settings-controller.js";
 import { shouldShowHeaderUpdateAction } from "../updates/update-presentation.js";
 import { buildStartSurfaceProps, buildThreadViewProps } from "./app-main-content-props.js";
+import { perfCount } from "../../lib/perf-debug.ts";
 import { useAppShellProps } from "./use-app-shell-props.js";
 import { useAuthenticatedDesktopContent } from "./use-authenticated-desktop-content.js";
 
@@ -46,6 +47,7 @@ export function useAuthenticatedDesktopApp({
   settingsController,
   ui,
 }: UseAuthenticatedDesktopAppArgs) {
+  perfCount("render.useAuthenticatedDesktopApp");
   const content = useAuthenticatedDesktopContent({
     sessionState,
     settingsController,
@@ -169,8 +171,6 @@ export function useAuthenticatedDesktopApp({
       setClarificationPending: content.composer.setClarificationPending,
       setInputResponseText: content.composer.setInputResponseText,
       setSelectedChipIndex: content.composer.setSelectedChipIndex,
-      setShowScrollToBottom: content.rightRail.setShowScrollToBottom,
-      showScrollToBottom: content.rightRail.showScrollToBottom,
       structuredQuestions: content.rightRail.structuredQuestions,
       queueSelectedThreadPrompt: content.composer.queueSelectedThreadPrompt,
       submitSelectedThreadPrompt: content.composer.submitSelectedThreadPrompt,
@@ -183,19 +183,12 @@ export function useAuthenticatedDesktopApp({
       modelOptions: content.modelSettings.modelOptions,
       reasoningOptions: content.modelSettings.reasoningOptions,
     },
-    workspace: {
-      activeWorkspaceRoot: content.activeWorkspaceRoot,
-      activeOperatingMode: content.workspaceShell.activeOperatingMode,
-      changeWorkspaceOperatingMode: content.workspaceShell.changeWorkspaceOperatingMode,
-    },
     rightRail: {
       threadInteractionState: content.rightRail.threadInteractionState,
       structuredQuestions: content.rightRail.structuredQuestions,
       hasStructuredQuestions: content.rightRail.hasStructuredQuestions,
       isClarifying: content.rightRail.isClarifying,
       rightRailChangeGroups: content.rightRail.rightRailChangeGroups,
-      showScrollToBottom: content.rightRail.showScrollToBottom,
-      setShowScrollToBottom: content.rightRail.setShowScrollToBottom,
       configNotices: content.modelSettings.configNotices,
       footerStatusText: content.rightRail.footerStatusText,
       effectiveThreadBusy: content.rightRail.effectiveThreadBusy,

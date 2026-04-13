@@ -12,6 +12,7 @@ import {
   resolveVisibleStandaloneSidebarThreads,
   resolveVisibleWorkspaceSidebarGroups,
   shouldHideWorkspaceSidebarGroups,
+  toWorkspaceSidebarThreadSummary,
 } from "./workspace-sidebar.ts";
 
 test("manual order is the base order and active workspace floats to the top", () => {
@@ -149,4 +150,42 @@ test("merging a visible reorder preserves hidden saved roots", () => {
     ),
     ["/tmp/hidden-top", "/tmp/alpha", "/tmp/gamma", "/tmp/hidden-bottom"],
   );
+});
+
+test("toWorkspaceSidebarThreadSummary keeps only the fields the shell needs", () => {
+  const summary = toWorkspaceSidebarThreadSummary({
+    id: "thread-1",
+    title: "Alpha",
+    updatedAt: "2026-03-26T10:00:00.000Z",
+    updatedLabel: "just now",
+    workspaceRoot: "/tmp/alpha",
+    state: "running",
+    threadInputState: {
+      queuedMessages: [],
+      hasUnseenCompletion: true,
+      lastCompletionAt: null,
+      lastCompletionStatus: null,
+    },
+    entries: [
+      { id: "entry-1", kind: "assistant", title: "ignored", body: "ignored", status: "completed" },
+    ],
+    reviewSummary: { summary: "ignored", outputArtifacts: [], createdFiles: [], modifiedFiles: [], changedArtifacts: [], updatedAt: null },
+  });
+
+  assert.deepEqual(summary, {
+    id: "thread-1",
+    title: "Alpha",
+    updatedAt: "2026-03-26T10:00:00.000Z",
+    updatedLabel: "just now",
+    workspaceRoot: "/tmp/alpha",
+    state: "running",
+    threadInputState: {
+      queuedMessages: [],
+      hasUnseenCompletion: true,
+      lastCompletionAt: null,
+      lastCompletionStatus: null,
+    },
+  });
+  assert.equal("entries" in summary, false);
+  assert.equal("reviewSummary" in summary, false);
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 import type {
   DesktopApprovalEvent,
@@ -10,12 +10,14 @@ import type {
   ProjectedWorkspaceRecord,
 } from "../../../main/contracts";
 import type { RightRailProps } from "../../components/RightRail";
+import { buildTranscriptScrollAnchor, shouldAutoFollowTranscript } from "./transcript-scroll.js";
+import { perfCount, perfMeasure } from "../../lib/perf-debug.ts";
 
 const PRE_EXECUTION_STATES = new Set<DesktopInteractionState>(["conversation", "clarification"]);
-const TRANSCRIPT_AUTO_FOLLOW_DISTANCE_PX = 24;
 
 const DEFAULT_RIGHT_RAIL_SECTIONS_OPEN: Record<string, boolean> = {
   approvals: true,
+  content: false,
   input: true,
   plan: true,
   progress: true,
@@ -86,6 +88,7 @@ export function useAppRightRail({
   workspaceSessions,
   workspaceStructureRefreshing,
 }: UseAppRightRailArgs) {
+  perfCount("render.useAppRightRail");
   const [rightRailOpen, setRightRailOpen] = useState(() => {
     if (typeof window === "undefined") {
       return true;
@@ -95,7 +98,7 @@ export function useAppRightRail({
   const [rightRailSectionsOpen, setRightRailSectionsOpen] = useState<Record<string, boolean>>(
     DEFAULT_RIGHT_RAIL_SECTIONS_OPEN,
   );
-  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const autoFollowFrameRef = useRef<number | null>(null);
 
   const rightRailProgressSummary = Array.isArray(rightRailThread?.progressSummary)
     ? rightRailThread.progressSummary
@@ -144,14 +147,7 @@ export function useAppRightRail({
 
   const entryCount = selectedThread?.entries.length ?? 0;
   const lastEntry = selectedThread?.entries[entryCount - 1];
-  const lastEntryBodyLength =
-    lastEntry && "body" in lastEntry && typeof lastEntry.body === "string"
-      ? lastEntry.body.length
-      : 0;
-  const lastEntryScrollBucket = Math.floor(lastEntryBodyLength / 256);
-  const lastEntryAnchor = lastEntry
-    ? `${lastEntry.id}:${"status" in lastEntry ? lastEntry.status : ""}:${lastEntryScrollBucket}`
-    : "";
+  const lastEntryAnchor = perfMeasure("right-rail.build-scroll-anchor", () => buildTranscriptScrollAnchor(lastEntry));
   useEffect(() => {
     if (!entryCount) {
       return;
@@ -161,10 +157,23 @@ export function useAppRightRail({
       return;
     }
     const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-    if (distanceFromBottom <= TRANSCRIPT_AUTO_FOLLOW_DISTANCE_PX) {
-      container.scrollTop = container.scrollHeight;
+    if (!shouldAutoFollowTranscript(distanceFromBottom)) {
+      return;
     }
-  }, [entryCount, lastEntryAnchor, transcriptContainerRef, transcriptEndRef]);
+    if (autoFollowFrameRef.current !== null) {
+      window.cancelAnimationFrame(autoFollowFrameRef.current);
+    }
+    autoFollowFrameRef.current = window.requestAnimationFrame(() => {
+      container.scrollTop = container.scrollHeight;
+      autoFollowFrameRef.current = null;
+    });
+    return () => {
+      if (autoFollowFrameRef.current !== null) {
+        window.cancelAnimationFrame(autoFollowFrameRef.current);
+        autoFollowFrameRef.current = null;
+      }
+    };
+  }, [entryCount, lastEntryAnchor, transcriptContainerRef]);
 
   const rightRailProps: RightRailProps = {
     showRightRail,
@@ -211,8 +220,6 @@ export function useAppRightRail({
     rightRailOpen,
     rightRailProps,
     setRightRailOpen,
-    setShowScrollToBottom,
-    showScrollToBottom,
     structuredQuestions,
     threadInteractionState,
   };

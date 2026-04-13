@@ -3,6 +3,7 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { useDesktopSessionState } from "../../use-desktop-session-state.js";
 import type { StartSurfaceProps } from "../../components/StartSurface";
 import type { ThreadViewProps } from "../../components/ThreadView";
+import { perfCount, perfMeasure } from "../../lib/perf-debug.ts";
 import { REASONING_LABELS } from "../settings/use-app-model-settings.js";
 
 type SessionState = ReturnType<typeof useDesktopSessionState>;
@@ -29,8 +30,6 @@ type BuildThreadViewPropsArgs = {
     | "threadPromptOverride"
     | "attachedFiles"
     | "setAttachedFiles"
-    | "setShowScrollToBottom"
-    | "showScrollToBottom"
     | "structuredQuestions"
     | "queueSelectedThreadPrompt"
     | "submitSelectedThreadPrompt"
@@ -43,12 +42,6 @@ type BuildThreadViewPropsArgs = {
     | "reasoningOptions"
     | "handleModelSelection"
   >;
-  workspace: Pick<
-    ThreadViewProps,
-    | "activeWorkspaceRoot"
-    | "activeOperatingMode"
-    | "changeWorkspaceOperatingMode"
-  >;
   rightRail: Pick<
     ThreadViewProps,
     | "threadInteractionState"
@@ -56,8 +49,6 @@ type BuildThreadViewPropsArgs = {
     | "hasStructuredQuestions"
     | "isClarifying"
     | "rightRailChangeGroups"
-    | "showScrollToBottom"
-    | "setShowScrollToBottom"
     | "configNotices"
     | "footerStatusText"
     | "effectiveThreadBusy"
@@ -139,19 +130,20 @@ export function buildThreadViewProps({
   ui,
   composer,
   modelState,
-  workspace,
   rightRail,
   transcript,
 }: BuildThreadViewPropsArgs): ThreadViewProps | null {
-  if (!sessionState.selectedThread) {
+  perfCount("build.ThreadViewProps");
+  const selectedThread = sessionState.selectedThread;
+  if (!selectedThread) {
     return null;
   }
 
-  return {
-    selectedThreadId: sessionState.selectedThread.id,
+  return perfMeasure("build.ThreadViewProps.duration", () => ({
+    selectedThreadId: selectedThread.id,
     tenant: sessionState.tenant,
     teamSetup: sessionState.teamSetup,
-    selectedThread: sessionState.selectedThread,
+    selectedThread,
     threadInteractionState: rightRail.threadInteractionState,
     selectedThreadApprovals: sessionState.selectedThreadApprovals,
     pendingApprovals: sessionState.pendingApprovals,
@@ -177,7 +169,7 @@ export function buildThreadViewProps({
     setAttachedFiles: composer.setAttachedFiles,
     pickFiles: sessionState.pickFiles,
     queueSelectedThreadPrompt: composer.queueSelectedThreadPrompt,
-    queuedMessageCount: sessionState.selectedThread.threadInputState?.queuedMessages.length ?? 0,
+    queuedMessageCount: selectedThread.threadInputState?.queuedMessages.length ?? 0,
     submitSelectedThreadPrompt: composer.submitSelectedThreadPrompt,
     model: ui.model,
     reasoning: ui.reasoning,
@@ -198,17 +190,12 @@ export function buildThreadViewProps({
     pendingPermission: sessionState.pendingPermission,
     grantWorkspacePermission: sessionState.grantWorkspacePermission,
     cancelWorkspacePermission: sessionState.cancelWorkspacePermission,
-    activeWorkspaceRoot: workspace.activeWorkspaceRoot,
-    activeOperatingMode: workspace.activeOperatingMode,
-    changeWorkspaceOperatingMode: workspace.changeWorkspaceOperatingMode,
     rightRailChangeGroups: rightRail.rightRailChangeGroups,
     transcriptContainerRef: transcript.transcriptContainerRef,
     transcriptEndRef: transcript.transcriptEndRef,
     configNotices: rightRail.configNotices,
     footerStatusText: rightRail.footerStatusText,
-    showScrollToBottom: rightRail.showScrollToBottom,
-    setShowScrollToBottom: rightRail.setShowScrollToBottom,
-  };
+  }));
 }
 
 export function buildStartSurfaceProps({
@@ -220,7 +207,8 @@ export function buildStartSurfaceProps({
   workspace,
   threadShell,
 }: BuildStartSurfacePropsArgs): StartSurfaceProps {
-  return {
+  perfCount("build.StartSurfaceProps");
+  return perfMeasure("build.StartSurfaceProps.duration", () => ({
     accountEmail: sessionState.accountEmail,
     tenant: sessionState.tenant,
     teamSetup: sessionState.teamSetup,
@@ -283,5 +271,5 @@ export function buildStartSurfaceProps({
     taskPending: sessionState.taskPending,
     taskError: sessionState.taskError,
     refreshBootstrap: sessionState.refreshBootstrap,
-  };
+  }));
 }

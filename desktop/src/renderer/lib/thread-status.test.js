@@ -22,6 +22,25 @@ test("resolveThreadIndicatorState prefers the running state and shows queued cou
   );
 });
 
+test("resolveThreadIndicatorState does not treat historical active threads as running", () => {
+  assert.deepEqual(
+    resolveThreadIndicatorState({
+      state: "active",
+      threadInputState: {
+        queuedMessages: [],
+        hasUnseenCompletion: false,
+        lastCompletionAt: null,
+        lastCompletionStatus: null,
+      },
+    }),
+    {
+      tone: "idle",
+      queuedMessageCount: 0,
+      statusLabel: null,
+    },
+  );
+});
+
 test("resolveThreadIndicatorState surfaces unseen completions before queued state", () => {
   assert.deepEqual(
     resolveThreadIndicatorState({

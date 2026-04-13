@@ -111,8 +111,11 @@ export function createSessionBridge(ipcRenderer: IpcRenderer): SessionBridge {
         return ipcRenderer.invoke(IPC_CHANNELS.deleteDesktopThread, request) as Promise<void>;
       },
       onDelta: (listener: (delta: DesktopThreadDelta) => void): (() => void) => {
-        const wrapped = (_event: Electron.IpcRendererEvent, delta: DesktopThreadDelta) => {
-          listener(delta);
+        const wrapped = (_event: Electron.IpcRendererEvent, payload: DesktopThreadDelta | DesktopThreadDelta[]) => {
+          const deltas = Array.isArray(payload) ? payload : [payload];
+          for (const delta of deltas) {
+            listener(delta);
+          }
         };
         ipcRenderer.on(IPC_CHANNELS.threadDelta, wrapped);
         return () => {
