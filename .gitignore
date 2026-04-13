@@ -20,6 +20,8 @@
 # Test output
 /desktop/playwright-report/
 /desktop/test-results/
+/desktop/blob-report/
+/desktop/.playwright/
 
 # Local artifacts
 /output/

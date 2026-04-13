@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from "react";
+import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from "react";
 import { BrainCircuit, Mic, MicOff, Paperclip, Send, Square } from "lucide-react";
 
 import { Button } from "../ui/button";
@@ -25,8 +25,8 @@ type ThreadComposerProps = {
   changeWorkspaceOperatingMode: (mode: DesktopOperatingMode) => Promise<void>;
   extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
   taskError: string | null;
-  threadPrompt: string;
-  setThreadPrompt: Dispatch<SetStateAction<string>>;
+  selectedThreadId: string;
+  threadPromptOverride: string;
   attachedFiles: string[];
   setAttachedFiles: Dispatch<SetStateAction<string[]>>;
   pickFiles: () => Promise<string[]>;
@@ -34,7 +34,7 @@ type ThreadComposerProps = {
   availableModels: DesktopModelEntry[];
   selectedModel: string;
   handleModelSelection: (nextModel: string) => void;
-  queueSelectedThreadPrompt: () => Promise<void>;
+  queueSelectedThreadPrompt: (threadPrompt: string) => Promise<void>;
   queuedMessageCount: number;
   reasoningOptions: string[];
   REASONING_LABELS: Record<string, string>;
@@ -42,11 +42,10 @@ type ThreadComposerProps = {
   setReasoning: Dispatch<SetStateAction<string>>;
   effectiveThreadBusy: boolean;
   interruptTurn: () => Promise<void>;
-  submitSelectedThreadPrompt: () => Promise<void>;
-  submitFromComposerKey: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  submitSelectedThreadPrompt: (threadPrompt: string) => Promise<void>;
 };
 
-export function ThreadComposer({
+function ThreadComposerInner({
   tenant,
   teamSetup,
   activeWorkspaceRoot,
@@ -54,8 +53,8 @@ export function ThreadComposer({
   changeWorkspaceOperatingMode,
   extensionOverview,
   taskError,
-  threadPrompt,
-  setThreadPrompt,
+  selectedThreadId,
+  threadPromptOverride,
   attachedFiles,
   setAttachedFiles,
   pickFiles,
@@ -72,9 +71,9 @@ export function ThreadComposer({
   effectiveThreadBusy,
   interruptTurn,
   submitSelectedThreadPrompt,
-  submitFromComposerKey,
 }: ThreadComposerProps) {
   const teamIdentity = buildThreadComposerIdentity(tenant, teamSetup);
+  const [threadPrompt, setThreadPrompt] = useState(threadPromptOverride);
   const composerDisabled = !teamIdentity.canContinueThread;
   const sendDisabled = composerDisabled || !threadPrompt.trim();
   const dictation = useComposerDictation({
@@ -85,15 +84,21 @@ export function ThreadComposer({
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const [shortcutCursorIndex, setShortcutCursorIndex] = useState(threadPrompt.length);
   const [shortcutSelectionIndex, setShortcutSelectionIndex] = useState(0);
+  const deferredThreadPrompt = useDeferredValue(threadPrompt);
   const shortcutSuggestions = useMemo(
-    () => (extensionOverview ? resolvePromptShortcutSuggestions(threadPrompt, extensionOverview, shortcutCursorIndex) : []),
-    [extensionOverview, shortcutCursorIndex, threadPrompt],
+    () => (extensionOverview ? resolvePromptShortcutSuggestions(deferredThreadPrompt, extensionOverview, shortcutCursorIndex) : []),
+    [deferredThreadPrompt, extensionOverview, shortcutCursorIndex],
   );
   const visibleShortcutSuggestions = shortcutSuggestions.slice(0, 8);
 
   useEffect(() => {
+    setThreadPrompt(threadPromptOverride);
+    setShortcutCursorIndex(threadPromptOverride.length);
+  }, [selectedThreadId, threadPromptOverride]);
+
+  useEffect(() => {
     setShortcutSelectionIndex(0);
-  }, [threadPrompt, shortcutCursorIndex, shortcutSuggestions.length]);
+  }, [deferredThreadPrompt, shortcutCursorIndex, shortcutSuggestions.length]);
 
   function applyShortcutSuggestion(token: string) {
     const selectionIndex =
@@ -143,7 +148,11 @@ export function ThreadComposer({
       }
     }
 
-    submitFromComposerKey(event);
+    if (event.key !== "Enter" || event.shiftKey) {
+      return;
+    }
+    event.preventDefault();
+    void submitSelectedThreadPrompt(threadPrompt);
   }
 
   return (
@@ -200,7 +209,7 @@ export function ThreadComposer({
             suggestions={visibleShortcutSuggestions}
           />
         ) : null}
-        <ShortcutPillRow overview={extensionOverview} prompt={threadPrompt} />
+        <ShortcutPillRow overview={extensionOverview} prompt={deferredThreadPrompt} />
         <textarea
           className="min-h-[5.5rem] resize-none rounded-xl border border-line/40 bg-canvas px-3 py-2 text-sm outline-none transition-all placeholder:text-muted focus-visible:ring-[3px] focus-visible:ring-accent/30 disabled:cursor-not-allowed disabled:opacity-70"
           disabled={composerDisabled}
@@ -303,10 +312,10 @@ export function ThreadComposer({
             ) : null}
             {effectiveThreadBusy ? (
               <>
-                <Button disabled={sendDisabled} onClick={() => void queueSelectedThreadPrompt()} size="sm" variant="secondary">
+                <Button disabled={sendDisabled} onClick={() => void queueSelectedThreadPrompt(threadPrompt)} size="sm" variant="secondary">
                   Queue
                 </Button>
-                <Button aria-label="Send now to active run" disabled={sendDisabled} onClick={() => void submitSelectedThreadPrompt()} size="sm" variant="default">
+                <Button aria-label="Send now to active run" disabled={sendDisabled} onClick={() => void submitSelectedThreadPrompt(threadPrompt)} size="sm" variant="default">
                   <Send />
                   Send now
                 </Button>
@@ -315,7 +324,7 @@ export function ThreadComposer({
                 </Button>
               </>
             ) : (
-              <Button aria-label="Send message" disabled={sendDisabled} onClick={() => void submitSelectedThreadPrompt()} size="icon" variant="default">
+              <Button aria-label="Send message" disabled={sendDisabled} onClick={() => void submitSelectedThreadPrompt(threadPrompt)} size="icon" variant="default">
                 <Send />
               </Button>
             )}
@@ -325,3 +334,5 @@ export function ThreadComposer({
     </div>
   );
 }
+
+export const ThreadComposer = memo(ThreadComposerInner);

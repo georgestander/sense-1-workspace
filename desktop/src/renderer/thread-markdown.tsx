@@ -1,4 +1,4 @@
-import { Children, isValidElement, useCallback, useState, type ComponentProps, type ReactNode } from "react";
+import { Children, isValidElement, memo, useCallback, useState, type ComponentProps, type ReactNode } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -182,7 +182,7 @@ type ThreadMarkdownProps = {
   workspaceRoot?: string | null;
 };
 
-export function ThreadMarkdown({ children, className, workspaceRoot = null }: ThreadMarkdownProps) {
+function ThreadMarkdownInner({ children, className, workspaceRoot = null }: ThreadMarkdownProps) {
   if (!children?.trim()) {
     return <div className={cn("thread-markdown", className)} />;
   }
@@ -267,3 +267,5 @@ export function ThreadMarkdown({ children, className, workspaceRoot = null }: Th
     </div>
   );
 }
+
+export const ThreadMarkdown = memo(ThreadMarkdownInner);

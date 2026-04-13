@@ -1,4 +1,4 @@
-import type { Dispatch, KeyboardEvent, RefObject, SetStateAction } from "react";
+import type { Dispatch, RefObject, SetStateAction } from "react";
 import { Folder } from "lucide-react";
 
 import { folderDisplayName } from "../state/session/session-selectors.js";
@@ -7,6 +7,7 @@ import { ThreadComposer } from "./thread-view/thread-composer.js";
 import { ThreadTranscript } from "./thread-view/thread-transcript.js";
 
 export interface ThreadViewProps {
+  selectedThreadId: string;
   tenant: DesktopBootstrapTenant | null;
   teamSetup: DesktopBootstrapTeamSetup;
   selectedThread: DesktopThreadSnapshot;
@@ -30,15 +31,13 @@ export interface ThreadViewProps {
   setInputResponseText: Dispatch<SetStateAction<string>>;
   inputResponsePending: boolean;
   extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
-  threadPrompt: string;
-  setThreadPrompt: Dispatch<SetStateAction<string>>;
+  threadPromptOverride: string;
   attachedFiles: string[];
   setAttachedFiles: Dispatch<SetStateAction<string[]>>;
   pickFiles: () => Promise<string[]>;
-  queueSelectedThreadPrompt: () => Promise<void>;
+  queueSelectedThreadPrompt: (threadPrompt: string) => Promise<void>;
   queuedMessageCount: number;
-  submitSelectedThreadPrompt: () => Promise<void>;
-  submitFromComposerKey: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  submitSelectedThreadPrompt: (threadPrompt: string) => Promise<void>;
   model: string;
   reasoning: string;
   selectedModel: string;
@@ -76,6 +75,7 @@ export interface ThreadViewProps {
 
 export function ThreadView(props: ThreadViewProps) {
   const {
+    selectedThreadId,
     selectedThread,
     tenant,
     teamSetup,
@@ -95,15 +95,13 @@ export function ThreadView(props: ThreadViewProps) {
     threadInputRequest,
     respondToInputRequest,
     extensionOverview,
-    threadPrompt,
-    setThreadPrompt,
+    threadPromptOverride,
     attachedFiles,
     setAttachedFiles,
     pickFiles,
     queueSelectedThreadPrompt,
     queuedMessageCount,
     submitSelectedThreadPrompt,
-    submitFromComposerKey,
     selectedModel,
     selectedReasoning,
     setReasoning,
@@ -188,17 +186,16 @@ export function ThreadView(props: ThreadViewProps) {
         queuedMessageCount={queuedMessageCount}
         reasoningOptions={reasoningOptions}
         REASONING_LABELS={REASONING_LABELS}
+        selectedThreadId={selectedThreadId}
         selectedModel={selectedModel}
         selectedReasoning={selectedReasoning}
         setAttachedFiles={setAttachedFiles}
         setReasoning={setReasoning}
-        setThreadPrompt={setThreadPrompt}
-        submitFromComposerKey={submitFromComposerKey}
         submitSelectedThreadPrompt={submitSelectedThreadPrompt}
         taskError={taskError}
         tenant={tenant}
         teamSetup={teamSetup}
-        threadPrompt={threadPrompt}
+        threadPromptOverride={threadPromptOverride}
         attachedFiles={attachedFiles}
       />
     </>

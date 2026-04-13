@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent, type RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import type { DesktopThreadSnapshot } from "../../../main/contracts";
 import {
   buildDraftRunRequest,
@@ -43,7 +43,7 @@ export function useAppComposer({
   workspaceFolder,
 }: UseAppComposerParams) {
   const [draftPrompt, setDraftPrompt] = useState("");
-  const [threadPrompt, setThreadPrompt] = useState("");
+  const [threadPromptOverride, setThreadPromptOverride] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<string[]>([]);
   const [inputResponseText, setInputResponseText] = useState("");
   const [inputResponsePending, setInputResponsePending] = useState(false);
@@ -60,12 +60,12 @@ export function useAppComposer({
   function resetComposerState() {
     void clearSelectedThread();
     setDraftPrompt("");
-    setThreadPrompt("");
+    setThreadPromptOverride("");
     setAttachedFiles([]);
     setTaskError(null);
   }
 
-  async function submitSelectedThreadPrompt() {
+  async function submitSelectedThreadPrompt(threadPrompt: string) {
     const request = buildSelectedThreadRunRequest({
       attachedFiles,
       selectedThread,
@@ -78,7 +78,7 @@ export function useAppComposer({
       setTaskError("Finish the current run before sending attachments.");
       return;
     }
-    setThreadPrompt("");
+    setThreadPromptOverride("");
     setAttachedFiles([]);
     requestAnimationFrame(() => {
       transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -90,7 +90,7 @@ export function useAppComposer({
     await runTask(request);
   }
 
-  async function queueSelectedThreadPrompt() {
+  async function queueSelectedThreadPrompt(threadPrompt: string) {
     const request = buildSelectedThreadRunRequest({
       attachedFiles,
       selectedThread,
@@ -103,7 +103,7 @@ export function useAppComposer({
       setTaskError("Finish the current run before sending attachments.");
       return;
     }
-    setThreadPrompt("");
+    setThreadPromptOverride("");
     setAttachedFiles([]);
     requestAnimationFrame(() => {
       transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -133,19 +133,11 @@ export function useAppComposer({
     void runTask(request);
   }
 
-  function submitFromComposerKey(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key !== "Enter" || event.shiftKey) {
-      return;
-    }
-    event.preventDefault();
-    void submitSelectedThreadPrompt();
-  }
-
   return {
     draftPrompt,
     setDraftPrompt,
-    threadPrompt,
-    setThreadPrompt,
+    threadPromptOverride,
+    setThreadPrompt: setThreadPromptOverride,
     attachedFiles,
     setAttachedFiles,
     inputResponseText,
@@ -162,6 +154,5 @@ export function useAppComposer({
     queueSelectedThreadPrompt,
     submitSelectedThreadPrompt,
     submitDraftTask,
-    submitFromComposerKey,
   };
 }

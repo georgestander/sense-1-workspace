@@ -49,6 +49,13 @@ async function launchSignedInDesktop(options: {
   return { app, runtimeRoot, window };
 }
 
+async function allowWorkspaceAccessIfPrompted(window: Page) {
+  const allowThisTimeButton = window.getByRole("button", { name: "Allow this time" });
+  if (await allowThisTimeButton.isVisible().catch(() => false)) {
+    await allowThisTimeButton.click();
+  }
+}
+
 test("active run stays visible and stop works without a renderer crash", async () => {
   const workspaceRoot = path.resolve(import.meta.dirname, "..", "..");
   const { app, window } = await launchSignedInDesktop({
@@ -66,10 +73,11 @@ test("active run stays visible and stop works without a renderer crash", async (
 
     await window.getByRole("button", { name: "Choose folder" }).click();
     await window.getByRole("button", { name: "Choose a different folder" }).click();
-    await expect(window.getByText(workspaceRoot)).toBeVisible({ timeout: 10_000 });
+    await expect(window.getByText(workspaceRoot).first()).toBeVisible({ timeout: 10_000 });
 
     await window.getByPlaceholder("How can I help you today?").fill("Search this repository for every use of thread and summarize what you find.");
     await window.getByRole("button", { name: "Send prompt" }).click();
+    await allowWorkspaceAccessIfPrompted(window);
 
     await expect(window.getByRole("button", { name: "Stop run" })).toBeVisible({ timeout: 20_000 });
     await window.getByRole("button", { name: "Stop run" }).click();

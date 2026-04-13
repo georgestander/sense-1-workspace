@@ -5,3 +5,5 @@ release
 resources/codex-runtime
 playwright-report
 test-results
+blob-report
+.playwright

@@ -49,6 +49,13 @@ async function launchSignedInDesktop(options: {
   return { app, window };
 }
 
+async function allowWorkspaceAccessIfPrompted(window: Page) {
+  const allowThisTimeButton = window.getByRole("button", { name: "Allow this time" });
+  if (await allowThisTimeButton.isVisible().catch(() => false)) {
+    await allowThisTimeButton.click();
+  }
+}
+
 test("live thread keeps one prompt bubble and stays signed in during a run", async () => {
   const workspaceRoot = path.resolve(import.meta.dirname, "..", "..");
   const prompt = "stable-shell-9173: give me a one-line summary of this folder";
@@ -62,10 +69,11 @@ test("live thread keeps one prompt bubble and stays signed in during a run", asy
   try {
     await window.getByRole("button", { name: "Choose folder" }).click();
     await window.getByRole("button", { name: "Choose a different folder" }).click();
-    await expect(window.getByText(workspaceRoot)).toBeVisible({ timeout: 10_000 });
+    await expect(window.getByText(workspaceRoot).first()).toBeVisible({ timeout: 10_000 });
 
     await window.getByPlaceholder("How can I help you today?").fill(prompt);
     await window.getByRole("button", { name: "Send prompt" }).click();
+    await allowWorkspaceAccessIfPrompted(window);
 
     await expect(window.getByPlaceholder("Continue this thread...")).toBeVisible({ timeout: 20_000 });
     await expect.poll(
