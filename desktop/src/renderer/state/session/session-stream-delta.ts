@@ -16,6 +16,26 @@ type ApplyThreadDeltaDeps = {
   threadDeltaBufferRef: MutableRefObject<ThreadDeltaBuffer>;
 };
 
+function replaceThreadWithoutReordering(
+  threads: ThreadRecord[],
+  threadId: string,
+  buildNextThread: (thread: ThreadRecord) => ThreadRecord,
+): ThreadRecord[] {
+  const threadIndex = threads.findIndex((thread) => thread.id === threadId);
+  if (threadIndex === -1) {
+    return threads;
+  }
+
+  const nextThread = buildNextThread(threads[threadIndex]);
+  if (nextThread === threads[threadIndex]) {
+    return threads;
+  }
+
+  const nextThreads = [...threads];
+  nextThreads[threadIndex] = nextThread;
+  return nextThreads;
+}
+
 export function applyThreadDelta(
   delta: DesktopThreadDelta,
   deps: ApplyThreadDeltaDeps,
@@ -73,31 +93,29 @@ export function applyThreadDelta(
 
   if (delta.kind === "entryDelta") {
     deps.setThreads((current) => {
-      const thread = current.find((t) => t.id === delta.threadId);
-      if (!thread) {
-        return current;
-      }
-      const entries = thread.entries.map((entry) => {
-        if (entry.id !== delta.entryId) {
+      return replaceThreadWithoutReordering(current, delta.threadId, (thread) => {
+        const entries = thread.entries.map((entry) => {
+          if (entry.id !== delta.entryId) {
+            return entry;
+          }
+          if ("body" in entry) {
+            return { ...entry, body: entry.body + delta.append };
+          }
           return entry;
-        }
-        if ("body" in entry) {
-          return { ...entry, body: entry.body + delta.append };
-        }
-        return entry;
-      });
-      if (!entries.some((e) => e.id === delta.entryId)) {
-        entries.push({
-          id: delta.entryId,
-          kind: "assistant" as const,
-          title: "Sense-1 activity",
-          body: delta.append,
-          status: "streaming",
         });
-      }
-      return upsertThread(current, {
-        ...thread,
-        entries,
+        if (!entries.some((entry) => entry.id === delta.entryId)) {
+          entries.push({
+            id: delta.entryId,
+            kind: "assistant" as const,
+            title: "Sense-1 activity",
+            body: delta.append,
+            status: "streaming",
+          });
+        }
+        return {
+          ...thread,
+          entries,
+        };
       });
     });
     return;

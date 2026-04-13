@@ -25,12 +25,10 @@ export function useWorkspaceCollections({
   activeWorkspaceRoot,
   isSignedIn,
   selectedProfileId,
-  selectedThreadId,
 }: {
   activeWorkspaceRoot: string | null;
   isSignedIn: boolean;
   selectedProfileId: string;
-  selectedThreadId: string | null;
 }): WorkspaceCollectionsResult {
   const [projectedWorkspaces, setProjectedWorkspaces] = useState<ProjectedWorkspaceRecord[]>([]);
   const [knownWorkspaces, setKnownWorkspaces] = useState<SubstrateWorkspaceRecord[]>([]);
@@ -148,7 +146,7 @@ export function useWorkspaceCollections({
     return () => {
       isActive = false;
     };
-  }, [activeWorkspaceRoot, isSignedIn, selectedProfileId, selectedThreadId]);
+  }, [activeWorkspaceRoot, isSignedIn, selectedProfileId]);
 
   return {
     activeWorkspaceProjection,
