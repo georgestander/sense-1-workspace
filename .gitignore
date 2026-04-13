@@ -26,3 +26,4 @@
 # Local artifacts
 /output/
 /tmp/
+.worktrees
