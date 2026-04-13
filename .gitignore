@@ -13,9 +13,6 @@ CLAUDE.md
 .omx/
 .env*.local
 /docs/*
-!/docs/workspace-v1-roadmap.md
-!/docs/changelog/
-!/docs/changelog/*.md
 
 # Build output
 /desktop/dist/

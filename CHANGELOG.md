@@ -1,15 +1,11 @@
-# Sense-1 Change Log: v0.7.1
+# Changelog
 
-_Date: April 13, 2026_
+All notable changes to Sense-1 Workspace are recorded here.
 
-## Breaking changes
-- None.
+## [0.7.1] - 2026-04-13
 
-## New features
-- Added a first-class release changelog path in the repo so the desktop version,
-  roadmap baseline, and release notes now move together.
+### Fixed
 
-## Bug fixes
 - Restored live-thread responsiveness by reducing stream churn across the main
   process and renderer hot paths.
 - Kept streaming transcripts lighter while responses are still arriving so long
@@ -17,14 +13,25 @@ _Date: April 13, 2026_
 - Tightened sidebar and right-rail updates so active sessions stay responsive
   without losing tracked lifecycle and workspace state.
 
-## Other improvements
+### Changed
+
 - Simplified the composer by removing the redundant operating mode toggle.
 - Removed the repeated workspace name above the composer so the input area stays
   focused on the current thread.
 
-## Shoutouts
-- This patch is for everyone who stress-tested long live runs and surfaced the
-  lag early.
+## [0.7.0] - 2026-04-13
 
-## Fun fact of the day
-- "The shortest path to a faster UI is often making fewer things update."
+### Added
+
+- Initial standalone public release of Sense-1 Workspace.
+- Native desktop workspace shell.
+- Local folder work and persistent chat sessions.
+- Team and tenant support.
+- Automations.
+- Plugin, skill, and app management.
+- Approval, mode, and behavior settings.
+
+### Notes
+
+- macOS arm64 DMG and ZIP builds were published with GitHub-updater metadata.
+- The macOS build was ad-hoc signed and not notarized.
