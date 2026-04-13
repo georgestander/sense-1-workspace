@@ -96,7 +96,7 @@ export function RightRail(props: RightRailProps) {
     isClarifying,
   } = props;
 
-  if (!showRightRail) {
+  if (!showRightRail || !rightRailOpen) {
     return null;
   }
 
@@ -104,11 +104,7 @@ export function RightRail(props: RightRailProps) {
 
   return (
     <aside
-      className={
-        rightRailOpen
-          ? "z-20 min-h-0 shrink-0 w-80 bg-surface-soft p-4 transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:shadow-2xl"
-          : "z-20 min-h-0 shrink-0 w-0 overflow-hidden bg-surface-soft p-0 transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] max-xl:hidden"
-      }
+      className="z-20 min-h-0 shrink-0 w-80 bg-surface-soft p-4 transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:shadow-2xl"
     >
       <div className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain pr-1">
         {!isPreExecution ? (

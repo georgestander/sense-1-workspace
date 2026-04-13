@@ -26,8 +26,7 @@ type BuildThreadViewPropsArgs = {
     | "inputResponseText"
     | "setInputResponseText"
     | "inputResponsePending"
-    | "threadPrompt"
-    | "setThreadPrompt"
+    | "threadPromptOverride"
     | "attachedFiles"
     | "setAttachedFiles"
     | "setShowScrollToBottom"
@@ -35,7 +34,6 @@ type BuildThreadViewPropsArgs = {
     | "structuredQuestions"
     | "queueSelectedThreadPrompt"
     | "submitSelectedThreadPrompt"
-    | "submitFromComposerKey"
   >;
   modelState: Pick<
     ThreadViewProps,
@@ -150,6 +148,7 @@ export function buildThreadViewProps({
   }
 
   return {
+    selectedThreadId: sessionState.selectedThread.id,
     tenant: sessionState.tenant,
     teamSetup: sessionState.teamSetup,
     selectedThread: sessionState.selectedThread,
@@ -173,15 +172,13 @@ export function buildThreadViewProps({
     setInputResponseText: composer.setInputResponseText,
     inputResponsePending: composer.inputResponsePending,
     extensionOverview,
-    threadPrompt: composer.threadPrompt,
-    setThreadPrompt: composer.setThreadPrompt,
+    threadPromptOverride: composer.threadPromptOverride,
     attachedFiles: composer.attachedFiles,
     setAttachedFiles: composer.setAttachedFiles,
     pickFiles: sessionState.pickFiles,
     queueSelectedThreadPrompt: composer.queueSelectedThreadPrompt,
     queuedMessageCount: sessionState.selectedThread.threadInputState?.queuedMessages.length ?? 0,
     submitSelectedThreadPrompt: composer.submitSelectedThreadPrompt,
-    submitFromComposerKey: composer.submitFromComposerKey,
     model: ui.model,
     reasoning: ui.reasoning,
     selectedModel: modelState.selectedModel,

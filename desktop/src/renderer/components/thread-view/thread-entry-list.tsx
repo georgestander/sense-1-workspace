@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { Check, ChevronRight, Copy } from "lucide-react";
 
 import { ThreadMarkdown } from "../../thread-markdown.js";
@@ -291,10 +291,12 @@ function renderThreadEntry(entry: DesktopThreadEntry, workspaceRoot: string | nu
   );
 }
 
-export function ThreadEntryList({ entries, suppressFileChanges = false, workspaceRoot }: ThreadEntryListProps) {
+function ThreadEntryListInner({ entries, suppressFileChanges = false, workspaceRoot }: ThreadEntryListProps) {
+  const groupedEntries = useMemo(() => groupThreadEntries(entries), [entries]);
+
   return (
     <>
-      {groupThreadEntries(entries).map((grouped) =>
+      {groupedEntries.map((grouped) =>
         grouped.kind === "passthrough" ? (
           grouped.entry.kind === "fileChange" && suppressFileChanges ? null : renderThreadEntry(grouped.entry, workspaceRoot)
         ) : (
@@ -304,3 +306,5 @@ export function ThreadEntryList({ entries, suppressFileChanges = false, workspac
     </>
   );
 }
+
+export const ThreadEntryList = memo(ThreadEntryListInner);

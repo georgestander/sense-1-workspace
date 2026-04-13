@@ -144,7 +144,14 @@ export function useAppRightRail({
 
   const entryCount = selectedThread?.entries.length ?? 0;
   const lastEntry = selectedThread?.entries[entryCount - 1];
-  const lastEntryContent = lastEntry ? ("body" in lastEntry ? lastEntry.body : lastEntry.status) : "";
+  const lastEntryBodyLength =
+    lastEntry && "body" in lastEntry && typeof lastEntry.body === "string"
+      ? lastEntry.body.length
+      : 0;
+  const lastEntryScrollBucket = Math.floor(lastEntryBodyLength / 256);
+  const lastEntryAnchor = lastEntry
+    ? `${lastEntry.id}:${"status" in lastEntry ? lastEntry.status : ""}:${lastEntryScrollBucket}`
+    : "";
   useEffect(() => {
     if (!entryCount) {
       return;
@@ -157,7 +164,7 @@ export function useAppRightRail({
     if (distanceFromBottom <= TRANSCRIPT_AUTO_FOLLOW_DISTANCE_PX) {
       container.scrollTop = container.scrollHeight;
     }
-  }, [entryCount, lastEntryContent, transcriptContainerRef, transcriptEndRef]);
+  }, [entryCount, lastEntryAnchor, transcriptContainerRef, transcriptEndRef]);
 
   const rightRailProps: RightRailProps = {
     showRightRail,

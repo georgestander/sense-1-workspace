@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { FileDiff } from "lucide-react";
 
 import { cn } from "../../lib/cn";
@@ -45,56 +46,92 @@ export function RightRailContentSection({
   workspacePolicy,
   workspaceStructureRefreshing,
 }: RightRailContentSectionProps) {
-  const artifactRoots = [selectedThread?.workspaceRoot, selectedThread?.cwd]
-    .filter((rootPath): rootPath is string => typeof rootPath === "string" && rootPath.trim().length > 0);
+  const contentOpen = isRightRailSectionOpen("content");
   const folderRoot = selectedThread?.workspaceRoot ?? selectedThread?.cwd ?? "";
-  const persistedChangedFiles = persistedSessionWrittenPaths.map((filePath) => [filePath, null] as const);
-  const changeGroupFiles = rightRailChangeGroups.flatMap((group) => group.files);
-  const reviewArtifacts = rightRailThread?.reviewSummary?.changedArtifacts ?? [];
-  const reviewOutputArtifacts = rightRailThread?.reviewSummary?.outputArtifacts ?? [];
-  const reviewCreatedFiles = rightRailThread?.reviewSummary?.createdFiles ?? [];
-  const transcriptArtifacts = (selectedThread?.entries ?? []).flatMap((entry) => {
-    if (!("body" in entry) || typeof entry.body !== "string") {
+  const artifactRoots = useMemo(
+    () =>
+      [selectedThread?.workspaceRoot, selectedThread?.cwd].filter(
+        (rootPath): rootPath is string => typeof rootPath === "string" && rootPath.trim().length > 0,
+      ),
+    [selectedThread?.cwd, selectedThread?.workspaceRoot],
+  );
+  const changedFiles = useMemo(() => {
+    if (!contentOpen) {
       return [];
     }
 
-    return extractArtifactPathsFromText(entry.body, folderRoot || null);
-  });
-  const changedFileMap = new Map<string, string | null>();
-  for (const [filePath, action] of persistedChangedFiles) {
-    if (!changedFileMap.has(filePath)) changedFileMap.set(filePath, action);
-  }
-  for (const filePath of changeGroupFiles) {
-    if (!changedFileMap.has(filePath)) changedFileMap.set(filePath, null);
-  }
-  for (const artifact of [...reviewArtifacts, ...reviewOutputArtifacts, ...reviewCreatedFiles]) {
-    if (artifact.path && !changedFileMap.has(artifact.path)) {
-      changedFileMap.set(artifact.path, artifact.action);
-    } else if (artifact.path && artifact.action) {
-      changedFileMap.set(artifact.path, artifact.action);
+    const persistedChangedFiles = persistedSessionWrittenPaths.map((filePath) => [filePath, null] as const);
+    const changeGroupFiles = rightRailChangeGroups.flatMap((group) => group.files);
+    const reviewArtifacts = rightRailThread?.reviewSummary?.changedArtifacts ?? [];
+    const reviewOutputArtifacts = rightRailThread?.reviewSummary?.outputArtifacts ?? [];
+    const reviewCreatedFiles = rightRailThread?.reviewSummary?.createdFiles ?? [];
+    const transcriptArtifacts = (selectedThread?.entries ?? []).flatMap((entry) => {
+      if (!("body" in entry) || typeof entry.body !== "string") {
+        return [];
+      }
+
+      return extractArtifactPathsFromText(entry.body, folderRoot || null);
+    });
+    const changedFileMap = new Map<string, string | null>();
+    for (const [filePath, action] of persistedChangedFiles) {
+      if (!changedFileMap.has(filePath)) changedFileMap.set(filePath, action);
     }
-  }
-  for (const filePath of transcriptArtifacts) {
-    if (!changedFileMap.has(filePath)) {
-      changedFileMap.set(filePath, "created");
+    for (const filePath of changeGroupFiles) {
+      if (!changedFileMap.has(filePath)) changedFileMap.set(filePath, null);
     }
-  }
-  const changedFiles = Array.from(changedFileMap.entries()).filter(([filePath]) =>
-    isVisibleRightRailArtifactPath(filePath, artifactRoots)
-  );
-  const recentFilePaths = filterVisibleRightRailArtifactPaths(
-    activeWorkspaceProjection?.recent_file_paths ?? [],
+    for (const artifact of [...reviewArtifacts, ...reviewOutputArtifacts, ...reviewCreatedFiles]) {
+      if (artifact.path && !changedFileMap.has(artifact.path)) {
+        changedFileMap.set(artifact.path, artifact.action);
+      } else if (artifact.path && artifact.action) {
+        changedFileMap.set(artifact.path, artifact.action);
+      }
+    }
+    for (const filePath of transcriptArtifacts) {
+      if (!changedFileMap.has(filePath)) {
+        changedFileMap.set(filePath, "created");
+      }
+    }
+
+    return Array.from(changedFileMap.entries()).filter(([filePath]) =>
+      isVisibleRightRailArtifactPath(filePath, artifactRoots),
+    );
+  }, [
     artifactRoots,
-  );
+    contentOpen,
+    folderRoot,
+    persistedSessionWrittenPaths,
+    rightRailChangeGroups,
+    rightRailThread?.reviewSummary?.changedArtifacts,
+    rightRailThread?.reviewSummary?.createdFiles,
+    rightRailThread?.reviewSummary?.outputArtifacts,
+    selectedThread?.entries,
+  ]);
+  const recentFilePaths = useMemo(() => {
+    if (!contentOpen) {
+      return [];
+    }
+
+    return filterVisibleRightRailArtifactPaths(activeWorkspaceProjection?.recent_file_paths ?? [], artifactRoots);
+  }, [activeWorkspaceProjection?.recent_file_paths, artifactRoots, contentOpen]);
   const hasChangedFiles = changedFiles.length > 0;
   const hasAttachedFiles = attachedFiles.length > 0;
   const hasRecentFiles = recentFilePaths.length > 0;
-  const workspaceStructure = (workspacePolicy?.known_structure ?? []).filter((entry) =>
-    isVisibleRightRailArtifactPath(entry.path, artifactRoots)
-  );
+  const workspaceStructure = useMemo(() => {
+    if (!contentOpen) {
+      return [];
+    }
+
+    return (workspacePolicy?.known_structure ?? []).filter((entry) =>
+      isVisibleRightRailArtifactPath(entry.path, artifactRoots),
+    );
+  }, [artifactRoots, contentOpen, workspacePolicy?.known_structure]);
   const hasWorkspaceStructure = workspaceStructure.length > 0;
   const canRefreshWorkspaceStructure = Boolean(selectedThread?.workspaceRoot && workspacePolicy?.read_granted === 1);
   const showEmptyWorkspaceState = canRefreshWorkspaceStructure && !hasWorkspaceStructure;
+  if (!hasChangedFiles && !hasAttachedFiles && !hasRecentFiles && !hasWorkspaceStructure && !showEmptyWorkspaceState && !contentOpen) {
+    return null;
+  }
+
   if (!hasChangedFiles && !hasAttachedFiles && !hasRecentFiles && !hasWorkspaceStructure && !showEmptyWorkspaceState) {
     return null;
   }
@@ -128,7 +165,7 @@ export function RightRailContentSection({
     <RightRailSection
       bodyClassName="min-h-0"
       onToggle={() => toggleRightRailSection("content")}
-      open={isRightRailSectionOpen("content")}
+      open={contentOpen}
       title="Content"
     >
       <div className="space-y-1">
