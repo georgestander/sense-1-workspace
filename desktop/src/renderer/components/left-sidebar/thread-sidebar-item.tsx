@@ -4,8 +4,8 @@ import { Archive, CheckCircle2, Folder, LoaderCircle, MoreHorizontal, Pencil, Tr
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { cn } from "../../lib/cn";
+import type { WorkspaceSidebarThreadSummary } from "../../features/workspace/workspace-sidebar.js";
 import { folderDisplayName } from "../../state/session/session-selectors.js";
-import { type DesktopThreadSnapshot } from "../../../main/contracts";
 import { getThreadListStatus } from "../../lib/thread-list-status.ts";
 
 export type ThreadSidebarItemProps = {
@@ -24,7 +24,7 @@ export type ThreadSidebarItemProps = {
   onToggleMenu: () => void;
   renameValue: string;
   renaming: boolean;
-  thread: DesktopThreadSnapshot;
+  thread: WorkspaceSidebarThreadSummary;
 };
 
 export function ThreadSidebarItem({

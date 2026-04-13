@@ -3,10 +3,14 @@ import { ChevronDown, Plus, PlugZap, CalendarClock, Settings, LogOut, UserCircle
 
 import { Button } from "./ui/button";
 import { cn } from "../lib/cn";
+import type { ThreadRenameTarget } from "../features/threads/use-thread-shell.js";
 import { type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopThreadSnapshot } from "../../main/contracts";
 import { ThreadSidebarItem } from "./left-sidebar/thread-sidebar-item.js";
 import { WorkspaceSidebarGroup } from "./left-sidebar/workspace-sidebar-group.js";
-import { type WorkspaceSidebarGroup as WorkspaceSidebarGroupType } from "../features/workspace/workspace-sidebar.js";
+import {
+  type WorkspaceSidebarGroup as WorkspaceSidebarGroupType,
+  type WorkspaceSidebarThreadSummary,
+} from "../features/workspace/workspace-sidebar.js";
 import { buildSidebarIdentity } from "../state/session/tenant-identity.js";
 
 export type LeftSidebarProps = {
@@ -18,15 +22,15 @@ export type LeftSidebarProps = {
   noThreadSearchMatches: boolean;
   trimmedSearchQuery: string;
   workspaceThreadGroups: {
-    workspaces: WorkspaceSidebarGroupType<DesktopThreadSnapshot>[];
-    standalone: DesktopThreadSnapshot[];
+    workspaces: WorkspaceSidebarGroupType<WorkspaceSidebarThreadSummary>[];
+    standalone: WorkspaceSidebarThreadSummary[];
   };
   expandedWorkspaces: Record<string, boolean>;
   toggleWorkspaceExpanded: (root: string) => void;
   activeWorkspaceRoot: string | null;
   selectedThread: DesktopThreadSnapshot | null;
   selectThread: (threadId: string) => Promise<void> | void;
-  openThreadRename: (thread: DesktopThreadSnapshot) => void;
+  openThreadRename: (thread: ThreadRenameTarget) => void;
   threadRenameId: string | null;
   threadRenameDraft: string;
   setThreadRenameDraft: (value: string) => void;

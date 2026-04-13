@@ -2,13 +2,18 @@ import type { DragEvent } from "react";
 import { ChevronDown, ChevronRight, FolderArchive, FolderOpen, GripVertical, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 
 import { cn } from "../../lib/cn";
+import type { ThreadRenameTarget } from "../../features/threads/use-thread-shell.js";
 import { folderDisplayName } from "../../state/session/session-selectors.js";
-import { isWorkspaceSidebarGroupExpanded, type WorkspaceSidebarGroup } from "../../features/workspace/workspace-sidebar.js";
+import {
+  isWorkspaceSidebarGroupExpanded,
+  type WorkspaceSidebarGroup,
+  type WorkspaceSidebarThreadSummary,
+} from "../../features/workspace/workspace-sidebar.js";
 import { type DesktopThreadSnapshot } from "../../../main/contracts";
 import { ThreadSidebarItem } from "./thread-sidebar-item.js";
 
 export type WorkspaceSidebarGroupProps = {
-  group: WorkspaceSidebarGroup<DesktopThreadSnapshot>;
+  group: WorkspaceSidebarGroup<WorkspaceSidebarThreadSummary>;
   expandedWorkspaces: Record<string, boolean>;
   toggleWorkspaceExpanded: (root: string) => void;
   activeWorkspaceRoot: string | null;
@@ -34,7 +39,7 @@ export type WorkspaceSidebarGroupProps = {
   threadRenameId: string | null;
   threadRenameDraft: string;
   setThreadRenameDraft: (value: string) => void;
-  openThreadRename: (thread: DesktopThreadSnapshot) => void;
+  openThreadRename: (thread: ThreadRenameTarget) => void;
   submitThreadRename: (threadId: string) => Promise<void> | void;
   cancelThreadRename: () => void;
   handleArchiveThread: (threadId: string) => Promise<void> | void;

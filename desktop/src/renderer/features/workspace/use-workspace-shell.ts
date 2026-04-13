@@ -1,4 +1,4 @@
-import { useRef, useState, type Dispatch, type DragEvent, type SetStateAction } from "react";
+import { useMemo, useRef, useState, type Dispatch, type DragEvent, type SetStateAction } from "react";
 
 import type {
   DesktopOperatingMode,
@@ -15,6 +15,8 @@ import {
   resolveVisibleStandaloneSidebarThreads,
   resolveVisibleWorkspaceSidebarGroups,
   shouldHideWorkspaceSidebarGroups,
+  toWorkspaceSidebarThreadSummary,
+  type WorkspaceSidebarThreadSummary,
 } from "./workspace-sidebar.ts";
 import {
   buildWorkspaceIdByRoot,
@@ -80,14 +82,14 @@ type UseWorkspaceShellResult = {
   sidebarWorkspaceMenuOpenId: string | null;
   toggleWorkspaceExpanded: (root: string) => void;
   visibleWorkspaceThreadGroups: {
-    workspaces: ReturnType<typeof buildWorkspaceSidebarGroups<DesktopThreadSnapshot>>["workspaces"];
-    standalone: DesktopThreadSnapshot[];
+    workspaces: ReturnType<typeof buildWorkspaceSidebarGroups<WorkspaceSidebarThreadSummary>>["workspaces"];
+    standalone: WorkspaceSidebarThreadSummary[];
   };
   workspaceArchivePendingId: string | null;
   workspaceDeletePendingId: string | null;
   workspaceIdByRoot: Record<string, string>;
   workspaceRestorePendingId: string | null;
-  workspaceThreadGroups: ReturnType<typeof buildWorkspaceSidebarGroups<DesktopThreadSnapshot>>;
+  workspaceThreadGroups: ReturnType<typeof buildWorkspaceSidebarGroups<WorkspaceSidebarThreadSummary>>;
 };
 
 export function useWorkspaceShell({
@@ -160,11 +162,18 @@ export function useWorkspaceShell({
     workInFolder,
   });
 
-  const workspaceThreadGroups = buildWorkspaceSidebarGroups({
-    threads: filteredThreads,
-    savedOrder: workspaceSidebarOrder,
-    activeWorkspaceRoot,
-  });
+  const filteredSidebarThreads = useMemo(
+    () => filteredThreads.map((thread) => toWorkspaceSidebarThreadSummary(thread)),
+    [filteredThreads],
+  );
+  const workspaceThreadGroups = useMemo(
+    () => buildWorkspaceSidebarGroups({
+      threads: filteredSidebarThreads,
+      savedOrder: workspaceSidebarOrder,
+      activeWorkspaceRoot,
+    }),
+    [activeWorkspaceRoot, filteredSidebarThreads, workspaceSidebarOrder],
+  );
   const hideWorkspaceSidebarGroups = shouldHideWorkspaceSidebarGroups(
     selectedThread?.id ?? null,
     selectedThread?.workspaceRoot ?? null,

@@ -26,6 +26,10 @@ type DesktopWorkspacePolicyServiceOptions = {
   readonly workspaceState: DesktopWorkspaceStateService;
 };
 
+function shouldLogWorkspacePolicy(env: NodeJS.ProcessEnv): boolean {
+  return env.SENSE1_DEBUG_WORKSPACE_POLICY === "1";
+}
+
 export class DesktopWorkspacePolicyService {
   readonly #env: NodeJS.ProcessEnv;
   readonly #resolveProfile: () => Promise<{ id: string }>;
@@ -78,7 +82,9 @@ export class DesktopWorkspacePolicyService {
       });
     }
 
-    console.log("[sense1:workspace-policy]", rootPath, JSON.stringify(policy));
+    if (shouldLogWorkspacePolicy(this.#env)) {
+      console.log("[sense1:workspace-policy]", rootPath, JSON.stringify(policy));
+    }
     return { policy };
   }
 

@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction, RefObject } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction, type RefObject } from "react";
 import { Asterisk, ChevronDown, Folder, Sparkles } from "lucide-react";
 
 import { Button } from "../ui/button";
@@ -31,8 +31,6 @@ type ThreadTranscriptProps = {
   configNotices: Array<{ id: number; text: string }>;
   footerStatusText: string;
   effectiveThreadBusy: boolean;
-  showScrollToBottom: boolean;
-  setShowScrollToBottom: Dispatch<SetStateAction<boolean>>;
   pendingPermission: {
     rootPath: string;
     displayName: string;
@@ -176,12 +174,11 @@ export function ThreadTranscript({
   configNotices,
   footerStatusText,
   effectiveThreadBusy,
-  showScrollToBottom,
-  setShowScrollToBottom,
   pendingPermission,
   grantWorkspacePermission,
   cancelWorkspacePermission,
 }: ThreadTranscriptProps) {
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const threadFolderRoot = selectedThread.workspaceRoot ?? selectedThread.cwd ?? null;
   const hasReviewArtifacts = shouldShowReviewArtifacts({
     effectiveThreadBusy,
@@ -189,6 +186,10 @@ export function ThreadTranscript({
     rightRailChangeGroups,
     threadInteractionState,
   });
+
+  useEffect(() => {
+    setShowScrollToBottom(false);
+  }, [selectedThread.id]);
 
   return (
     <>
@@ -198,7 +199,8 @@ export function ThreadTranscript({
         onScroll={(event) => {
           const el = event.currentTarget;
           const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-          setShowScrollToBottom(distanceFromBottom > 300);
+          const nextShowScrollToBottom = distanceFromBottom > 300;
+          setShowScrollToBottom((current) => current === nextShowScrollToBottom ? current : nextShowScrollToBottom);
         }}
       >
         <div className="flex w-full flex-col gap-2.5 pb-10">

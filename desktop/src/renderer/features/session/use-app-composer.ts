@@ -72,22 +72,24 @@ export function useAppComposer({
       threadPrompt,
     });
     if (!request) {
-      return;
+      return false;
     }
     if (effectiveThreadBusy && attachedFiles.length > 0) {
       setTaskError("Finish the current run before sending attachments.");
-      return;
+      return false;
     }
     setThreadPromptOverride("");
     setAttachedFiles([]);
+    setTaskError(null);
     requestAnimationFrame(() => {
       transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
     });
     if (effectiveThreadBusy) {
       await steerTurn(request.prompt);
-      return;
+      return true;
     }
     await runTask(request);
+    return true;
   }
 
   async function queueSelectedThreadPrompt(threadPrompt: string) {
@@ -97,18 +99,20 @@ export function useAppComposer({
       threadPrompt,
     });
     if (!request) {
-      return;
+      return false;
     }
     if (attachedFiles.length > 0) {
       setTaskError("Finish the current run before sending attachments.");
-      return;
+      return false;
     }
     setThreadPromptOverride("");
     setAttachedFiles([]);
+    setTaskError(null);
     requestAnimationFrame(() => {
       transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
     });
     await queueTurnInput(request.prompt);
+    return true;
   }
 
   function submitDraftTask() {

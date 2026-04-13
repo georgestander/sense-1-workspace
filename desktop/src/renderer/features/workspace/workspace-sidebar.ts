@@ -1,9 +1,30 @@
+import type { DesktopThreadSnapshot } from "../../../main/contracts";
+
 export type WorkspaceSidebarThread = {
   readonly id: string;
   readonly title: string;
   readonly updatedAt: string;
   readonly workspaceRoot?: string | null;
 };
+
+export type WorkspaceSidebarThreadSummary = Pick<
+  DesktopThreadSnapshot,
+  "id" | "title" | "updatedAt" | "updatedLabel" | "workspaceRoot" | "state" | "threadInputState"
+>;
+
+export function toWorkspaceSidebarThreadSummary(
+  thread: WorkspaceSidebarThreadSummary,
+): WorkspaceSidebarThreadSummary {
+  return {
+    id: thread.id,
+    title: thread.title,
+    updatedAt: thread.updatedAt,
+    updatedLabel: thread.updatedLabel,
+    workspaceRoot: thread.workspaceRoot,
+    state: thread.state,
+    threadInputState: thread.threadInputState,
+  };
+}
 
 export type WorkspaceSidebarGroup<T extends WorkspaceSidebarThread = WorkspaceSidebarThread> = {
   readonly root: string;

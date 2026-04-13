@@ -8,6 +8,7 @@ import {
 } from "./thread-shell-actions.js";
 
 type ThreadMenuSetter = (value: SetStateAction<string | null>) => void;
+export type ThreadRenameTarget = Pick<DesktopThreadSnapshot, "id" | "title">;
 
 type UseThreadShellParams = {
   selectedThreadId: string | null;
@@ -53,7 +54,7 @@ export function useThreadShell({
     setHomeThreadMenuOpenId(null);
   }
 
-  function openThreadRename(thread: DesktopThreadSnapshot) {
+  function openThreadRename(thread: ThreadRenameTarget) {
     closeThreadMenus();
     setThreadRenameId(thread.id);
     setThreadRenameDraft(thread.title);

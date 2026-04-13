@@ -35,9 +35,9 @@ export interface ThreadViewProps {
   attachedFiles: string[];
   setAttachedFiles: Dispatch<SetStateAction<string[]>>;
   pickFiles: () => Promise<string[]>;
-  queueSelectedThreadPrompt: (threadPrompt: string) => Promise<void>;
+  queueSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
   queuedMessageCount: number;
-  submitSelectedThreadPrompt: (threadPrompt: string) => Promise<void>;
+  submitSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
   model: string;
   reasoning: string;
   selectedModel: string;
@@ -66,8 +66,6 @@ export interface ThreadViewProps {
   transcriptEndRef: RefObject<HTMLDivElement | null>;
   configNotices: Array<{ id: number; text: string }>;
   footerStatusText: string;
-  showScrollToBottom: boolean;
-  setShowScrollToBottom: Dispatch<SetStateAction<boolean>>;
 }
 
 export function ThreadView(props: ThreadViewProps) {
@@ -118,8 +116,6 @@ export function ThreadView(props: ThreadViewProps) {
     transcriptEndRef,
     configNotices,
     footerStatusText,
-    showScrollToBottom,
-    setShowScrollToBottom,
   } = props;
   const threadFolderRoot = selectedThread.workspaceRoot ?? selectedThread.cwd ?? null;
 
@@ -156,8 +152,6 @@ export function ThreadView(props: ThreadViewProps) {
         setClarificationAnswer={setClarificationAnswer}
         setClarificationPending={setClarificationPending}
         setSelectedChipIndex={setSelectedChipIndex}
-        setShowScrollToBottom={setShowScrollToBottom}
-        showScrollToBottom={showScrollToBottom}
         structuredQuestions={structuredQuestions}
         threadInteractionState={threadInteractionState}
         threadInputRequest={threadInputRequest}

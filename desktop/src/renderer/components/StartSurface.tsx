@@ -1,7 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { DesktopBootstrapTeamSetup, DesktopBootstrapTenant, DesktopExtensionOverviewResult, DesktopModelEntry, DesktopThreadSnapshot, ProjectedSessionRecord, ProjectedWorkspaceRecord, SubstrateSessionRecord, SubstrateWorkspaceRecord } from "../../main/contracts";
+import type { ThreadRenameTarget } from "../features/threads/use-thread-shell.js";
 import { type FolderOption } from "../state/session/session-types.js";
-import { type WorkspaceSidebarGroup } from "../features/workspace/workspace-sidebar.js";
+import { type WorkspaceSidebarGroup, type WorkspaceSidebarThreadSummary } from "../features/workspace/workspace-sidebar.js";
 import { StartSurfaceCollectionsPanel, StartSurfaceLaunchPanel } from "./start-surface/StartSurfacePanels";
 
 export type StartSurfaceProps = {
@@ -46,8 +47,8 @@ export type StartSurfaceProps = {
   recentFolders: FolderOption[];
   threads: DesktopThreadSnapshot[];
   workspaceThreadGroups: {
-    workspaces: WorkspaceSidebarGroup<DesktopThreadSnapshot>[];
-    standalone: DesktopThreadSnapshot[];
+    workspaces: WorkspaceSidebarGroup<WorkspaceSidebarThreadSummary>[];
+    standalone: WorkspaceSidebarThreadSummary[];
     baseOrder: string[];
     displayOrder: string[];
   };
@@ -62,7 +63,7 @@ export type StartSurfaceProps = {
   handleDeleteThread: (threadId: string) => Promise<void>;
   threadDeletePendingId: string | null;
   threadRestorePendingId: string | null;
-  openThreadRename: (thread: DesktopThreadSnapshot) => void;
+  openThreadRename: (thread: ThreadRenameTarget) => void;
   cancelThreadRename: () => void;
   submitThreadRename: (threadId: string) => Promise<void>;
   selectThread: (threadId: string) => void;

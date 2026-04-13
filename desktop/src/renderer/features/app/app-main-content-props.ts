@@ -29,8 +29,6 @@ type BuildThreadViewPropsArgs = {
     | "threadPromptOverride"
     | "attachedFiles"
     | "setAttachedFiles"
-    | "setShowScrollToBottom"
-    | "showScrollToBottom"
     | "structuredQuestions"
     | "queueSelectedThreadPrompt"
     | "submitSelectedThreadPrompt"
@@ -50,8 +48,6 @@ type BuildThreadViewPropsArgs = {
     | "hasStructuredQuestions"
     | "isClarifying"
     | "rightRailChangeGroups"
-    | "showScrollToBottom"
-    | "setShowScrollToBottom"
     | "configNotices"
     | "footerStatusText"
     | "effectiveThreadBusy"
@@ -196,8 +192,6 @@ export function buildThreadViewProps({
     transcriptEndRef: transcript.transcriptEndRef,
     configNotices: rightRail.configNotices,
     footerStatusText: rightRail.footerStatusText,
-    showScrollToBottom: rightRail.showScrollToBottom,
-    setShowScrollToBottom: rightRail.setShowScrollToBottom,
   };
 }
 

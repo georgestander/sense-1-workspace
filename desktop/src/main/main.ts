@@ -39,6 +39,7 @@ const runtimeInfo = {
   platform: process.platform,
   startedAt: appStartedAt,
 };
+const SHOULD_LOG_RUNTIME_EVENTS = process.env.SENSE1_DEBUG_RUNTIME_EVENTS === "1";
 const threadAccumulator = new ThreadStateAccumulator();
 const threadInputQueue = new ThreadInputQueueService();
 const workspaceFileActivity = new WorkspaceFileActivityTracker();
@@ -384,7 +385,7 @@ appServerManager.on("transport:error", (error) => {
 
 appServerManager.on("notification", (message) => {
   // Log key lifecycle events (not streaming deltas) for debugging
-  if (message && typeof message === "object" && "method" in message) {
+  if (SHOULD_LOG_RUNTIME_EVENTS && message && typeof message === "object" && "method" in message) {
     const m = String(message.method);
     if (!m.includes("/delta") && !m.includes("rateLimits") && !m.includes("tokenUsage")) {
       console.log(`[sense1:event] ${m}`);

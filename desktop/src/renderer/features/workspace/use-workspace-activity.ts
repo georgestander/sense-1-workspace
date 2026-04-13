@@ -40,6 +40,10 @@ export function useWorkspaceActivity({
     ),
     [selectedThreadId, workspaceSessions],
   );
+  const selectedWorkspaceSessionId = useMemo(
+    () => resolveSessionId(selectedWorkspaceSession),
+    [selectedWorkspaceSession],
+  );
 
   function extractWrittenPath(event: SubstrateEventRecord): string | null {
     if (event.verb !== "file.write") {
@@ -80,14 +84,13 @@ export function useWorkspaceActivity({
 
     void (async () => {
       try {
-        const recentSessionsResult = selectedWorkspaceSession
+        const recentSessionsResult = selectedWorkspaceSessionId
           ? null
           : await bridge.substrate.recentSessions({ limit: 200 });
         const fallbackSession = Array.isArray(recentSessionsResult?.sessions)
           ? recentSessionsResult.sessions.find((session: { codex_thread_id?: string | null }) => session.codex_thread_id === selectedThreadId) ?? null
           : null;
-        const session = selectedWorkspaceSession ?? fallbackSession;
-        const sessionId = resolveSessionId(session);
+        const sessionId = selectedWorkspaceSessionId ?? resolveSessionId(fallbackSession);
         if (!sessionId || requestId !== activityRequestIdRef.current || !isActive) {
           if (isActive) {
             setPersistedSessionWrittenPaths([]);
@@ -151,7 +154,7 @@ export function useWorkspaceActivity({
     return () => {
       isActive = false;
     };
-  }, [selectedThreadId, selectedWorkspaceSession]);
+  }, [selectedThreadId, selectedWorkspaceSessionId]);
 
   useEffect(() => {
     const rootPath = selectedThreadWorkspaceRoot;

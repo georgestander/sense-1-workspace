@@ -23,7 +23,7 @@ type ThreadComposerProps = {
   availableModels: DesktopModelEntry[];
   selectedModel: string;
   handleModelSelection: (nextModel: string) => void;
-  queueSelectedThreadPrompt: (threadPrompt: string) => Promise<void>;
+  queueSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
   queuedMessageCount: number;
   reasoningOptions: string[];
   REASONING_LABELS: Record<string, string>;
@@ -31,7 +31,7 @@ type ThreadComposerProps = {
   setReasoning: Dispatch<SetStateAction<string>>;
   effectiveThreadBusy: boolean;
   interruptTurn: () => Promise<void>;
-  submitSelectedThreadPrompt: (threadPrompt: string) => Promise<void>;
+  submitSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
 };
 
 function ThreadComposerInner({
@@ -138,7 +138,35 @@ function ThreadComposerInner({
       return;
     }
     event.preventDefault();
-    void submitSelectedThreadPrompt(threadPrompt);
+    void handleSubmit();
+  }
+
+  async function handleSubmit() {
+    const submittedPrompt = threadPrompt.trim();
+    if (!submittedPrompt) {
+      return;
+    }
+    const didSubmit = await submitSelectedThreadPrompt(submittedPrompt);
+    if (!didSubmit) {
+      return;
+    }
+    setThreadPrompt("");
+    setShortcutCursorIndex(0);
+    setShortcutSelectionIndex(0);
+  }
+
+  async function handleQueue() {
+    const queuedPrompt = threadPrompt.trim();
+    if (!queuedPrompt) {
+      return;
+    }
+    const didQueue = await queueSelectedThreadPrompt(queuedPrompt);
+    if (!didQueue) {
+      return;
+    }
+    setThreadPrompt("");
+    setShortcutCursorIndex(0);
+    setShortcutSelectionIndex(0);
   }
 
   return (
@@ -272,10 +300,10 @@ function ThreadComposerInner({
             ) : null}
             {effectiveThreadBusy ? (
               <>
-                <Button disabled={sendDisabled} onClick={() => void queueSelectedThreadPrompt(threadPrompt)} size="sm" variant="secondary">
+                <Button disabled={sendDisabled} onClick={() => void handleQueue()} size="sm" variant="secondary">
                   Queue
                 </Button>
-                <Button aria-label="Send now to active run" disabled={sendDisabled} onClick={() => void submitSelectedThreadPrompt(threadPrompt)} size="sm" variant="default">
+                <Button aria-label="Send now to active run" disabled={sendDisabled} onClick={() => void handleSubmit()} size="sm" variant="default">
                   <Send />
                   Send now
                 </Button>
@@ -284,7 +312,7 @@ function ThreadComposerInner({
                 </Button>
               </>
             ) : (
-              <Button aria-label="Send message" disabled={sendDisabled} onClick={() => void submitSelectedThreadPrompt(threadPrompt)} size="icon" variant="default">
+              <Button aria-label="Send message" disabled={sendDisabled} onClick={() => void handleSubmit()} size="icon" variant="default">
                 <Send />
               </Button>
             )}

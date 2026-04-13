@@ -2,8 +2,9 @@ import type { Dispatch, SetStateAction } from "react";
 import { FolderArchive, FolderOpen, MoreHorizontal, RotateCcw, Trash2 } from "lucide-react";
 
 import { Button } from "../ui/button";
+import type { ThreadRenameTarget } from "../../features/threads/use-thread-shell.js";
 import type { DesktopThreadSnapshot, SubstrateSessionRecord, SubstrateWorkspaceRecord } from "../../../main/contracts";
-import type { WorkspaceSidebarGroup } from "../../features/workspace/workspace-sidebar.js";
+import type { WorkspaceSidebarGroup, WorkspaceSidebarThreadSummary } from "../../features/workspace/workspace-sidebar.js";
 import { formatSessionActivity } from "./start-surface-utils.js";
 import { ThreadSidebarItem } from "./thread-sidebar-item.js";
 
@@ -11,8 +12,8 @@ export type StartSurfaceCollectionsPanelProps = {
   workInFolder: boolean;
   workspaceFolder: string | null;
   workspaceThreadGroups: {
-    workspaces: WorkspaceSidebarGroup<DesktopThreadSnapshot>[];
-    standalone: DesktopThreadSnapshot[];
+    workspaces: WorkspaceSidebarGroup<WorkspaceSidebarThreadSummary>[];
+    standalone: WorkspaceSidebarThreadSummary[];
     baseOrder: string[];
     displayOrder: string[];
   };
@@ -37,7 +38,7 @@ export type StartSurfaceCollectionsPanelProps = {
   handleDeleteThread: (threadId: string) => Promise<void>;
   threadDeletePendingId: string | null;
   threadRestorePendingId: string | null;
-  openThreadRename: (thread: DesktopThreadSnapshot) => void;
+  openThreadRename: (thread: ThreadRenameTarget) => void;
   cancelThreadRename: () => void;
   submitThreadRename: (threadId: string) => Promise<void>;
   selectThread: (threadId: string) => void;
