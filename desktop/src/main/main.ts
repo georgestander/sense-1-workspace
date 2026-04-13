@@ -23,6 +23,10 @@ import { resolveDesktopInteractionState } from "./session/interaction-state.ts";
 import { ThreadInputQueueService } from "./session/thread-input-queue-service.ts";
 import { resolveBootstrapVisibleThreadId, shouldRestoreQueuedFollowUp } from "./session/thread-runtime-behavior.ts";
 import { RuntimeFileChangeTracker } from "./session/runtime-file-change-tracker.ts";
+import {
+  coalesceRuntimeNotifications,
+  type RuntimeNotification,
+} from "./session/runtime-notification-coalescer.ts";
 import type { DesktopBootstrap, DesktopSteerTurnResult, DesktopTaskRunResult, DesktopThreadInputState, DesktopThreadReadResult, DesktopThreadSnapshot, DesktopThreadSummary } from "../shared/contracts/index";
 
 const DESKTOP_APP_NAME = "Sense-1 Workspace";
@@ -40,6 +44,8 @@ const runtimeInfo = {
   startedAt: appStartedAt,
 };
 const SHOULD_LOG_RUNTIME_EVENTS = process.env.SENSE1_DEBUG_RUNTIME_EVENTS === "1";
+const SHOULD_DEBUG_RUNTIME_PERF = process.env.SENSE1_DEBUG_PERF === "1";
+const ACCUMULATOR_STREAM_FLUSH_MS = 16;
 const threadAccumulator = new ThreadStateAccumulator();
 const threadInputQueue = new ThreadInputQueueService();
 const workspaceFileActivity = new WorkspaceFileActivityTracker();
@@ -50,6 +56,31 @@ const workspaceState = new DesktopWorkspaceStateService({
 });
 let updateService = createDisabledUpdateService();
 let currentVisibleThreadId: string | null = null;
+const runtimePerfCounters = new Map<string, number>();
+let runtimePerfLastFlushAt = Date.now();
+let pendingAccumulatorNotifications: RuntimeNotification[] = [];
+let pendingAccumulatorFlushTimer: NodeJS.Timeout | null = null;
+
+function recordRuntimePerfCounter(name: string): void {
+  if (!SHOULD_DEBUG_RUNTIME_PERF) {
+    return;
+  }
+
+  runtimePerfCounters.set(name, (runtimePerfCounters.get(name) ?? 0) + 1);
+  const now = Date.now();
+  if (now - runtimePerfLastFlushAt < 2000) {
+    return;
+  }
+
+  const snapshot = [...runtimePerfCounters.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 12)
+    .map(([counter, count]) => ({ counter, count }));
+  if (snapshot.length > 0) {
+    console.info("[sense1:perf:main]", snapshot);
+  }
+  runtimePerfLastFlushAt = now;
+}
 
 function createNoopUpdater() {
   return {
@@ -57,6 +88,80 @@ function createNoopUpdater() {
     quitAndInstall: () => {},
     on: () => undefined,
   };
+}
+
+function flushAccumulatorNotifications(): void {
+  if (pendingAccumulatorFlushTimer) {
+    clearTimeout(pendingAccumulatorFlushTimer);
+    pendingAccumulatorFlushTimer = null;
+  }
+
+  if (pendingAccumulatorNotifications.length === 0) {
+    return;
+  }
+
+  const notifications = coalesceRuntimeNotifications(pendingAccumulatorNotifications);
+  pendingAccumulatorNotifications = [];
+  const touchedThreadIds = new Set<string>();
+
+  for (const notification of notifications) {
+    processAccumulatorNotification(notification, touchedThreadIds);
+  }
+
+  syncUpdaterBusyState();
+  for (const threadId of touchedThreadIds) {
+    void persistInteractionState(threadId).catch(() => {});
+  }
+}
+
+function scheduleAccumulatorNotificationFlush(): void {
+  if (pendingAccumulatorFlushTimer) {
+    return;
+  }
+
+  pendingAccumulatorFlushTimer = setTimeout(() => {
+    pendingAccumulatorFlushTimer = null;
+    flushAccumulatorNotifications();
+  }, ACCUMULATOR_STREAM_FLUSH_MS);
+}
+
+function processAccumulatorNotification(
+  notification: RuntimeNotification,
+  touchedThreadIds: Set<string>,
+): void {
+  if (notification && typeof notification === "object" && "method" in notification) {
+    recordRuntimePerfCounter(`accumulator.${String(notification.method)}`);
+  }
+
+  const deltas = threadAccumulator.applyNotification(notification);
+  for (const delta of deltas) {
+    emitDesktopThreadDelta(delta);
+  }
+
+  const params =
+    notification && typeof notification === "object" && "params" in notification && notification.params && typeof notification.params === "object"
+      ? notification.params as { threadId?: string }
+      : null;
+  const threadId = typeof params?.threadId === "string" ? params.threadId.trim() : "";
+  if (threadId && deltas.length > 0) {
+    touchedThreadIds.add(threadId);
+  }
+}
+
+function enqueueAccumulatorNotification(notification: RuntimeNotification): void {
+  if (notification?.method === "item/agentMessage/delta") {
+    pendingAccumulatorNotifications.push(notification);
+    scheduleAccumulatorNotificationFlush();
+    return;
+  }
+
+  flushAccumulatorNotifications();
+  const touchedThreadIds = new Set<string>();
+  processAccumulatorNotification(notification, touchedThreadIds);
+  syncUpdaterBusyState();
+  for (const threadId of touchedThreadIds) {
+    void persistInteractionState(threadId).catch(() => {});
+  }
 }
 
 function createDisabledUpdateService() {
@@ -391,6 +496,9 @@ appServerManager.on("notification", (message) => {
       console.log(`[sense1:event] ${m}`);
     }
   }
+  if (message && typeof message === "object" && "method" in message) {
+    recordRuntimePerfCounter(`notification.${String(message.method)}`);
+  }
   const messageParams =
     message && typeof message === "object" && "params" in message && message.params && typeof message.params === "object"
       ? message.params as { threadId?: string; status?: string; turn?: { status?: string } | null }
@@ -442,15 +550,10 @@ appServerManager.on("notification", (message) => {
 
   // Push-based delta pipeline: apply streaming events to the accumulator
   // and emit granular deltas to the renderer instead of triggering
-  // full bootstrap refetches.
-  const deltas = threadAccumulator.applyNotification(accumulatorMessage);
-  for (const delta of deltas) {
-    emitDesktopThreadDelta(delta);
-  }
-  syncUpdaterBusyState();
-  if (threadId && deltas.length > 0) {
-    void persistInteractionState(threadId).catch(() => {});
-  }
+  // full bootstrap refetches. High-frequency streaming deltas are
+  // coalesced before the accumulator sees them so the main process
+  // does not rebuild thread state for every tiny chunk.
+  enqueueAccumulatorNotification(accumulatorMessage);
 
   if (message.method === "turn/completed" && threadId) {
     const changedPaths = workspaceFileActivity.finish(threadId);

@@ -6,6 +6,7 @@ import {
 } from "./app-composer-utils.js";
 
 type UseAppComposerParams = {
+  canSteerSelectedThread: boolean;
   currentRequestId: number | string | null;
   clearSelectedThread: () => Promise<void>;
   effectiveThreadBusy: boolean;
@@ -28,6 +29,7 @@ type UseAppComposerParams = {
 };
 
 export function useAppComposer({
+  canSteerSelectedThread,
   currentRequestId,
   clearSelectedThread,
   effectiveThreadBusy,
@@ -74,7 +76,7 @@ export function useAppComposer({
     if (!request) {
       return false;
     }
-    if (effectiveThreadBusy && attachedFiles.length > 0) {
+    if (canSteerSelectedThread && attachedFiles.length > 0) {
       setTaskError("Finish the current run before sending attachments.");
       return false;
     }
@@ -84,7 +86,7 @@ export function useAppComposer({
     requestAnimationFrame(() => {
       transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
     });
-    if (effectiveThreadBusy) {
+    if (canSteerSelectedThread) {
       await steerTurn(request.prompt);
       return true;
     }
@@ -101,7 +103,7 @@ export function useAppComposer({
     if (!request) {
       return false;
     }
-    if (attachedFiles.length > 0) {
+    if (canSteerSelectedThread && attachedFiles.length > 0) {
       setTaskError("Finish the current run before sending attachments.");
       return false;
     }
@@ -111,7 +113,11 @@ export function useAppComposer({
     requestAnimationFrame(() => {
       transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
     });
-    await queueTurnInput(request.prompt);
+    if (canSteerSelectedThread) {
+      await queueTurnInput(request.prompt);
+      return true;
+    }
+    await runTask(request);
     return true;
   }
 

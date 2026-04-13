@@ -2,8 +2,16 @@ import { useEffect, useRef } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 
 import type { DesktopThreadDelta } from "../../../main/contracts";
+import { perfCount, perfMeasure } from "../../lib/perf-debug.ts";
 import { getDesktopBridge } from "./desktop-bridge.js";
+import {
+  appendStreamingEntryBody,
+  clearStreamingEntryBody,
+  clearStreamingThreadBodies,
+  seedStreamingThreadBodies,
+} from "./session-stream-live-bodies.ts";
 import type { SidebarState, ThreadRecord } from "./session-types.js";
+import { coalesceThreadDeltas, STREAM_DELTA_FLUSH_MS } from "./session-stream-coalescer.ts";
 import { applyThreadDelta } from "./session-stream-delta.js";
 import { createThreadDeltaBuffer } from "./session-stream-buffer.js";
 
@@ -20,6 +28,8 @@ export function installSessionStream(
   },
 ) {
   const threadDeltaBufferRef = useRef(createThreadDeltaBuffer());
+  const queuedDeltasRef = useRef<DesktopThreadDelta[]>([]);
+  const scheduledFlushRef = useRef<number | ReturnType<typeof setTimeout> | null>(null);
 
   function rememberKnownThreadIds(threadIds: Iterable<string>, options: { replace?: boolean } = {}) {
     if (options.replace) {
@@ -34,22 +44,76 @@ export function installSessionStream(
     threadDeltaBufferRef.current.queue(delta);
   }
 
-  function flushPendingThreadDeltas(threadId: string) {
-    for (const delta of threadDeltaBufferRef.current.drain(threadId)) {
+  function applyDelta(delta: DesktopThreadDelta) {
+    perfMeasure("session-stream.apply-delta", () => {
       applyThreadDelta(delta, {
+        appendStreamingEntryBody,
         cachePendingThreadDelta,
+        clearStreamingEntryBody,
+        clearStreamingThreadBodies,
         flushPendingThreadDeltas,
         rememberKnownThreadIds,
+        seedStreamingThreadBodies,
         setActiveTurnIdsByThread: deps.setActiveTurnIdsByThread,
         setPerThreadSidebar: deps.setPerThreadSidebar,
         setThreads: deps.setThreads,
         threadDeltaBufferRef,
       });
+    });
+  }
+
+  function flushQueuedDeltas() {
+    if (scheduledFlushRef.current !== null) {
+      if (typeof window !== "undefined" && typeof window.cancelAnimationFrame === "function" && typeof scheduledFlushRef.current === "number") {
+        window.cancelAnimationFrame(scheduledFlushRef.current);
+      } else {
+        clearTimeout(scheduledFlushRef.current);
+      }
+      scheduledFlushRef.current = null;
+    }
+
+    if (queuedDeltasRef.current.length === 0) {
+      return;
+    }
+
+    const queuedDeltas = queuedDeltasRef.current;
+    queuedDeltasRef.current = [];
+
+    for (const delta of coalesceThreadDeltas(queuedDeltas)) {
+      applyDelta(delta);
+    }
+  }
+
+  function scheduleQueuedDeltaFlush() {
+    if (scheduledFlushRef.current !== null) {
+      return;
+    }
+
+    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+      scheduledFlushRef.current = window.requestAnimationFrame(() => {
+        scheduledFlushRef.current = null;
+        flushQueuedDeltas();
+      });
+      return;
+    }
+
+    scheduledFlushRef.current = setTimeout(() => {
+      scheduledFlushRef.current = null;
+      flushQueuedDeltas();
+    }, STREAM_DELTA_FLUSH_MS);
+  }
+
+  function flushPendingThreadDeltas(threadId: string) {
+    for (const delta of threadDeltaBufferRef.current.drain(threadId)) {
+      applyDelta(delta);
     }
   }
 
   useEffect(() => {
-    threadDeltaBufferRef.current.setKnownThreadIds(deps.threads.map((thread) => thread.id));
+    perfMeasure("session-stream.known-thread-sync", () => {
+      perfCount("session-stream.known-thread-sync.calls");
+      threadDeltaBufferRef.current.setKnownThreadIds(deps.threads.map((thread) => thread.id));
+    });
   }, [deps.threads]);
 
   useEffect(() => {
@@ -59,18 +123,13 @@ export function installSessionStream(
     }
 
     const unsubscribe = bridge.threads.onDelta((delta: DesktopThreadDelta) => {
-      applyThreadDelta(delta, {
-        cachePendingThreadDelta,
-        flushPendingThreadDeltas,
-        rememberKnownThreadIds,
-        setActiveTurnIdsByThread: deps.setActiveTurnIdsByThread,
-        setPerThreadSidebar: deps.setPerThreadSidebar,
-        setThreads: deps.setThreads,
-        threadDeltaBufferRef,
-      });
+      perfCount(`session-stream.delta.${delta.kind}`);
+      queuedDeltasRef.current.push(delta);
+      scheduleQueuedDeltaFlush();
     });
 
     return () => {
+      flushQueuedDeltas();
       unsubscribe();
     };
   }, [

@@ -6,6 +6,7 @@ import { ThreadEntryList } from "./thread-entry-list.js";
 import { ThreadReviewCard } from "./thread-review-card.js";
 import { ThreadClarificationPanel } from "./thread-clarification-panel.js";
 import { shouldShowReviewArtifacts } from "./thread-transcript-visibility.js";
+import { perfCount } from "../../lib/perf-debug.ts";
 import { type DesktopApprovalDecision, type DesktopApprovalEvent, type DesktopInputQuestion, type DesktopInputRequestState, type DesktopThreadChangeGroup, type DesktopThreadSnapshot } from "../../../main/contracts";
 
 type ThreadTranscriptProps = {
@@ -178,6 +179,7 @@ export function ThreadTranscript({
   grantWorkspacePermission,
   cancelWorkspacePermission,
 }: ThreadTranscriptProps) {
+  perfCount("render.ThreadTranscript");
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const threadFolderRoot = selectedThread.workspaceRoot ?? selectedThread.cwd ?? null;
   const hasReviewArtifacts = shouldShowReviewArtifacts({
@@ -212,6 +214,7 @@ export function ThreadTranscript({
             <ThreadEntryList
               entries={selectedThread.entries}
               suppressFileChanges={hasReviewArtifacts}
+              threadId={selectedThread.id}
               workspaceRoot={threadFolderRoot}
             />
           ) : (

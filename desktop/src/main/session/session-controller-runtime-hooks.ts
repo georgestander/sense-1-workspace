@@ -11,6 +11,7 @@ import {
   setSubstrateSessionStatus,
   upsertWorkspacePolicy,
 } from "../substrate/substrate.js";
+import { TRACKED_RUNTIME_METHODS } from "../substrate/substrate-writer-runtime-items.js";
 import type { DesktopApprovalService } from "./desktop-approval-service.ts";
 import type { SessionSubstrateSync } from "./session-substrate-sync.ts";
 import { createDesktopAuditEvent } from "./audit-events.ts";
@@ -158,7 +159,20 @@ export function handleRuntimeMessage({
     }
   }
 
+  if (!shouldEnqueueRuntimeMessageForSubstrate(message)) {
+    return;
+  }
+
   substrateSync.enqueueWrite(async () => {
     await substrateSync.writeRuntimeMessageForCurrentProfile(message);
   });
+}
+
+export function shouldEnqueueRuntimeMessageForSubstrate(message: unknown): boolean {
+  const method = firstString((message as { method?: unknown } | null)?.method);
+  if (!method) {
+    return false;
+  }
+
+  return TRACKED_RUNTIME_METHODS.has(method);
 }

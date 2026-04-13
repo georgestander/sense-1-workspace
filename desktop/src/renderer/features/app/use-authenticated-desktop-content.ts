@@ -10,6 +10,7 @@ import { useWorkspaceActivity } from "../workspace/use-workspace-activity.js";
 import { useWorkspaceCollections } from "../workspace/use-workspace-collections.js";
 import { useWorkspaceShell } from "../workspace/use-workspace-shell.js";
 import { useAppRightRail } from "./use-app-right-rail.js";
+import { perfCount, perfMeasure } from "../../lib/perf-debug.ts";
 
 type SessionState = ReturnType<typeof useDesktopSessionState>;
 type SettingsControllerState = ReturnType<typeof useSettingsController>;
@@ -37,11 +38,13 @@ export function useAuthenticatedDesktopContent({
   settingsController,
   ui,
 }: UseAuthenticatedDesktopContentArgs) {
+  perfCount("render.useAuthenticatedDesktopContent");
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
   const currentRequestId = sessionState.threadInputRequest?.requestId ?? null;
 
   const composer = useAppComposer({
+    canSteerSelectedThread: Boolean(sessionState.activeTurnId),
     currentRequestId,
     clearSelectedThread: sessionState.clearSelectedThread,
     effectiveThreadBusy: sessionState.selectedThread?.state === "running",
@@ -66,9 +69,11 @@ export function useAuthenticatedDesktopContent({
 
   const trimmedSearchQuery = ui.searchQuery.trim();
   const normalizedSearchQuery = trimmedSearchQuery.toLowerCase();
-  const filteredThreads = normalizedSearchQuery
-    ? sessionState.threads.filter((thread) => thread.title.toLowerCase().includes(normalizedSearchQuery))
-    : sessionState.threads;
+  const filteredThreads = perfMeasure("app-content.filter-threads", () => (
+    normalizedSearchQuery
+      ? sessionState.threads.filter((thread) => thread.title.toLowerCase().includes(normalizedSearchQuery))
+      : sessionState.threads
+  ));
   const noThreadSearchMatches = Boolean(
     normalizedSearchQuery && sessionState.threads.length > 0 && filteredThreads.length === 0,
   );

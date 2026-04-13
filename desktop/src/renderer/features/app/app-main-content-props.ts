@@ -3,6 +3,7 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { useDesktopSessionState } from "../../use-desktop-session-state.js";
 import type { StartSurfaceProps } from "../../components/StartSurface";
 import type { ThreadViewProps } from "../../components/ThreadView";
+import { perfCount, perfMeasure } from "../../lib/perf-debug.ts";
 import { REASONING_LABELS } from "../settings/use-app-model-settings.js";
 
 type SessionState = ReturnType<typeof useDesktopSessionState>;
@@ -132,15 +133,17 @@ export function buildThreadViewProps({
   rightRail,
   transcript,
 }: BuildThreadViewPropsArgs): ThreadViewProps | null {
-  if (!sessionState.selectedThread) {
+  perfCount("build.ThreadViewProps");
+  const selectedThread = sessionState.selectedThread;
+  if (!selectedThread) {
     return null;
   }
 
-  return {
-    selectedThreadId: sessionState.selectedThread.id,
+  return perfMeasure("build.ThreadViewProps.duration", () => ({
+    selectedThreadId: selectedThread.id,
     tenant: sessionState.tenant,
     teamSetup: sessionState.teamSetup,
-    selectedThread: sessionState.selectedThread,
+    selectedThread,
     threadInteractionState: rightRail.threadInteractionState,
     selectedThreadApprovals: sessionState.selectedThreadApprovals,
     pendingApprovals: sessionState.pendingApprovals,
@@ -166,7 +169,7 @@ export function buildThreadViewProps({
     setAttachedFiles: composer.setAttachedFiles,
     pickFiles: sessionState.pickFiles,
     queueSelectedThreadPrompt: composer.queueSelectedThreadPrompt,
-    queuedMessageCount: sessionState.selectedThread.threadInputState?.queuedMessages.length ?? 0,
+    queuedMessageCount: selectedThread.threadInputState?.queuedMessages.length ?? 0,
     submitSelectedThreadPrompt: composer.submitSelectedThreadPrompt,
     model: ui.model,
     reasoning: ui.reasoning,
@@ -192,7 +195,7 @@ export function buildThreadViewProps({
     transcriptEndRef: transcript.transcriptEndRef,
     configNotices: rightRail.configNotices,
     footerStatusText: rightRail.footerStatusText,
-  };
+  }));
 }
 
 export function buildStartSurfaceProps({
@@ -204,7 +207,8 @@ export function buildStartSurfaceProps({
   workspace,
   threadShell,
 }: BuildStartSurfacePropsArgs): StartSurfaceProps {
-  return {
+  perfCount("build.StartSurfaceProps");
+  return perfMeasure("build.StartSurfaceProps.duration", () => ({
     accountEmail: sessionState.accountEmail,
     tenant: sessionState.tenant,
     teamSetup: sessionState.teamSetup,
@@ -267,5 +271,5 @@ export function buildStartSurfaceProps({
     taskPending: sessionState.taskPending,
     taskError: sessionState.taskError,
     refreshBootstrap: sessionState.refreshBootstrap,
-  };
+  }));
 }

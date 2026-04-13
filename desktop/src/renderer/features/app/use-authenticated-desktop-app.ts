@@ -5,6 +5,7 @@ import type { useDesktopSessionState } from "../../use-desktop-session-state.js"
 import type { useSettingsController } from "../settings/use-settings-controller.js";
 import { shouldShowHeaderUpdateAction } from "../updates/update-presentation.js";
 import { buildStartSurfaceProps, buildThreadViewProps } from "./app-main-content-props.js";
+import { perfCount } from "../../lib/perf-debug.ts";
 import { useAppShellProps } from "./use-app-shell-props.js";
 import { useAuthenticatedDesktopContent } from "./use-authenticated-desktop-content.js";
 
@@ -46,6 +47,7 @@ export function useAuthenticatedDesktopApp({
   settingsController,
   ui,
 }: UseAuthenticatedDesktopAppArgs) {
+  perfCount("render.useAuthenticatedDesktopApp");
   const content = useAuthenticatedDesktopContent({
     sessionState,
     settingsController,

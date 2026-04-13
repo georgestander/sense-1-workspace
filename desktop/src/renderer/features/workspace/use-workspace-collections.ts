@@ -6,6 +6,7 @@ import type {
   SubstrateSessionRecord,
   SubstrateWorkspaceRecord,
 } from "../../../main/contracts";
+import { perfCount } from "../../lib/perf-debug.ts";
 
 type WorkspaceCollectionsResult = {
   activeWorkspaceProjection: ProjectedWorkspaceRecord | null;
@@ -30,6 +31,7 @@ export function useWorkspaceCollections({
   isSignedIn: boolean;
   selectedProfileId: string;
 }): WorkspaceCollectionsResult {
+  perfCount("render.useWorkspaceCollections");
   const [projectedWorkspaces, setProjectedWorkspaces] = useState<ProjectedWorkspaceRecord[]>([]);
   const [knownWorkspaces, setKnownWorkspaces] = useState<SubstrateWorkspaceRecord[]>([]);
   const [archivedWorkspaces, setArchivedWorkspaces] = useState<SubstrateWorkspaceRecord[]>([]);
@@ -56,6 +58,7 @@ export function useWorkspaceCollections({
     }
 
     const requestId = ++workspaceCollectionsRequestIdRef.current;
+    perfCount("workspace-collections.refresh");
     const [projectedResult, workspaceResult, sessionResult] = await Promise.all([
       bridge.projections.workspaces({ limit: 20 }) as Promise<{ workspaces: ProjectedWorkspaceRecord[] }>,
       bridge.substrate.recentWorkspaces({ limit: 50 }) as Promise<{ workspaces: SubstrateWorkspaceRecord[] }>,
@@ -109,6 +112,7 @@ export function useWorkspaceCollections({
     const requestId = ++activeWorkspaceRequestIdRef.current;
     let isActive = true;
     setWorkspaceSessionsLoading(true);
+    perfCount("workspace-collections.load-active-workspace");
     void (async () => {
       try {
         const wsResult = await bridge.projections.workspaceByRoot({ rootPath: activeWorkspaceRoot });

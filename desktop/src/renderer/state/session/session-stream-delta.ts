@@ -7,9 +7,13 @@ import type { SidebarState, ThreadRecord } from "./session-types.js";
 import type { ThreadDeltaBuffer } from "./session-stream-buffer.js";
 
 type ApplyThreadDeltaDeps = {
+  appendStreamingEntryBody: (threadId: string, entryId: string, append: string) => void;
   cachePendingThreadDelta: (delta: DesktopThreadDelta) => void;
+  clearStreamingEntryBody: (threadId: string, entryId: string) => void;
+  clearStreamingThreadBodies: (threadId: string) => void;
   flushPendingThreadDeltas: (threadId: string) => void;
   rememberKnownThreadIds: (threadIds: Iterable<string>, options?: { replace?: boolean }) => void;
+  seedStreamingThreadBodies: (threadId: string, entries: DesktopThreadEntry[]) => void;
   setActiveTurnIdsByThread: Dispatch<SetStateAction<Record<string, string>>>;
   setPerThreadSidebar: Dispatch<SetStateAction<Record<string, SidebarState>>>;
   setThreads: Dispatch<SetStateAction<ThreadRecord[]>>;
@@ -41,6 +45,7 @@ export function applyThreadDelta(
   deps: ApplyThreadDeltaDeps,
 ) {
   if (delta.kind === "snapshot") {
+    deps.seedStreamingThreadBodies(delta.threadId, delta.entries as DesktopThreadEntry[]);
     deps.rememberKnownThreadIds([delta.threadId]);
     deps.setThreads((current) => {
       const thread = current.find((t) => t.id === delta.threadId);
@@ -92,32 +97,7 @@ export function applyThreadDelta(
   }
 
   if (delta.kind === "entryDelta") {
-    deps.setThreads((current) => {
-      return replaceThreadWithoutReordering(current, delta.threadId, (thread) => {
-        const entries = thread.entries.map((entry) => {
-          if (entry.id !== delta.entryId) {
-            return entry;
-          }
-          if ("body" in entry) {
-            return { ...entry, body: entry.body + delta.append };
-          }
-          return entry;
-        });
-        if (!entries.some((entry) => entry.id === delta.entryId)) {
-          entries.push({
-            id: delta.entryId,
-            kind: "assistant" as const,
-            title: "Sense-1 activity",
-            body: delta.append,
-            status: "streaming",
-          });
-        }
-        return {
-          ...thread,
-          entries,
-        };
-      });
-    });
+    deps.appendStreamingEntryBody(delta.threadId, delta.entryId, delta.append);
     return;
   }
 
@@ -144,6 +124,7 @@ export function applyThreadDelta(
   }
 
   if (delta.kind === "entryCompleted") {
+    deps.clearStreamingEntryBody(delta.threadId, delta.entryId);
     deps.setThreads((current) => {
       const thread = current.find((t) => t.id === delta.threadId);
       if (!thread) {
@@ -169,6 +150,9 @@ export function applyThreadDelta(
   }
 
   if (delta.kind === "threadStateChanged") {
+    if (delta.state !== "running") {
+      deps.clearStreamingThreadBodies(delta.threadId);
+    }
     const activeTurnId = typeof delta.turnId === "string" && delta.turnId.trim().length > 0
       ? delta.turnId
       : null;

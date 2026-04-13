@@ -11,6 +11,7 @@ import type {
 } from "../../../main/contracts";
 import type { RightRailProps } from "../../components/RightRail";
 import { buildTranscriptScrollAnchor, shouldAutoFollowTranscript } from "./transcript-scroll.js";
+import { perfCount, perfMeasure } from "../../lib/perf-debug.ts";
 
 const PRE_EXECUTION_STATES = new Set<DesktopInteractionState>(["conversation", "clarification"]);
 
@@ -87,6 +88,7 @@ export function useAppRightRail({
   workspaceSessions,
   workspaceStructureRefreshing,
 }: UseAppRightRailArgs) {
+  perfCount("render.useAppRightRail");
   const [rightRailOpen, setRightRailOpen] = useState(() => {
     if (typeof window === "undefined") {
       return true;
@@ -145,7 +147,7 @@ export function useAppRightRail({
 
   const entryCount = selectedThread?.entries.length ?? 0;
   const lastEntry = selectedThread?.entries[entryCount - 1];
-  const lastEntryAnchor = buildTranscriptScrollAnchor(lastEntry);
+  const lastEntryAnchor = perfMeasure("right-rail.build-scroll-anchor", () => buildTranscriptScrollAnchor(lastEntry));
   useEffect(() => {
     if (!entryCount) {
       return;

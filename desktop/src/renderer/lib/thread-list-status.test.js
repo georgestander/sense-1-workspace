@@ -18,6 +18,21 @@ test("getThreadListStatus prefers running threads", () => {
   );
 });
 
+test("getThreadListStatus does not treat historical active threads as running", () => {
+  assert.equal(
+    getThreadListStatus({
+      state: "active",
+      threadInputState: {
+        queuedMessages: [],
+        hasUnseenCompletion: false,
+        lastCompletionAt: null,
+        lastCompletionStatus: null,
+      },
+    }),
+    "idle",
+  );
+});
+
 test("getThreadListStatus shows completed threads when background work finishes unseen", () => {
   assert.equal(
     getThreadListStatus({

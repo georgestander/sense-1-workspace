@@ -29,6 +29,7 @@ function createDeps(initialThreads) {
   let threads = initialThreads;
   let perThreadSidebar = {};
   let activeTurnIdsByThread = {};
+  let streamingEntryBodiesByThread = {};
   const threadDeltaBufferRef = {
     current: createThreadDeltaBuffer(),
   };
@@ -40,11 +41,37 @@ function createDeps(initialThreads) {
         threads,
         perThreadSidebar,
         activeTurnIdsByThread,
+        streamingEntryBodiesByThread,
       };
     },
     deps: {
+      appendStreamingEntryBody(threadId, entryId, append) {
+        const currentThreadBodies = streamingEntryBodiesByThread[threadId] ?? {};
+        streamingEntryBodiesByThread = {
+          ...streamingEntryBodiesByThread,
+          [threadId]: {
+            ...currentThreadBodies,
+            [entryId]: `${currentThreadBodies[entryId] ?? ""}${append}`,
+          },
+        };
+      },
       cachePendingThreadDelta(delta) {
         threadDeltaBufferRef.current.queue(delta);
+      },
+      clearStreamingEntryBody(threadId, entryId) {
+        const currentThreadBodies = streamingEntryBodiesByThread[threadId] ?? {};
+        if (!(entryId in currentThreadBodies)) {
+          return;
+        }
+        const { [entryId]: _ignored, ...remainingBodies } = currentThreadBodies;
+        streamingEntryBodiesByThread = {
+          ...streamingEntryBodiesByThread,
+          [threadId]: remainingBodies,
+        };
+      },
+      clearStreamingThreadBodies(threadId) {
+        const { [threadId]: _ignored, ...remainingThreads } = streamingEntryBodiesByThread;
+        streamingEntryBodiesByThread = remainingThreads;
       },
       flushPendingThreadDeltas(threadId) {
         for (const pendingDelta of threadDeltaBufferRef.current.drain(threadId)) {
@@ -57,6 +84,17 @@ function createDeps(initialThreads) {
         } else {
           threadDeltaBufferRef.current.rememberKnownThreadIds(threadIds);
         }
+      },
+      seedStreamingThreadBodies(threadId, entries) {
+        const nextBodies = Object.fromEntries(
+          entries
+            .filter((entry) => entry.kind === "assistant" && "status" in entry && entry.status === "streaming" && "body" in entry)
+            .map((entry) => [entry.id, entry.body]),
+        );
+        streamingEntryBodiesByThread = {
+          ...streamingEntryBodiesByThread,
+          [threadId]: nextBodies,
+        };
       },
       setActiveTurnIdsByThread(updater) {
         activeTurnIdsByThread = typeof updater === "function" ? updater(activeTurnIdsByThread) : updater;
@@ -149,7 +187,8 @@ test("applyThreadDelta appends streaming entry text without bumping recency meta
   );
 
   const [thread] = harness.getState().threads;
-  assert.equal(thread.entries[0]?.body, "Hello world");
+  assert.equal(thread.entries[0]?.body, "Hello");
+  assert.equal(harness.getState().streamingEntryBodiesByThread["thread-1"]?.["entry-1"], " world");
   assert.equal(thread.updatedAt, "2026-04-08T10:00:00.000Z");
   assert.equal(thread.updatedLabel, "10 min ago");
 });
@@ -189,5 +228,51 @@ test("applyThreadDelta keeps thread ordering stable for streaming entry appends"
 
   const { threads } = harness.getState();
   assert.deepEqual(threads.map((thread) => thread.id), ["thread-1", "thread-2"]);
-  assert.equal(threads[0].entries[0]?.body, "Hello world");
+  assert.equal(threads[0].entries[0]?.body, "Hello");
+  assert.equal(harness.getState().streamingEntryBodiesByThread["thread-1"]?.["entry-1"], " world");
+});
+
+test("applyThreadDelta clears streaming body overlays once an entry completes", () => {
+  const initialThread = createThread({
+    entries: [
+      {
+        id: "entry-1",
+        kind: "assistant",
+        title: "Sense-1 activity",
+        body: "Hello",
+        status: "streaming",
+      },
+    ],
+  });
+  const harness = createDeps([initialThread]);
+
+  applyThreadDelta(
+    {
+      kind: "entryDelta",
+      threadId: "thread-1",
+      entryId: "entry-1",
+      append: " world",
+    },
+    harness.deps,
+  );
+
+  applyThreadDelta(
+    {
+      kind: "entryCompleted",
+      threadId: "thread-1",
+      entryId: "entry-1",
+      entry: {
+        id: "entry-1",
+        kind: "assistant",
+        title: "Sense-1 activity",
+        body: "Hello world",
+        status: "completed",
+      },
+    },
+    harness.deps,
+  );
+
+  const [thread] = harness.getState().threads;
+  assert.equal(thread.entries[0]?.body, "Hello world");
+  assert.deepEqual(harness.getState().streamingEntryBodiesByThread["thread-1"], {});
 });

@@ -1,4 +1,5 @@
 import type { DesktopThreadEntry } from "../../lib/live-thread-data.js";
+import { perfMeasure } from "../../lib/perf-debug.ts";
 import { resolveArtifactPath } from "../../lib/thread-artifacts.ts";
 
 const COLLAPSIBLE_KINDS = new Set<string>(["command", "tool", "reasoning"]);
@@ -117,34 +118,79 @@ export function summarizeActivityGroup(entries: DesktopThreadEntry[]): string {
 }
 
 export function groupThreadEntries(entries: DesktopThreadEntry[]): ThreadGroupedEntry[] {
-  const result: ThreadGroupedEntry[] = [];
-  let currentGroup: DesktopThreadEntry[] = [];
+  return perfMeasure("transcript.group-thread-entries", () => {
+    const result: ThreadGroupedEntry[] = [];
+    let currentGroup: DesktopThreadEntry[] = [];
 
-  function flushGroup() {
-    if (currentGroup.length === 0) {
-      return;
+    function flushGroup() {
+      if (currentGroup.length === 0) {
+        return;
+      }
+      if (currentGroup.length === 1 && currentGroup[0].kind === "reasoning") {
+        result.push({ kind: "passthrough", entry: currentGroup[0] });
+      } else {
+        result.push({
+          kind: "activity-group",
+          entries: [...currentGroup],
+          latestLabel: summarizeActivityGroup(currentGroup),
+          id: `activity-${currentGroup[0].id}`,
+        });
+      }
+      currentGroup = [];
     }
-    if (currentGroup.length === 1 && currentGroup[0].kind === "reasoning") {
-      result.push({ kind: "passthrough", entry: currentGroup[0] });
-    } else {
-      result.push({
-        kind: "activity-group",
-        entries: [...currentGroup],
-        latestLabel: summarizeActivityGroup(currentGroup),
-        id: `activity-${currentGroup[0].id}`,
-      });
+
+    for (const entry of entries) {
+      if (COLLAPSIBLE_KINDS.has(entry.kind)) {
+        currentGroup.push(entry);
+      } else {
+        flushGroup();
+        result.push({ kind: "passthrough", entry });
+      }
     }
-    currentGroup = [];
+    flushGroup();
+    return result;
+  });
+}
+
+export function reuseGroupedThreadEntries(
+  previousEntries: DesktopThreadEntry[] | null,
+  nextEntries: DesktopThreadEntry[],
+  previousGroupedEntries: ThreadGroupedEntry[] | null,
+): ThreadGroupedEntry[] | null {
+  if (!previousEntries || !previousGroupedEntries || previousEntries.length === 0 || previousEntries.length !== nextEntries.length) {
+    return null;
   }
 
-  for (const entry of entries) {
-    if (COLLAPSIBLE_KINDS.has(entry.kind)) {
-      currentGroup.push(entry);
-    } else {
-      flushGroup();
-      result.push({ kind: "passthrough", entry });
+  const lastEntryIndex = nextEntries.length - 1;
+  for (let index = 0; index < lastEntryIndex; index += 1) {
+    if (previousEntries[index] !== nextEntries[index]) {
+      return null;
     }
   }
-  flushGroup();
-  return result;
+
+  const previousLastEntry = previousEntries[lastEntryIndex];
+  const nextLastEntry = nextEntries[lastEntryIndex];
+  if (
+    previousLastEntry.id !== nextLastEntry.id
+    || previousLastEntry.kind !== "assistant"
+    || nextLastEntry.kind !== "assistant"
+    || !("body" in previousLastEntry)
+    || !("body" in nextLastEntry)
+    || previousLastEntry === nextLastEntry
+  ) {
+    return null;
+  }
+
+  const lastGroupedEntry = previousGroupedEntries.at(-1);
+  if (!lastGroupedEntry || lastGroupedEntry.kind !== "passthrough" || lastGroupedEntry.entry.id !== nextLastEntry.id) {
+    return null;
+  }
+
+  return [
+    ...previousGroupedEntries.slice(0, -1),
+    {
+      kind: "passthrough",
+      entry: nextLastEntry,
+    },
+  ];
 }

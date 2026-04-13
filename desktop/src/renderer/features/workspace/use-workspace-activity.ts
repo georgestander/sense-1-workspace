@@ -6,6 +6,7 @@ import type {
   ProjectedSessionRecord,
   SubstrateEventRecord,
 } from "../../../main/contracts";
+import { perfCount } from "../../lib/perf-debug.ts";
 
 type WorkspaceActivitySummary = {
   approvalsGranted: number;
@@ -27,6 +28,7 @@ export function useWorkspaceActivity({
   workspacePolicy: DesktopWorkspacePolicyRecord | null;
   workspaceSessions: ProjectedSessionRecord[];
 }) {
+  perfCount("render.useWorkspaceActivity");
   const [persistedSessionWrittenPaths, setPersistedSessionWrittenPaths] = useState<string[]>([]);
   const [persistedSessionActivitySummary, setPersistedSessionActivitySummary] = useState<WorkspaceActivitySummary | null>(null);
   const [persistedSessionActivityLoading, setPersistedSessionActivityLoading] = useState(false);
@@ -81,6 +83,7 @@ export function useWorkspaceActivity({
     const requestId = ++activityRequestIdRef.current;
     let isActive = true;
     setPersistedSessionActivityLoading(true);
+    perfCount("workspace-activity.fetch-session-events");
 
     void (async () => {
       try {
@@ -170,6 +173,7 @@ export function useWorkspaceActivity({
 
     let cancelled = false;
     setWorkspaceStructureRefreshing(true);
+    perfCount("workspace-activity.hydrate-structure");
     void hydrateWorkspace(rootPath).finally(() => {
       if (!cancelled) {
         setWorkspaceStructureRefreshing(false);
@@ -186,6 +190,7 @@ export function useWorkspaceActivity({
     }
 
     setWorkspaceStructureRefreshing(true);
+    perfCount("workspace-activity.manual-refresh");
     try {
       await hydrateWorkspace(selectedThreadWorkspaceRoot);
     } finally {
