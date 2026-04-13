@@ -185,8 +185,6 @@ export function useAuthenticatedDesktopApp({
     },
     workspace: {
       activeWorkspaceRoot: content.activeWorkspaceRoot,
-      activeOperatingMode: content.workspaceShell.activeOperatingMode,
-      changeWorkspaceOperatingMode: content.workspaceShell.changeWorkspaceOperatingMode,
     },
     rightRail: {
       threadInteractionState: content.rightRail.threadInteractionState,

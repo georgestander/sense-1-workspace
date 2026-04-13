@@ -2,7 +2,7 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import { Folder } from "lucide-react";
 
 import { folderDisplayName } from "../state/session/session-selectors.js";
-import { type DesktopApprovalDecision, type DesktopApprovalEvent, type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopExtensionOverviewResult, type DesktopInputQuestion, type DesktopInputRequestState, type DesktopModelEntry, type DesktopOperatingMode, type DesktopThreadChangeGroup, type DesktopThreadSnapshot } from "../../main/contracts";
+import { type DesktopApprovalDecision, type DesktopApprovalEvent, type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopExtensionOverviewResult, type DesktopInputQuestion, type DesktopInputRequestState, type DesktopModelEntry, type DesktopThreadChangeGroup, type DesktopThreadSnapshot } from "../../main/contracts";
 import { ThreadComposer } from "./thread-view/thread-composer.js";
 import { ThreadTranscript } from "./thread-view/thread-transcript.js";
 
@@ -62,8 +62,6 @@ export interface ThreadViewProps {
   grantWorkspacePermission: (mode: "always" | "once") => Promise<void>;
   cancelWorkspacePermission: () => void;
   activeWorkspaceRoot: string | null;
-  activeOperatingMode: DesktopOperatingMode | null;
-  changeWorkspaceOperatingMode: (mode: DesktopOperatingMode) => Promise<void>;
   rightRailChangeGroups: DesktopThreadChangeGroup[];
   transcriptContainerRef: RefObject<HTMLDivElement | null>;
   transcriptEndRef: RefObject<HTMLDivElement | null>;
@@ -117,8 +115,6 @@ export function ThreadView(props: ThreadViewProps) {
     grantWorkspacePermission,
     cancelWorkspacePermission,
     activeWorkspaceRoot,
-    activeOperatingMode,
-    changeWorkspaceOperatingMode,
     rightRailChangeGroups,
     transcriptContainerRef,
     transcriptEndRef,
@@ -172,10 +168,8 @@ export function ThreadView(props: ThreadViewProps) {
       />
 
       <ThreadComposer
-        activeOperatingMode={activeOperatingMode}
         activeWorkspaceRoot={activeWorkspaceRoot}
         availableModels={availableModels}
-        changeWorkspaceOperatingMode={changeWorkspaceOperatingMode}
         effectiveThreadBusy={effectiveThreadBusy}
         extensionOverview={extensionOverview}
         handleModelSelection={handleModelSelection}

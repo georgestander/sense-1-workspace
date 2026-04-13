@@ -46,8 +46,6 @@ type BuildThreadViewPropsArgs = {
   workspace: Pick<
     ThreadViewProps,
     | "activeWorkspaceRoot"
-    | "activeOperatingMode"
-    | "changeWorkspaceOperatingMode"
   >;
   rightRail: Pick<
     ThreadViewProps,
@@ -199,8 +197,6 @@ export function buildThreadViewProps({
     grantWorkspacePermission: sessionState.grantWorkspacePermission,
     cancelWorkspacePermission: sessionState.cancelWorkspacePermission,
     activeWorkspaceRoot: workspace.activeWorkspaceRoot,
-    activeOperatingMode: workspace.activeOperatingMode,
-    changeWorkspaceOperatingMode: workspace.changeWorkspaceOperatingMode,
     rightRailChangeGroups: rightRail.rightRailChangeGroups,
     transcriptContainerRef: transcript.transcriptContainerRef,
     transcriptEndRef: transcript.transcriptEndRef,
