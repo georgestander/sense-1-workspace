@@ -62,7 +62,6 @@ export function useAuthenticatedDesktopContent({
     activeWorkspaceRoot,
     isSignedIn: sessionState.isSignedIn,
     selectedProfileId: sessionState.selectedProfileId,
-    selectedThreadId: sessionState.selectedThreadId,
   });
 
   const trimmedSearchQuery = ui.searchQuery.trim();

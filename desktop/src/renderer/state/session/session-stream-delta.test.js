@@ -153,3 +153,41 @@ test("applyThreadDelta appends streaming entry text without bumping recency meta
   assert.equal(thread.updatedAt, "2026-04-08T10:00:00.000Z");
   assert.equal(thread.updatedLabel, "10 min ago");
 });
+
+test("applyThreadDelta keeps thread ordering stable for streaming entry appends", () => {
+  const harness = createDeps([
+    createThread({
+      id: "thread-1",
+      title: "Older running thread",
+      updatedAt: "2026-04-08T10:00:00.000Z",
+      entries: [
+        {
+          id: "entry-1",
+          kind: "assistant",
+          title: "Sense-1 activity",
+          body: "Hello",
+          status: "streaming",
+        },
+      ],
+    }),
+    createThread({
+      id: "thread-2",
+      title: "Newer idle thread",
+      updatedAt: "2026-04-08T11:00:00.000Z",
+    }),
+  ]);
+
+  applyThreadDelta(
+    {
+      kind: "entryDelta",
+      threadId: "thread-1",
+      entryId: "entry-1",
+      append: " world",
+    },
+    harness.deps,
+  );
+
+  const { threads } = harness.getState();
+  assert.deepEqual(threads.map((thread) => thread.id), ["thread-1", "thread-2"]);
+  assert.equal(threads[0].entries[0]?.body, "Hello world");
+});

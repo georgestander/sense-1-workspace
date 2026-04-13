@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   DesktopWorkspaceHydrateResult,
@@ -32,6 +32,14 @@ export function useWorkspaceActivity({
   const [persistedSessionActivityLoading, setPersistedSessionActivityLoading] = useState(false);
   const [workspaceStructureRefreshing, setWorkspaceStructureRefreshing] = useState(false);
   const activityRequestIdRef = useRef(0);
+  const selectedWorkspaceSession = useMemo(
+    () => (
+      selectedThreadId
+        ? workspaceSessions.find((session) => session.codex_thread_id === selectedThreadId) ?? null
+        : null
+    ),
+    [selectedThreadId, workspaceSessions],
+  );
 
   function extractWrittenPath(event: SubstrateEventRecord): string | null {
     if (event.verb !== "file.write") {
@@ -72,14 +80,13 @@ export function useWorkspaceActivity({
 
     void (async () => {
       try {
-        const projectedSession = workspaceSessions.find((session) => session.codex_thread_id === selectedThreadId) ?? null;
-        const recentSessionsResult = projectedSession
+        const recentSessionsResult = selectedWorkspaceSession
           ? null
           : await bridge.substrate.recentSessions({ limit: 200 });
         const fallbackSession = Array.isArray(recentSessionsResult?.sessions)
           ? recentSessionsResult.sessions.find((session: { codex_thread_id?: string | null }) => session.codex_thread_id === selectedThreadId) ?? null
           : null;
-        const session = projectedSession ?? fallbackSession;
+        const session = selectedWorkspaceSession ?? fallbackSession;
         const sessionId = resolveSessionId(session);
         if (!sessionId || requestId !== activityRequestIdRef.current || !isActive) {
           if (isActive) {
@@ -144,7 +151,7 @@ export function useWorkspaceActivity({
     return () => {
       isActive = false;
     };
-  }, [selectedThreadId, workspaceSessions]);
+  }, [selectedThreadId, selectedWorkspaceSession]);
 
   useEffect(() => {
     const rootPath = selectedThreadWorkspaceRoot;

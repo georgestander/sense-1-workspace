@@ -130,7 +130,11 @@ function renderThreadEntry(entry: DesktopThreadEntry, workspaceRoot: string | nu
   if (entry.kind === "assistant") {
     return (
       <article className="mr-auto w-full px-4 py-2" key={entry.id}>
-        <ThreadMarkdown workspaceRoot={workspaceRoot}>{entryBody}</ThreadMarkdown>
+        {"status" in entry && entry.status === "streaming" ? (
+          <div className="text-sm leading-[1.6] whitespace-pre-wrap text-ink">{entryBody}</div>
+        ) : (
+          <ThreadMarkdown workspaceRoot={workspaceRoot}>{entryBody}</ThreadMarkdown>
+        )}
         {entryBody.trim() ? (
           <div className="mt-1 flex items-center justify-start">
             <EntryCopyButton text={entryBody} />
