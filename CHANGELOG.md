@@ -2,6 +2,23 @@
 
 All notable changes to Sense-1 Workspace are recorded here.
 
+## [0.8.0] - 2026-04-14
+
+### Added
+
+- Durable workspace continuity for fresh threads and resumed sessions, so Sense-1 can rebuild prior workspace context from local session and substrate history when folder hydration is incomplete.
+
+### Changed
+
+- Re-centered the thread composer and aligned its width with the start surface for a more consistent launch and reply layout.
+- Tightened sidebar density and removed redundant chrome around the composer so the active thread stays visually focused.
+
+### Fixed
+
+- Restored busy-thread composer routing after bootstrap recovery so send and queue actions stay on the correct live-thread paths while a run is still active.
+- Fixed transcript auto-follow during streaming responses by anchoring scroll behavior to the live streaming overlay.
+- Resolved composer overlap and transcript spacing issues so the fixed composer clears the transcript content cleanly.
+
 ## [0.7.1] - 2026-04-13
 
 ### Fixed
