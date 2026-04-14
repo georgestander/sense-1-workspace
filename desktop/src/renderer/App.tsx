@@ -13,6 +13,7 @@ import { DesktopAuthenticatedShell } from "./components/DesktopAuthenticatedShel
 import { PluginsPage } from "./components/PluginsPage";
 import { StartSurface } from "./components/StartSurface";
 import { ThreadView } from "./components/ThreadView";
+import { shouldShowHomeRightRail } from "./features/app/app-view-visibility.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -121,6 +122,7 @@ export default function App() {
 
   const createPluginPrompt = "$plugin-creator scaffold a new Sense-1 Workspace profile plugin and explain the inputs you need.";
   const createSkillPrompt = "$skill-creator create a new Sense-1 Workspace profile skill and keep the flow native to Codex.";
+  const showHomeRightRail = shouldShowHomeRightRail(activeView, sessionState.showRightRail);
 
   const mainContent = activeView === "plugins"
     ? (
@@ -190,13 +192,13 @@ export default function App() {
         setActiveView("home");
         resetToStartSurface();
       }}
-      showRightRail={sessionState.showRightRail}
+      showRightRail={showHomeRightRail}
       rightRailOpen={rightRailOpen}
       onToggleRightRail={() => setRightRailOpen((value) => !value)}
       runtimeStatus={sessionState.runtimeStatus}
       leftSidebarProps={leftSidebarProps}
       mainContent={mainContent}
-      rightRailProps={rightRailProps}
+      rightRailProps={{ ...rightRailProps, showRightRail: showHomeRightRail }}
       settingsModalProps={settingsModalProps}
     />
   );

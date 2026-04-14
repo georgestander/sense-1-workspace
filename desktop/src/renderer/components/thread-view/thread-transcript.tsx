@@ -6,8 +6,9 @@ import { ThreadEntryList } from "./thread-entry-list.js";
 import { ThreadReviewCard } from "./thread-review-card.js";
 import { ThreadClarificationPanel } from "./thread-clarification-panel.js";
 import { shouldShowReviewArtifacts } from "./thread-transcript-visibility.js";
+import { summarizeCommand } from "./thread-view-utils.js";
 import { perfCount } from "../../lib/perf-debug.ts";
-import { type DesktopApprovalDecision, type DesktopApprovalEvent, type DesktopInputQuestion, type DesktopInputRequestState, type DesktopThreadChangeGroup, type DesktopThreadSnapshot } from "../../../main/contracts";
+import { type DesktopApprovalDecision, type DesktopApprovalEvent, type DesktopInputQuestion, type DesktopInputRequestState, type DesktopThreadChangeGroup, type DesktopThreadEntry, type DesktopThreadSnapshot } from "../../../main/contracts";
 
 type ThreadTranscriptProps = {
   selectedThread: DesktopThreadSnapshot;
@@ -137,17 +138,39 @@ function PermissionPanel({
   );
 }
 
+function latestActivityLabel(entries: DesktopThreadEntry[]): string | null {
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i];
+    if (entry.kind === "command") {
+      return summarizeCommand(entry.command);
+    }
+    if (entry.kind === "tool") {
+      const toolName = entry.body.split(" \u2022 ")[0];
+      return toolName || "Using a tool";
+    }
+    if (entry.kind === "reasoning") {
+      return "Thinking";
+    }
+    if (entry.kind === "assistant" || entry.kind === "user") {
+      break;
+    }
+  }
+  return null;
+}
+
 function StatusFooter({
   effectiveThreadBusy,
   footerStatusText,
+  liveActivityLabel,
 }: {
   effectiveThreadBusy: boolean;
   footerStatusText: string;
+  liveActivityLabel: string | null;
 }) {
   return (
     <div className="flex items-center gap-2 text-xs text-muted">
       {effectiveThreadBusy ? <Asterisk className="size-4 animate-starburst text-accent" /> : <Sparkles className="size-3.5" />}
-      {effectiveThreadBusy ? "Working on it..." : footerStatusText}
+      {effectiveThreadBusy ? (liveActivityLabel ?? "Working on it...") : footerStatusText}
     </div>
   );
 }
@@ -250,7 +273,7 @@ export function ThreadTranscript({
             </div>
           ))}
 
-          <StatusFooter effectiveThreadBusy={effectiveThreadBusy} footerStatusText={footerStatusText} />
+          <StatusFooter effectiveThreadBusy={effectiveThreadBusy} footerStatusText={footerStatusText} liveActivityLabel={effectiveThreadBusy ? latestActivityLabel(selectedThread.entries) : null} />
           <div ref={transcriptEndRef} />
         </div>
       </div>

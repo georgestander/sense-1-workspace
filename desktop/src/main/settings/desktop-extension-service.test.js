@@ -166,6 +166,7 @@ test("getOverview preserves marketplace metadata and uses the profile codex home
       capabilities: [],
       sourcePath: pluginRoot,
       websiteUrl: null,
+      iconPath: null,
     });
 
     assert.deepEqual(overview.apps[0], {
@@ -176,6 +177,7 @@ test("getOverview preserves marketplace metadata and uses the profile codex home
       isAccessible: false,
       isEnabled: false,
       pluginDisplayNames: ["Gmail"],
+      logoUrl: null,
     });
   } finally {
     await fs.rm(runtimeStateRoot, { force: true, recursive: true });

@@ -34,6 +34,7 @@ export interface DesktopPluginRecord {
   readonly capabilities: string[];
   readonly sourcePath: string | null;
   readonly websiteUrl: string | null;
+  readonly iconPath: string | null;
 }
 
 export interface DesktopAppRecord {
@@ -44,6 +45,7 @@ export interface DesktopAppRecord {
   readonly isAccessible: boolean;
   readonly isEnabled: boolean;
   readonly pluginDisplayNames: string[];
+  readonly logoUrl: string | null;
 }
 
 export interface DesktopMcpServerRecord {
