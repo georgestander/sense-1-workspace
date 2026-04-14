@@ -205,7 +205,7 @@ export function ThreadTranscript({
           setShowScrollToBottom((current) => current === nextShowScrollToBottom ? current : nextShowScrollToBottom);
         }}
       >
-        <div className="flex w-full flex-col gap-2.5 pb-48">
+        <div className="flex w-full flex-col gap-2.5 pb-10">
           {threadInteractionState === "review" || hasReviewArtifacts ? (
             <ThreadReviewCard rightRailChangeGroups={rightRailChangeGroups} selectedThread={selectedThread} threadFolderRoot={threadFolderRoot} />
           ) : null}
@@ -256,7 +256,7 @@ export function ThreadTranscript({
       </div>
 
       {showScrollToBottom ? (
-        <div className="pointer-events-none sticky bottom-16 z-10 flex justify-center">
+        <div className="pointer-events-none sticky bottom-52 z-50 flex justify-center">
           <button
             className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-ink px-3 py-1.5 text-xs font-medium text-white shadow-[0_4px_12px_rgba(10,15,20,0.2)] transition-opacity hover:opacity-90"
             onClick={() => transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" })}
