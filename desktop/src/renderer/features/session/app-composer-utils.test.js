@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildDraftRunRequest,
   buildSelectedThreadRunRequest,
+  shouldUseSelectedThreadBusyActions,
 } from "./app-composer-utils.ts";
 
 test("buildSelectedThreadRunRequest trims prompt and forwards thread context", () => {
@@ -60,6 +61,30 @@ test("buildSelectedThreadRunRequest returns null for empty prompts", () => {
       threadPrompt: "   ",
     }),
     null,
+  );
+});
+
+test("shouldUseSelectedThreadBusyActions keeps restored running threads on the steer/queue path", () => {
+  assert.equal(
+    shouldUseSelectedThreadBusyActions({
+      canSteerSelectedThread: false,
+      effectiveThreadBusy: true,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldUseSelectedThreadBusyActions({
+      canSteerSelectedThread: true,
+      effectiveThreadBusy: false,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldUseSelectedThreadBusyActions({
+      canSteerSelectedThread: false,
+      effectiveThreadBusy: false,
+    }),
+    false,
   );
 });
 

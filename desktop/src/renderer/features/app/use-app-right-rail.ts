@@ -12,6 +12,7 @@ import type {
 import type { RightRailProps } from "../../components/RightRail";
 import { buildTranscriptScrollAnchor, shouldAutoFollowTranscript } from "./transcript-scroll.js";
 import { perfCount, perfMeasure } from "../../lib/perf-debug.ts";
+import { useStreamingEntryBody } from "../../state/session/session-stream-live-bodies.ts";
 
 const PRE_EXECUTION_STATES = new Set<DesktopInteractionState>(["conversation", "clarification"]);
 
@@ -147,7 +148,11 @@ export function useAppRightRail({
 
   const entryCount = selectedThread?.entries.length ?? 0;
   const lastEntry = selectedThread?.entries[entryCount - 1];
-  const lastEntryAnchor = perfMeasure("right-rail.build-scroll-anchor", () => buildTranscriptScrollAnchor(lastEntry));
+  const lastEntryLiveBody = useStreamingEntryBody(selectedThread?.id ?? "", lastEntry?.id ?? "");
+  const lastEntryAnchor = perfMeasure(
+    "right-rail.build-scroll-anchor",
+    () => buildTranscriptScrollAnchor(lastEntry, lastEntryLiveBody),
+  );
   useEffect(() => {
     if (!entryCount) {
       return;

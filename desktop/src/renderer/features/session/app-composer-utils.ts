@@ -13,6 +13,11 @@ type SelectedThreadRunRequestParams = {
   threadPrompt: string;
 };
 
+type SelectedThreadBusyActionParams = {
+  canSteerSelectedThread: boolean;
+  effectiveThreadBusy: boolean;
+};
+
 export function buildSelectedThreadRunRequest({
   attachedFiles,
   selectedThread,
@@ -30,6 +35,13 @@ export function buildSelectedThreadRunRequest({
     threadId: selectedThread.id,
     workspaceRoot: selectedThread.workspaceRoot,
   };
+}
+
+export function shouldUseSelectedThreadBusyActions({
+  canSteerSelectedThread,
+  effectiveThreadBusy,
+}: SelectedThreadBusyActionParams): boolean {
+  return canSteerSelectedThread || effectiveThreadBusy;
 }
 
 export function buildDraftRunRequest({
