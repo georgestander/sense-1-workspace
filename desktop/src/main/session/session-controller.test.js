@@ -6816,6 +6816,10 @@ test("runDesktopTask creates a visible per-session artifact directory for a new 
   assert.equal(session.workspace_id, null);
   assert.deepEqual(session.metadata, {
     artifactRoot: result.cwd,
+    titleContext: {
+      initialPrompt: "Keep notes for this chat",
+      seedTitle: "Chat only thread",
+    },
   });
   const sessionRecord = await readSessionRecord({
     artifactRoot,

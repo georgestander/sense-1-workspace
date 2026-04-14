@@ -426,7 +426,11 @@ test("writeRuntimeMessageToSubstrate records canonical runtime activity events f
       },
       resolveSessionContextByThreadId,
     }),
-    { status: "written", threadId: "thread-writer-1" },
+    {
+      status: "written",
+      suggestedThreadTitle: "Inspect /tmp/project/src/main.ts and /tmp/project/README.md before",
+      threadId: "thread-writer-1",
+    },
   );
 
   assert.deepEqual(
@@ -1043,7 +1047,11 @@ test("writeRuntimeMessageToSubstrate emits runtime activity hooks and session pa
       onSessionRecordUpdate: async (update) => sessionRecordUpdates.push(update),
       resolveSessionContextByThreadId,
     }),
-    { status: "written", threadId: "thread-writer-1" },
+    {
+      status: "written",
+      suggestedThreadTitle: "Read /tmp/project/src/app.ts before editing it",
+      threadId: "thread-writer-1",
+    },
   );
 
   assert.deepEqual(

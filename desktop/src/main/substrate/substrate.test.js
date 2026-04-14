@@ -250,6 +250,9 @@ test("rememberSubstrateWorkspace heals a legacy workspace row and carries its po
     ).get(sessionShell.sessionId);
     assert.equal(session.workspace_id, originalWorkspace.id);
     assert.deepEqual(JSON.parse(session.metadata), {
+      titleContext: {
+        seedTitle: "Legacy SharePoint session",
+      },
       workspaceRoot: path.resolve(originalMountPath),
     });
   } finally {
@@ -290,6 +293,9 @@ test("rememberSubstrateWorkspace heals a legacy workspace row and carries its po
     ).get(sessionShell.sessionId);
     assert.equal(session.workspace_id, healedWorkspace?.id);
     assert.deepEqual(JSON.parse(session.metadata), {
+      titleContext: {
+        seedTitle: "Legacy SharePoint session",
+      },
       workspaceRoot: path.resolve(remountedPath),
     });
 
