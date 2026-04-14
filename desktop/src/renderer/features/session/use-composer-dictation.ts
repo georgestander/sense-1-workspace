@@ -26,6 +26,7 @@ type DesktopVoiceBridge = NonNullable<Window["sense1Desktop"]>["voice"];
 type NativeRealtimeSession = {
   baselineValue: string;
   queuedAudio: Promise<void>;
+  startAccepted: boolean;
   stopCapture: () => Promise<void>;
   threadId: string;
 };
@@ -193,7 +194,7 @@ export function useComposerDictation({
 
     await session.queuedAudio.catch(() => {});
     const operations = [session.stopCapture()];
-    if (requestStop) {
+    if (requestStop && session.startAccepted) {
       const voiceBridge = resolveDesktopVoiceBridge();
       if (voiceBridge) {
         operations.push(
@@ -250,6 +251,7 @@ export function useComposerDictation({
     nativeSessionRef.current = {
       baselineValue: value,
       queuedAudio: Promise.resolve(),
+      startAccepted: false,
       stopCapture: async () => {},
       threadId: resolvedThreadId,
     };
@@ -258,6 +260,9 @@ export function useComposerDictation({
       await voiceBridge.start({
         threadId: resolvedThreadId,
       });
+      if (nativeSessionRef.current?.threadId === resolvedThreadId) {
+        nativeSessionRef.current.startAccepted = true;
+      }
       const stopCapture = await createNativeRealtimeCapture((audio) => {
         queueNativeRealtimeAudio(audio);
       });

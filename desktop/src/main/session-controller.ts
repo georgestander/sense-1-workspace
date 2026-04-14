@@ -542,11 +542,23 @@ export class DesktopSessionController {
       throw new Error("Choose a thread before starting voice dictation.");
     }
 
-    await this.#manager.request("thread/realtime/start", {
+    const request: {
+      threadId: string;
+      prompt?: string;
+      sessionId?: string;
+    } = {
       threadId: resolvedThreadId,
-      prompt: firstString(prompt),
-      sessionId: firstString(sessionId),
-    });
+    };
+    const resolvedPrompt = firstString(prompt);
+    const resolvedSessionId = firstString(sessionId);
+    if (resolvedPrompt) {
+      request.prompt = resolvedPrompt;
+    }
+    if (resolvedSessionId) {
+      request.sessionId = resolvedSessionId;
+    }
+
+    await this.#manager.request("thread/realtime/start", request);
   }
 
   async appendDesktopVoiceAudio({
