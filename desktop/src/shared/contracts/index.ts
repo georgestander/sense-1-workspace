@@ -11,4 +11,5 @@ export * from "./settings.js";
 export * from "./substrate.js";
 export * from "./thread.js";
 export * from "./tenant.js";
+export * from "./voice.js";
 export * from "./workspace.js";

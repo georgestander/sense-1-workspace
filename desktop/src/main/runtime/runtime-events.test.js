@@ -327,6 +327,111 @@ test("mapDesktopRuntimeEvent translates thread list activity into thread-list-ch
   });
 });
 
+test("mapDesktopRuntimeEvent translates realtime transcript notifications", () => {
+  const delta = mapDesktopRuntimeEvent({
+    method: "thread/realtime/transcript/delta",
+    params: {
+      delta: "open the ",
+      role: "user",
+      threadId: "thread-voice-1",
+    },
+  });
+  const packagedDelta = mapDesktopRuntimeEvent({
+    method: "thread/realtime/transcriptUpdated",
+    params: {
+      role: "assistant",
+      text: "hello",
+      threadId: "thread-voice-1",
+    },
+  });
+  const done = mapDesktopRuntimeEvent({
+    method: "thread/realtime/transcript/done",
+    params: {
+      role: "user",
+      text: "open the README",
+      threadId: "thread-voice-1",
+    },
+  });
+
+  assert.deepEqual(delta, {
+    kind: "voiceTranscriptUpdated",
+    isFinal: false,
+    role: "user",
+    text: "open the ",
+    threadId: "thread-voice-1",
+  });
+  assert.deepEqual(packagedDelta, {
+    kind: "voiceTranscriptUpdated",
+    isFinal: false,
+    role: "assistant",
+    text: "hello",
+    threadId: "thread-voice-1",
+  });
+  assert.deepEqual(done, {
+    kind: "voiceTranscriptUpdated",
+    isFinal: true,
+    role: "user",
+    text: "open the README",
+    threadId: "thread-voice-1",
+  });
+});
+
+test("mapDesktopRuntimeEvent translates realtime lifecycle notifications", () => {
+  const started = mapDesktopRuntimeEvent({
+    method: "thread/realtime/started",
+    params: {
+      sessionId: "session-voice-1",
+      threadId: "thread-voice-2",
+    },
+  });
+  const closed = mapDesktopRuntimeEvent({
+    method: "thread/realtime/closed",
+    params: {
+      reason: "client_stop",
+      threadId: "thread-voice-2",
+    },
+  });
+  const failed = mapDesktopRuntimeEvent({
+    method: "thread/realtime/error",
+    params: {
+      message: "microphone stream ended",
+      threadId: "thread-voice-2",
+    },
+  });
+  const sdp = mapDesktopRuntimeEvent({
+    method: "thread/realtime/sdp",
+    params: {
+      sdp: "v=0\r\no=answer",
+      threadId: "thread-voice-2",
+    },
+  });
+
+  assert.deepEqual(started, {
+    kind: "voiceStateChanged",
+    reason: null,
+    sessionId: "session-voice-1",
+    state: "active",
+    threadId: "thread-voice-2",
+  });
+  assert.deepEqual(closed, {
+    kind: "voiceStateChanged",
+    reason: "client_stop",
+    sessionId: null,
+    state: "stopped",
+    threadId: "thread-voice-2",
+  });
+  assert.deepEqual(failed, {
+    kind: "voiceError",
+    message: "microphone stream ended",
+    threadId: "thread-voice-2",
+  });
+  assert.deepEqual(sdp, {
+    kind: "voiceSdpReceived",
+    sdp: "v=0\r\no=answer",
+    threadId: "thread-voice-2",
+  });
+});
+
 test("mapDesktopRuntimeEvent still reports list changes even without a thread id", () => {
   const event = mapDesktopRuntimeEvent({
     method: "thread/started",

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { ChevronDown, ChevronRight, Clock3, Folder, FolderOpen, Mic, MicOff, Paperclip, Send } from "lucide-react";
+import { ChevronDown, ChevronRight, Clock3, Folder, FolderOpen, Mic, Paperclip, Send } from "lucide-react";
 
 import { Button } from "../ui/button";
 import { ShortcutPillRow } from "../composer/shortcut-pill-row.js";
 import { ShortcutSuggestionMenu } from "../composer/shortcut-suggestion-menu.js";
+import { VoiceRecordingPill } from "../composer/voice-recording-pill.js";
 import { Input } from "../ui/input";
 import { cn } from "../../lib/cn";
 import type { DesktopBootstrapTeamSetup, DesktopBootstrapTenant, DesktopExtensionOverviewResult, DesktopModelEntry, DesktopThreadSnapshot, ProjectedSessionRecord, ProjectedWorkspaceRecord } from "../../../main/contracts";
@@ -97,6 +98,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
   const [teamError, setTeamError] = useState<string | null>(null);
   const [shortcutCursorIndex, setShortcutCursorIndex] = useState(draftPrompt.length);
   const [shortcutSelectionIndex, setShortcutSelectionIndex] = useState(0);
+  const draftPromptRef = useRef(draftPrompt);
   const promptInputRef = useRef<HTMLInputElement | null>(null);
 
   const resumableWorkspaceSessions = workspaceSessions.filter(isResumableProjectedSession);
@@ -111,14 +113,19 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
   const canStartWork = teamIdentity.canStartWork;
   const dictation = useComposerDictation({
     enabled: canStartWork,
+    threadId: primaryWorkspaceSession?.codex_thread_id ?? "",
     value: draftPrompt,
-    setValue: (value) => setDraftPrompt(typeof value === "function" ? value(draftPrompt) : value),
+    setValue: (value) => setDraftPrompt(typeof value === "function" ? value(draftPromptRef.current) : value),
   });
   const shortcutSuggestions = useMemo(
     () => (extensionOverview ? resolvePromptShortcutSuggestions(draftPrompt, extensionOverview, shortcutCursorIndex) : []),
     [draftPrompt, extensionOverview, shortcutCursorIndex],
   );
   const visibleShortcutSuggestions = shortcutSuggestions.slice(0, 8);
+
+  useEffect(() => {
+    draftPromptRef.current = draftPrompt;
+  }, [draftPrompt]);
 
   useEffect(() => {
     setShortcutSelectionIndex(0);
@@ -253,6 +260,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
         <div className="flex items-center gap-2">
           <Input
             autoFocus={Boolean(workInFolder && workspaceFolder && canStartWork)}
+            className="flex-1"
             disabled={!canStartWork}
             onChange={(event) => {
               setDraftPrompt(event.target.value);
@@ -289,22 +297,34 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
             ref={promptInputRef}
             value={draftPrompt}
           />
-          {dictation.supported ? (
+          {dictation.recordingIndicator ? (
+            <VoiceRecordingPill
+              elapsedLabel={dictation.recordingIndicator.elapsedLabel}
+              levels={dictation.recordingIndicator.levels}
+              onStop={() => dictation.stop()}
+            />
+          ) : dictation.supported ? (
             <Button
-              aria-label={dictation.active ? "Stop voice dictation" : "Start voice dictation"}
+              aria-label="Start voice input"
               disabled={!canStartWork}
               onClick={() => dictation.toggle()}
               size="icon"
               variant="secondary"
             >
-              {dictation.active ? <MicOff /> : <Mic />}
+              <Mic />
             </Button>
           ) : null}
           <Button aria-label="Send prompt" disabled={!canStartWork || taskPending || !draftPrompt.trim() || (workInFolder && !workspaceFolder)} onClick={submitDraftTask} size="icon" variant="default"><Send /></Button>
         </div>
         <ShortcutPillRow className="mt-3" overview={extensionOverview} prompt={draftPrompt} />
-        {dictation.error ? <p className="mt-2 text-xs text-ink-muted">{dictation.error}</p> : null}
-        {dictation.hint ? <p className="mt-2 text-xs text-ink-muted">{dictation.hint}</p> : null}
+        {dictation.error ? <p className="mt-2 text-[0.5rem] leading-tight text-black">{dictation.error}</p> : null}
+        {dictation.hint ? <p className="mt-2 text-[0.5rem] leading-tight text-black">{dictation.hint}</p> : null}
+        {dictation.statusText || dictation.liveTranscript?.assistant ? (
+          <div className="mt-2 text-[0.5rem] leading-tight text-black" role="status">
+            {dictation.statusText ? <p>{dictation.statusText}</p> : null}
+            {dictation.liveTranscript?.assistant ? <p>Codex: {dictation.liveTranscript.assistant}</p> : null}
+          </div>
+        ) : null}
         {attachedFiles.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {attachedFiles.map((filePath) => {

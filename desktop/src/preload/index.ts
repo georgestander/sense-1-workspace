@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld(
     turns: Object.freeze(desktopBridge.turns),
     approvals: Object.freeze(desktopBridge.approvals),
     input: Object.freeze(desktopBridge.input),
+    voice: Object.freeze(desktopBridge.voice),
     models: Object.freeze(desktopBridge.models),
     workspace: Object.freeze(desktopBridge.workspace),
     settings: Object.freeze(desktopBridge.settings),

@@ -30,6 +30,9 @@ export function getDesktopBridge(): DesktopBridge | null {
     typeof bridge.turns?.queue !== "function" ||
     typeof bridge.approvals?.respond !== "function" ||
     typeof bridge.input?.respond !== "function" ||
+    typeof bridge.voice?.start !== "function" ||
+    typeof bridge.voice?.appendAudio !== "function" ||
+    typeof bridge.voice?.stop !== "function" ||
     typeof bridge.models?.list !== "function" ||
     typeof bridge.workspace?.pickFolder !== "function" ||
     typeof bridge.workspace?.pickFiles !== "function" ||

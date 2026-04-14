@@ -444,6 +444,9 @@ const desktopSessionController = new DesktopSessionController(appServerManager, 
   openExternal: async (url) => {
     await shell.openExternal(url);
   },
+  onRuntimeEvent: async (event) => {
+    emitDesktopRuntimeEvent(event);
+  },
   onDesktopRunStarted: async (result) => {
     if (result.status === "started") {
       initializeActiveThread(result);
@@ -745,6 +748,9 @@ async function bootstrapMainProcess(): Promise<void> {
     },
     listModels: async () => await desktopSessionController.listModels(),
     respondToInputRequest: async (request) => await desktopSessionController.respondToInputRequest(request),
+    startDesktopVoice: async (request) => await desktopSessionController.startDesktopVoice(request),
+    appendDesktopVoiceAudio: async (request) => await desktopSessionController.appendDesktopVoiceAudio(request),
+    stopDesktopVoice: async (request) => await desktopSessionController.stopDesktopVoice(request),
     rememberWorkspaceFolder: async (folderPath: string) => await desktopSessionController.rememberWorkspaceFolder(folderPath),
     archiveWorkspace: async (request) => await desktopSessionController.archiveWorkspace(request),
     restoreWorkspace: async (request) => await desktopSessionController.restoreWorkspace(request),

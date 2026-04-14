@@ -7,6 +7,7 @@ import {
   buildIsolatedRuntimeEnv,
   ensureRuntimeConfigDefaults,
   ensureRuntimeIsolationDirectories,
+  resolveRealtimeAuthEnvOverrides,
 } from "./app-server-runtime-isolation.js";
 import {
   buildRuntimePath,
@@ -35,10 +36,29 @@ const DEFAULT_RUNTIME_CONFIG = [
   'developer_instructions = ""',
   'instructions = ""',
   "",
+  "[realtime]",
+  'version = "v2"',
+  'type = "conversational"',
+  "",
+  "[features]",
+  "realtime_conversation = true",
+  "",
   "[tools]",
   "view_image = true",
   "",
 ].join("\n");
+
+const DEFAULT_APP_SERVER_ARGS = [
+  "app-server",
+  "--listen",
+  "stdio://",
+  "--enable",
+  "realtime_conversation",
+  "-c",
+  'realtime.version="v2"',
+  "-c",
+  'realtime.type="conversational"',
+];
 
 export const APP_SERVER_STATES = [
   "idle",
@@ -69,7 +89,7 @@ export class AppServerProcessManager extends EventEmitter {
 
     const {
       command = "codex",
-      args = ["app-server", "--listen", "stdio://"],
+      args = DEFAULT_APP_SERVER_ARGS,
       startupTimeoutMs = DEFAULT_STARTUP_TIMEOUT_MS,
       requestTimeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
       maxRestarts = DEFAULT_MAX_RESTARTS,
@@ -152,10 +172,14 @@ export class AppServerProcessManager extends EventEmitter {
     this._clearTransportLogs();
 
     const [rawCommand, rawArgs] = this._buildCommand();
+    const realtimeAuthEnvOverrides = await resolveRealtimeAuthEnvOverrides(resolvedCodexHome, this.env);
     const nextEnv = buildIsolatedRuntimeEnv({
       codexHome: resolvedCodexHome,
       defaultRuntimeOriginator: DEFAULT_RUNTIME_ORIGINATOR,
-      envOverrides: this.env,
+      envOverrides: {
+        ...realtimeAuthEnvOverrides,
+        ...this.env,
+      },
       processEnv: process.env,
       runtimePath: buildRuntimePath(),
     });

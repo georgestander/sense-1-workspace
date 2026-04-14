@@ -1,6 +1,7 @@
 import type { DesktopAppServerInputItem, DesktopThreadDelta, DesktopThreadSummary, DesktopInputQuestion, DesktopInputRequestState, DesktopThreadInputState } from "./thread.js";
 import type { DesktopRunContext } from "./run.js";
 import type { DesktopUpdateState } from "./runtime.js";
+import type { DesktopVoiceState } from "./voice.js";
 import type { DesktopWorkspacePermissionRequest } from "./workspace.js";
 
 export type DesktopApprovalDecision = "accept" | "acceptForSession" | "decline";
@@ -123,4 +124,28 @@ export type DesktopRuntimeEvent =
   | {
       readonly kind: "updateStateChanged";
       readonly update: DesktopUpdateState;
+    }
+  | {
+      readonly kind: "voiceStateChanged";
+      readonly threadId: string;
+      readonly state: DesktopVoiceState;
+      readonly sessionId: string | null;
+      readonly reason: string | null;
+    }
+  | {
+      readonly kind: "voiceTranscriptUpdated";
+      readonly threadId: string;
+      readonly role: string;
+      readonly text: string;
+      readonly isFinal: boolean;
+    }
+  | {
+      readonly kind: "voiceSdpReceived";
+      readonly threadId: string;
+      readonly sdp: string;
+    }
+  | {
+      readonly kind: "voiceError";
+      readonly threadId: string;
+      readonly message: string;
     };

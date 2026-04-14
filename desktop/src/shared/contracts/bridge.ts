@@ -30,6 +30,11 @@ import type {
   DesktopSaveTeamMemberRequest,
   DesktopTeamStateResult,
 } from "./tenant.js";
+import type {
+  DesktopVoiceAppendAudioRequest,
+  DesktopVoiceStartRequest,
+  DesktopVoiceStopRequest,
+} from "./voice.js";
 import type { DesktopThreadArchiveRequest, DesktopThreadDeleteRequest, DesktopThreadRenameRequest, DesktopThreadRestoreRequest, DesktopThreadWorkspaceRootRequest, DesktopWorkspaceArchiveRequest, DesktopWorkspaceDeleteRequest, DesktopWorkspaceHydrateResult, DesktopWorkspaceOperatingModeRequest, DesktopWorkspacePermissionGrantRequest, DesktopWorkspacePolicyRequest, DesktopWorkspacePolicyResult, DesktopWorkspaceRestoreRequest, DesktopWorkspaceSidebarOrderRequest } from "./workspace.js";
 import type { SubstrateEventsBySessionRequest, SubstrateEventsResult, SubstrateObjectRefsBySessionRequest, SubstrateObjectRefsResult, SubstrateRecentSessionsRequest, SubstrateRecentWorkspacesRequest, SubstrateSessionDetailRequest, SubstrateSessionDetailResult, SubstrateSessionsByWorkspaceRequest, SubstrateSessionsResult, SubstrateWorkspaceDetailRequest, SubstrateWorkspaceDetailResult, SubstrateWorkspacesResult } from "./substrate.js";
 import type { LaunchChatgptSignInResult, LogoutChatgptResult, SelectDesktopProfileResult, WindowActionResult, WindowToggleResult, WorkspaceFolderPickerResult } from "./bootstrap.js";
@@ -81,6 +86,11 @@ export interface DesktopBridge {
   };
   input: {
     respond(request: DesktopInputResponseRequest): Promise<void>;
+  };
+  voice: {
+    start(request: DesktopVoiceStartRequest): Promise<void>;
+    appendAudio(request: DesktopVoiceAppendAudioRequest): Promise<void>;
+    stop(request: DesktopVoiceStopRequest): Promise<void>;
   };
   workspace: {
     pickFolder(): Promise<WorkspaceFolderPickerResult>;

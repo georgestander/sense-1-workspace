@@ -36,6 +36,7 @@ export type DesktopSessionBootstrapApplyOptions = {
 export function applyBootstrap(
   deps: {
     accountEmail: string | null;
+    accountType: string | null;
     continuePending: boolean;
     isSignedIn: boolean;
     logoutPending: boolean;
@@ -49,6 +50,7 @@ export function applyBootstrap(
     flushPendingThreadDeltas: (threadId: string) => void;
     rememberKnownThreadIds: (threadIds: Iterable<string>, options?: { replace?: boolean }) => void;
     setAccountEmail: Dispatch<SetStateAction<string | null>>;
+    setAccountType: Dispatch<SetStateAction<string | null>>;
     setActiveTurnIdsByThread: Dispatch<SetStateAction<Record<string, string>>>;
     setIsSignedIn: Dispatch<SetStateAction<boolean>>;
     setPendingApprovals: Dispatch<SetStateAction<PendingApproval[]>>;
@@ -102,6 +104,7 @@ export function applyBootstrap(
   const nextPendingApprovals = bootstrap.pendingApprovals.map((approval) => approval);
   const effectiveIsSignedIn = shouldPreserveSignedInShell ? true : bootstrap.isSignedIn;
   const effectiveAccountEmail = shouldPreserveSignedInShell ? deps.accountEmail : bootstrap.accountEmail;
+  const effectiveAccountType = shouldPreserveSignedInShell ? deps.accountType : bootstrap.auth.accountType;
   const effectiveRunContext = shouldPreserveSignedInShell ? (bootstrap.runContext ?? deps.runContext) : bootstrap.runContext;
   const effectiveTenant = resolveEffectiveTenant({
     bootstrapTenant: bootstrap.tenant,
@@ -129,6 +132,7 @@ export function applyBootstrap(
   deps.setRuntimeSetup(bootstrap.runtimeSetup);
   deps.setIsSignedIn(effectiveIsSignedIn);
   deps.setAccountEmail(effectiveAccountEmail);
+  deps.setAccountType(effectiveAccountType);
   deps.setProfileOptions(bootstrap.profileOptions);
   deps.setSelectedProfileId(bootstrap.profileId);
   deps.setProfileFieldValue((current) => (shouldReplaceSessionState ? bootstrap.profileId : current || bootstrap.profileId));

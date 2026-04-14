@@ -1,9 +1,10 @@
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from "react";
-import { BrainCircuit, Mic, MicOff, Paperclip, Send, Square } from "lucide-react";
+import { BrainCircuit, Mic, Paperclip, Send, Square } from "lucide-react";
 
 import { Button } from "../ui/button";
 import { ShortcutPillRow } from "../composer/shortcut-pill-row.js";
 import { ShortcutSuggestionMenu } from "../composer/shortcut-suggestion-menu.js";
+import { VoiceRecordingPill } from "../composer/voice-recording-pill.js";
 import { buildThreadComposerIdentity } from "../../state/session/tenant-identity.js";
 import { useComposerDictation } from "../../features/session/use-composer-dictation.js";
 import { type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopExtensionOverviewResult, type DesktopModelEntry } from "../../../main/contracts";
@@ -64,6 +65,7 @@ function ThreadComposerInner({
   const sendDisabled = composerDisabled || !threadPrompt.trim();
   const dictation = useComposerDictation({
     enabled: !composerDisabled,
+    threadId: selectedThreadId,
     value: threadPrompt,
     setValue: setThreadPrompt,
   });
@@ -200,10 +202,16 @@ function ThreadComposerInner({
           </p>
         ) : null}
         {dictation.error ? (
-          <p className="rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft">{dictation.error}</p>
+          <p className="px-1 text-[0.5rem] leading-tight text-black">{dictation.error}</p>
         ) : null}
         {dictation.hint ? (
-          <p className="rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft" role="note">{dictation.hint}</p>
+          <p className="px-1 text-[0.5rem] leading-tight text-black" role="note">{dictation.hint}</p>
+        ) : null}
+        {dictation.statusText || dictation.liveTranscript?.assistant ? (
+          <div className="px-1 text-[0.5rem] leading-tight text-black" role="status">
+            {dictation.statusText ? <p>{dictation.statusText}</p> : null}
+            {dictation.liveTranscript?.assistant ? <p>Codex: {dictation.liveTranscript.assistant}</p> : null}
+          </div>
         ) : null}
         {visibleShortcutSuggestions.length > 0 ? (
           <ShortcutSuggestionMenu
@@ -262,17 +270,6 @@ function ThreadComposerInner({
             >
               <Paperclip />
             </Button>
-            {dictation.supported ? (
-              <Button
-                aria-label={dictation.active ? "Stop dictation" : "Dictate"}
-                disabled={composerDisabled}
-                onClick={() => dictation.toggle()}
-                size="icon"
-                variant="secondary"
-              >
-                {dictation.active ? <MicOff /> : <Mic />}
-              </Button>
-            ) : null}
             <label className="inline-flex items-center gap-2 rounded-xl border border-line/40 px-2 py-1 text-xs text-muted">
               <select
                 className="bg-transparent text-ink outline-none"
@@ -312,6 +309,23 @@ function ThreadComposerInner({
             </label>
           </div>
           <div className="flex items-center gap-2">
+            {dictation.recordingIndicator ? (
+              <VoiceRecordingPill
+                elapsedLabel={dictation.recordingIndicator.elapsedLabel}
+                levels={dictation.recordingIndicator.levels}
+                onStop={() => dictation.stop()}
+              />
+            ) : !effectiveThreadBusy && dictation.supported ? (
+              <Button
+                aria-label="Start voice input"
+                disabled={composerDisabled}
+                onClick={() => dictation.toggle()}
+                size="icon"
+                variant="secondary"
+              >
+                <Mic />
+              </Button>
+            ) : null}
             {queuedMessageCount > 0 ? (
               <span className="text-xs text-ink-muted">{queuedMessageCount} queued</span>
             ) : null}

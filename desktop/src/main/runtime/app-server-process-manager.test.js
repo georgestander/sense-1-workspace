@@ -361,6 +361,13 @@ test("start seeds a profile config when one does not exist yet", async () => {
     'developer_instructions = ""',
     'instructions = ""',
     "",
+    "[realtime]",
+    'version = "v2"',
+    'type = "conversational"',
+    "",
+    "[features]",
+    "realtime_conversation = true",
+    "",
     "[tools]",
     "view_image = true",
     "",
@@ -399,6 +406,7 @@ test("start isolates child home, xdg roots, and path away from inherited global 
     codexHome,
     env: {
       HOME: parentHome,
+      OPENAI_API_KEY: "sk-test-should-not-pass-through",
       PATH: [userBin, "/usr/bin"].join(path.delimiter),
       XDG_CACHE_HOME: parentXdgCache,
       XDG_CONFIG_HOME: parentXdgConfig,
@@ -414,6 +422,7 @@ test("start isolates child home, xdg roots, and path away from inherited global 
 
     assert.deepEqual(context.environmentContext, {
       home: path.join(profileRoot, "runtime-home"),
+      openaiApiKeyPresent: false,
       pathEntries: context.environmentContext.pathEntries,
       xdgCacheHome: path.join(profileRoot, "xdg", "cache"),
       xdgConfigHome: path.join(profileRoot, "xdg", "config"),
@@ -422,6 +431,36 @@ test("start isolates child home, xdg roots, and path away from inherited global 
     });
     assert.equal(context.environmentContext.pathEntries.includes(userBin), false);
     assert.equal(context.environmentContext.pathEntries.includes("/usr/bin"), true);
+  } finally {
+    await manager.stop().catch(() => {});
+    await fs.rm(tempBase, { force: true, recursive: true });
+  }
+});
+
+test("start injects the signed-in ChatGPT access token into the child realtime env", async () => {
+  const tempBase = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-app-server-auth-"));
+  const codexHome = path.join(tempBase, "profiles", "test-profile", "codex-home");
+  const manager = createManager(["--report-env-context"], {
+    codexHome,
+  });
+
+  try {
+    await fs.mkdir(codexHome, { recursive: true });
+    await fs.writeFile(
+      path.join(codexHome, "auth.json"),
+      JSON.stringify({
+        auth_mode: "chatgpt",
+        tokens: {
+          access_token: "chatgpt-access-token",
+        },
+      }, null, 2),
+      "utf8",
+    );
+
+    await manager.start();
+    const context = await manager.request("runtimeContext");
+
+    assert.equal(context.environmentContext.openaiApiKeyPresent, true);
   } finally {
     await manager.stop().catch(() => {});
     await fs.rm(tempBase, { force: true, recursive: true });

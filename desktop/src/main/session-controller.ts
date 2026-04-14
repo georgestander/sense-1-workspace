@@ -1,3 +1,6 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+
 import type { AppServerProcessManager } from "./runtime/app-server-process-manager.js";
 import { launchDesktopChatgptSignIn, logoutDesktopChatgpt } from "./auth/desktop-auth.ts";
 import {
@@ -45,6 +48,9 @@ import type {
   DesktopTeamStateResult,
   DesktopCreateFirstTeamRequest,
   DesktopSaveTeamMemberRequest,
+  DesktopVoiceAppendAudioRequest,
+  DesktopVoiceStartRequest,
+  DesktopVoiceStopRequest,
   DesktopWorkspaceArchiveRequest,
   DesktopWorkspaceDeleteRequest,
   DesktopWorkspacePermissionGrantRequest,
@@ -94,17 +100,44 @@ import { DesktopQueryService } from "./substrate/desktop-query-service.ts";
 import { DesktopAutomationService } from "./automation/desktop-automation-service.ts";
 import { DesktopTenantService } from "./tenant/desktop-tenant-service.ts";
 import { updateSubstrateSessionThreadTitle } from "./substrate/substrate.js";
-import { resolveProfileSubstrateDbPath } from "./profile/profile-state.js";
+import { resolveProfileCodexHome, resolveProfileSubstrateDbPath } from "./profile/profile-state.js";
+import {
+  type DesktopVoiceClient,
+  DesktopRealtimeTranscriptionClient,
+} from "./voice/desktop-realtime-transcription-client.ts";
 
 export type DesktopSessionControllerOptions = {
   readonly appStartedAt: string;
+  readonly desktopVoiceClient?: DesktopVoiceClient;
   readonly env?: NodeJS.ProcessEnv;
   readonly openExternal: (url: string) => Promise<void>;
   readonly onDesktopRunStarted?: (result: DesktopTaskRunResult) => void | Promise<void>;
   readonly onDesktopTaskResult?: (result: DesktopTaskRunResult) => void | Promise<void>;
   readonly onThreadTitleChanged?: (threadId: string, title: string) => void | Promise<void>;
+  readonly onRuntimeEvent?: (event: DesktopRuntimeEvent) => void | Promise<void>;
   readonly runtimeInfo: RuntimeInfo;
 };
+
+async function resolveDesktopRealtimeAccessToken(codexHome: string, env: NodeJS.ProcessEnv): Promise<string | null> {
+  const explicitRealtimeToken = firstString(env.SENSE1_REALTIME_OPENAI_API_KEY);
+  if (explicitRealtimeToken) {
+    return explicitRealtimeToken;
+  }
+
+  const authPath = path.join(codexHome, "auth.json");
+  try {
+    const parsed = JSON.parse(await fs.readFile(authPath, "utf8"));
+    const authMode = firstString(parsed?.auth_mode);
+    const accessToken = firstString(parsed?.tokens?.access_token);
+    if (authMode !== "chatgpt" || !accessToken) {
+      return null;
+    }
+
+    return accessToken;
+  } catch {
+    return null;
+  }
+}
 
 export class DesktopSessionController {
   static readonly DEFAULT_SETTINGS: DesktopSettings = {
@@ -148,7 +181,9 @@ export class DesktopSessionController {
   readonly #threadReview: ThreadReviewService;
   readonly #turnControl: ThreadTurnControlService;
   readonly #runStart: DesktopRunStartService;
+  readonly #desktopVoice: DesktopVoiceClient;
   readonly #resolveProfile: () => Promise<{ id: string }>;
+  readonly #onRuntimeEvent: ((event: DesktopRuntimeEvent) => void | Promise<void>) | null;
   #nextAuditEventId = 1;
   #resolvedProfilePromise: Promise<{ id: string }> | null = null;
   #workspacePermissionRestoreReady: Promise<void>;
@@ -159,6 +194,7 @@ export class DesktopSessionController {
     this.#env = options.env ?? process.env;
     this.#openExternal = options.openExternal;
     this.#resolveProfile = async () => await this.#resolveCurrentProfile();
+    this.#onRuntimeEvent = options.onRuntimeEvent ?? null;
     this.#onDesktopRunStarted = options.onDesktopRunStarted ?? null;
     this.#onDesktopTaskResult = options.onDesktopTaskResult ?? null;
     this.#onThreadTitleChanged = options.onThreadTitleChanged ?? null;
@@ -281,6 +317,17 @@ export class DesktopSessionController {
       substrateSync: this.#substrateSync,
       waitUntilWorkspacePermissionsRestored: async () => await this.#workspacePermissionRestoreReady,
       workspaceService: this.#workspaceService,
+    });
+    this.#desktopVoice = options.desktopVoiceClient ?? new DesktopRealtimeTranscriptionClient({
+      emitEvent: async (event) => {
+        this.ingestRuntimeEvent(event);
+        await this.#onRuntimeEvent?.(event);
+      },
+      resolveAccessToken: async () => {
+        const profile = await this.#resolveProfile();
+        const codexHome = resolveProfileCodexHome(profile.id, this.#env);
+        return await resolveDesktopRealtimeAccessToken(codexHome, this.#env);
+      },
     });
     this.#workspacePermissionRestoreReady = this.#restoreWorkspacePermissionModes();
   }
@@ -411,6 +458,7 @@ export class DesktopSessionController {
   }
 
   async logoutChatgpt() {
+    await this.#desktopVoice.dispose();
     const result = await logoutDesktopChatgpt(this.#manager, {
       env: this.#env,
     });
@@ -535,6 +583,155 @@ export class DesktopSessionController {
     });
   }
 
+  async startDesktopVoice({
+    outputModality,
+    prompt,
+    sessionId,
+    threadId,
+    transport,
+  }: DesktopVoiceStartRequest): Promise<void> {
+    const resolvedThreadId = firstString(threadId);
+    if (!resolvedThreadId) {
+      throw new Error("Choose a thread before starting voice input.");
+    }
+
+    const request: {
+      threadId: string;
+      outputModality: "text" | "audio";
+      prompt?: string;
+      sessionId?: string;
+      transport?: {
+        type: "websocket";
+      } | {
+        type: "webrtc";
+        sdp: string;
+      };
+    } = {
+      outputModality: outputModality === "audio" ? "audio" : "text",
+      threadId: resolvedThreadId,
+    };
+    if (typeof prompt === "string") {
+      request.prompt = prompt;
+    }
+    const resolvedSessionId = firstString(sessionId);
+    const resolvedTransport =
+      transport?.type === "webrtc"
+        ? {
+            type: "webrtc" as const,
+            sdp: firstString(transport.sdp) ?? "",
+          }
+        : transport?.type === "websocket"
+          ? {
+              type: "websocket" as const,
+            }
+          : null;
+    if (resolvedSessionId) {
+      request.sessionId = resolvedSessionId;
+    }
+    if (resolvedTransport) {
+      if (resolvedTransport.type === "webrtc" && !resolvedTransport.sdp) {
+        throw new Error("Desktop voice start requires a WebRTC SDP offer.");
+      }
+      request.transport = resolvedTransport;
+    }
+
+    if (request.outputModality === "text" && !request.transport) {
+      await this.#desktopVoice.start({
+        prompt,
+        threadId: resolvedThreadId,
+      });
+      return;
+    }
+
+    try {
+      await this.#manager.request("thread/realtime/start", request);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/\bthread not found\b|\bno rollout found for thread id\b/i.test(message)) {
+        throw error;
+      }
+
+      await this.#resumeVoiceThread(resolvedThreadId);
+      await this.#manager.request("thread/realtime/start", request);
+    }
+  }
+
+  async #resumeVoiceThread(threadId: string): Promise<void> {
+    await this.#manager.request("thread/resume", {
+      threadId,
+    });
+  }
+
+  async appendDesktopVoiceAudio({
+    audio,
+    threadId,
+  }: DesktopVoiceAppendAudioRequest): Promise<void> {
+    const resolvedThreadId = firstString(threadId);
+    const resolvedAudioData = firstString(audio?.data);
+    if (!resolvedThreadId) {
+      throw new Error("Choose a thread before sending voice audio.");
+    }
+    if (!resolvedAudioData) {
+      throw new Error("Voice audio chunk was empty.");
+    }
+
+    const sampleRate = Number(audio?.sampleRate);
+    const numChannels = Number(audio?.numChannels);
+    const samplesPerChannel = audio?.samplesPerChannel == null ? null : Number(audio.samplesPerChannel);
+    if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
+      throw new Error("Voice audio sample rate must be greater than zero.");
+    }
+    if (!Number.isFinite(numChannels) || numChannels <= 0) {
+      throw new Error("Voice audio channel count must be greater than zero.");
+    }
+    if (samplesPerChannel !== null && (!Number.isFinite(samplesPerChannel) || samplesPerChannel <= 0)) {
+      throw new Error("Voice audio sample count must be greater than zero.");
+    }
+
+    if (this.#desktopVoice.hasSession(resolvedThreadId)) {
+      await this.#desktopVoice.appendAudio({
+        audio: {
+          data: resolvedAudioData,
+          itemId: firstString(audio?.itemId),
+          numChannels,
+          sampleRate,
+          samplesPerChannel,
+        },
+        threadId: resolvedThreadId,
+      });
+      return;
+    }
+
+    await this.#manager.request("thread/realtime/appendAudio", {
+      threadId: resolvedThreadId,
+      audio: {
+        data: resolvedAudioData,
+        itemId: firstString(audio?.itemId),
+        numChannels,
+        sampleRate,
+        samplesPerChannel,
+      },
+    });
+  }
+
+  async stopDesktopVoice({ threadId }: DesktopVoiceStopRequest): Promise<void> {
+    const resolvedThreadId = firstString(threadId);
+    if (!resolvedThreadId) {
+      throw new Error("Choose a thread before stopping voice input.");
+    }
+
+    if (this.#desktopVoice.hasSession(resolvedThreadId)) {
+      await this.#desktopVoice.stop({
+        threadId: resolvedThreadId,
+      });
+      return;
+    }
+
+    await this.#manager.request("thread/realtime/stop", {
+      threadId: resolvedThreadId,
+    });
+  }
+
   async selectDesktopProfile(profileId: string): Promise<SelectDesktopProfileResult> {
     const selected = await selectDesktopProfile(profileId, this.#env);
     if (!selected.success) {
@@ -547,6 +744,7 @@ export class DesktopSessionController {
     this.#runContextByThreadId.clear();
     this.#substrateSync.clearDeferredMessages();
     this.#nextAuditEventId = 1;
+    await this.#desktopVoice.dispose();
     await this.#manager.handleProfileChange(selected.profile.codexHome);
     this.#workspacePermissionRestoreReady = this.#restoreWorkspacePermissionModes();
     return {
