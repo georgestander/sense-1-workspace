@@ -8,10 +8,20 @@ import {
   resolveComposerDictationUnavailableMessage,
 } from "./composer-dictation-support.ts";
 
-test("resolveComposerDictationMode prefers native realtime dictation when the desktop bridge exposes it", () => {
+test("resolveComposerDictationMode prefers native realtime voice input when the desktop bridge exposes it", () => {
   assert.equal(
     resolveComposerDictationMode({
-      hasNativeRealtimeVoice: true,
+      hasDesktopVoiceBridge: true,
+      hasSpeechRecognition: true,
+    }),
+    "nativeRealtime",
+  );
+});
+
+test("resolveComposerDictationMode disables browser speech fallback when desktop voice exists", () => {
+  assert.equal(
+    resolveComposerDictationMode({
+      hasDesktopVoiceBridge: true,
       hasSpeechRecognition: true,
     }),
     "nativeRealtime",
@@ -21,18 +31,18 @@ test("resolveComposerDictationMode prefers native realtime dictation when the de
 test("resolveComposerDictationMode preserves web speech support in supported browser contexts", () => {
   assert.equal(
     resolveComposerDictationMode({
-      hasNativeRealtimeVoice: false,
+      hasDesktopVoiceBridge: false,
       hasSpeechRecognition: true,
     }),
     "webSpeech",
   );
 });
 
-test("resolveComposerDictationHint removes the desktop dictation fallback banner", () => {
+test("resolveComposerDictationHint removes the desktop banner and exposes the updated unavailable message", () => {
   assert.equal(resolveComposerDictationHint("nativeRealtime"), null);
   assert.equal(
     resolveComposerDictationUnavailableMessage("nativeRealtime"),
-    "Voice dictation is not available in this desktop runtime.",
+    "Voice input is not available in this desktop runtime.",
   );
 });
 

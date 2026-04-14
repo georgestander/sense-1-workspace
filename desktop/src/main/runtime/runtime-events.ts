@@ -25,6 +25,16 @@ function firstString(...values: Array<unknown>): string | null {
   return null;
 }
 
+function firstNonEmptyString(...values: Array<unknown>): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
 function cloneRunContext(runContext: DesktopRunContext | null | undefined): DesktopRunContext | null {
   if (!runContext) {
     return null;
@@ -228,22 +238,80 @@ export function mapDesktopRuntimeEvent(
     };
   }
 
-  if (method === "thread/realtime/transcriptUpdated") {
+  if (method === "thread/realtime/transcript/delta") {
     const params = message.params && typeof message.params === "object"
       ? message.params as Record<string, unknown>
       : null;
     const threadId = firstString(params?.threadId);
     const role = firstString(params?.role);
-    const text = firstString(params?.text);
+    const text = firstNonEmptyString(params?.delta);
     if (!threadId || !role || text === null) {
       return null;
     }
 
     return {
       kind: "voiceTranscriptUpdated",
+      isFinal: false,
       threadId,
       role,
       text,
+    };
+  }
+
+  if (method === "thread/realtime/transcriptUpdated") {
+    const params = message.params && typeof message.params === "object"
+      ? message.params as Record<string, unknown>
+      : null;
+    const threadId = firstString(params?.threadId);
+    const role = firstString(params?.role);
+    const text = firstNonEmptyString(params?.text);
+    if (!threadId || !role || text === null) {
+      return null;
+    }
+
+    return {
+      kind: "voiceTranscriptUpdated",
+      isFinal: false,
+      threadId,
+      role,
+      text,
+    };
+  }
+
+  if (method === "thread/realtime/transcript/done") {
+    const params = message.params && typeof message.params === "object"
+      ? message.params as Record<string, unknown>
+      : null;
+    const threadId = firstString(params?.threadId);
+    const role = firstString(params?.role);
+    const text = firstNonEmptyString(params?.text);
+    if (!threadId || !role || text === null) {
+      return null;
+    }
+
+    return {
+      kind: "voiceTranscriptUpdated",
+      isFinal: true,
+      threadId,
+      role,
+      text,
+    };
+  }
+
+  if (method === "thread/realtime/sdp") {
+    const params = message.params && typeof message.params === "object"
+      ? message.params as Record<string, unknown>
+      : null;
+    const threadId = firstString(params?.threadId);
+    const sdp = firstString(params?.sdp);
+    if (!threadId || !sdp) {
+      return null;
+    }
+
+    return {
+      kind: "voiceSdpReceived",
+      sdp,
+      threadId,
     };
   }
 

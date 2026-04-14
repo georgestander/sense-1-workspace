@@ -63,6 +63,38 @@ export async function ensureRuntimeIsolationDirectories(codexHome) {
   return isolationPaths;
 }
 
+export async function resolveRealtimeAuthToken(codexHome, envOverrides = {}) {
+  const explicitRealtimeToken = firstString(envOverrides?.SENSE1_REALTIME_OPENAI_API_KEY);
+  if (explicitRealtimeToken) {
+    return explicitRealtimeToken;
+  }
+
+  const authPath = path.join(codexHome, "auth.json");
+  try {
+    const parsed = JSON.parse(await fs.readFile(authPath, "utf8"));
+    const authMode = firstString(parsed?.auth_mode);
+    const accessToken = firstString(parsed?.tokens?.access_token);
+    if (authMode !== "chatgpt" || !accessToken) {
+      return null;
+    }
+
+    return accessToken;
+  } catch {
+    return null;
+  }
+}
+
+export async function resolveRealtimeAuthEnvOverrides(codexHome, envOverrides = {}) {
+  const token = await resolveRealtimeAuthToken(codexHome, envOverrides);
+  if (!token) {
+    return {};
+  }
+
+  return {
+    SENSE1_REALTIME_OPENAI_API_KEY: token,
+  };
+}
+
 function applyOptionalEnvValue(target, key, ...sources) {
   const value = firstString(...sources.map((source) => source?.[key]));
   if (value) {
@@ -109,6 +141,10 @@ export function buildIsolatedRuntimeEnv({
       applyOptionalEnvValue(nextEnv, key, envOverrides, processEnv),
     );
   }
+
+  applyOptionalEnvValue(nextEnv, "OPENAI_API_KEY", {
+    OPENAI_API_KEY: envOverrides?.SENSE1_REALTIME_OPENAI_API_KEY,
+  });
 
   return nextEnv;
 }

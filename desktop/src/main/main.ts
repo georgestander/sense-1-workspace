@@ -444,6 +444,9 @@ const desktopSessionController = new DesktopSessionController(appServerManager, 
   openExternal: async (url) => {
     await shell.openExternal(url);
   },
+  onRuntimeEvent: async (event) => {
+    emitDesktopRuntimeEvent(event);
+  },
   onDesktopRunStarted: async (result) => {
     if (result.status === "started") {
       initializeActiveThread(result);

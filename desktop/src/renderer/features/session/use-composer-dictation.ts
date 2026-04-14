@@ -7,6 +7,11 @@ import {
   resolveComposerDictationMode,
   resolveComposerDictationUnavailableMessage,
 } from "./composer-dictation-support.js";
+import {
+  appendVoiceTranscriptFragment,
+  convertAudioFrameToModelAudioChunk,
+  type AudioFrameLike,
+} from "./native-realtime-audio.js";
 
 type SpeechRecognitionLike = {
   continuous: boolean;
@@ -20,22 +25,28 @@ type SpeechRecognitionLike = {
 };
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
-
 type DesktopVoiceBridge = NonNullable<Window["sense1Desktop"]>["voice"];
+type MediaStreamTrackProcessorLike = {
+  readable: ReadableStream<AudioFrameLike>;
+};
+type MediaStreamTrackProcessorConstructor = new (
+  options: { track: MediaStreamTrack },
+) => MediaStreamTrackProcessorLike;
 
 type NativeRealtimeSession = {
-  baselineValue: string;
+  assistantTranscript: string;
   queuedAudio: Promise<void>;
   startAccepted: boolean;
+  stopping: boolean;
   stopCapture: () => Promise<void>;
   threadId: string;
+  userTranscript: string;
 };
 
 declare global {
   interface Window {
-    AudioContext?: typeof AudioContext;
+    MediaStreamTrackProcessor?: MediaStreamTrackProcessorConstructor;
     SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitAudioContext?: typeof AudioContext;
     webkitSpeechRecognition?: SpeechRecognitionConstructor;
   }
 }
@@ -47,9 +58,9 @@ function resolveSpeechRecognition(): SpeechRecognitionConstructor | null {
 function resolveDesktopVoiceBridge(): DesktopVoiceBridge | null {
   const voiceBridge = window.sense1Desktop?.voice;
   if (
-    typeof voiceBridge?.start !== "function"
-    || typeof voiceBridge?.appendAudio !== "function"
-    || typeof voiceBridge?.stop !== "function"
+    typeof voiceBridge?.start !== "function" ||
+    typeof voiceBridge?.appendAudio !== "function" ||
+    typeof voiceBridge?.stop !== "function"
   ) {
     return null;
   }
@@ -57,89 +68,8 @@ function resolveDesktopVoiceBridge(): DesktopVoiceBridge | null {
   return voiceBridge;
 }
 
-function resolveAudioContextConstructor(): typeof AudioContext | null {
-  return window.AudioContext ?? window.webkitAudioContext ?? null;
-}
-
-function encodePcm16Base64(samples: Float32Array): string {
-  const buffer = new ArrayBuffer(samples.length * 2);
-  const view = new DataView(buffer);
-  for (let index = 0; index < samples.length; index += 1) {
-    const sample = Math.max(-1, Math.min(1, samples[index] ?? 0));
-    view.setInt16(index * 2, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
-  }
-
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    const chunk = bytes.subarray(index, index + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-
-  return btoa(binary);
-}
-
-async function createNativeRealtimeCapture(
-  onChunk: (audio: DesktopVoiceAudioChunk) => void,
-): Promise<() => Promise<void>> {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error("Microphone capture is not available in this renderer.");
-  }
-
-  const AudioContextConstructor = resolveAudioContextConstructor();
-  if (!AudioContextConstructor) {
-    throw new Error("AudioContext is not available in this renderer.");
-  }
-
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      autoGainControl: true,
-      channelCount: 1,
-      echoCancellation: true,
-      noiseSuppression: true,
-    },
-    video: false,
-  });
-
-  const audioContext = new AudioContextConstructor();
-  await audioContext.resume();
-  const source = audioContext.createMediaStreamSource(stream);
-  const processor = audioContext.createScriptProcessor(4096, 1, 1);
-  const muteGain = audioContext.createGain();
-  muteGain.gain.value = 0;
-
-  processor.onaudioprocess = (event) => {
-    const input = event.inputBuffer.getChannelData(0);
-    if (!input || input.length === 0) {
-      return;
-    }
-
-    onChunk({
-      data: encodePcm16Base64(input),
-      itemId: null,
-      numChannels: 1,
-      sampleRate: event.inputBuffer.sampleRate,
-      samplesPerChannel: input.length,
-    });
-  };
-
-  source.connect(processor);
-  processor.connect(muteGain);
-  muteGain.connect(audioContext.destination);
-
-  return async () => {
-    processor.onaudioprocess = null;
-    source.disconnect();
-    processor.disconnect();
-    muteGain.disconnect();
-    for (const track of stream.getTracks()) {
-      track.stop();
-    }
-    if (audioContext.state !== "closed") {
-      await audioContext.close();
-    }
-  };
+function resolveMediaStreamTrackProcessor(): MediaStreamTrackProcessorConstructor | null {
+  return window.MediaStreamTrackProcessor ?? null;
 }
 
 function normalizeDictationError(error: unknown, fallback: string): string {
@@ -152,6 +82,77 @@ function normalizeDictationError(error: unknown, fallback: string): string {
   }
 
   return fallback;
+}
+
+async function createNativeRealtimeCapture(
+  {
+    onChunk,
+    onError,
+  }: {
+    onChunk: (audio: DesktopVoiceAudioChunk) => void;
+    onError: (error: unknown) => void;
+  },
+): Promise<() => Promise<void>> {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error("Microphone capture is not available in this renderer.");
+  }
+  const MediaStreamTrackProcessor = resolveMediaStreamTrackProcessor();
+  if (!MediaStreamTrackProcessor) {
+    throw new Error("MediaStreamTrackProcessor is not available in this renderer.");
+  }
+
+  const mediaStream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      autoGainControl: true,
+      channelCount: 1,
+      echoCancellation: true,
+      noiseSuppression: true,
+    },
+    video: false,
+  });
+  const track = mediaStream.getAudioTracks()[0] ?? null;
+  if (!track) {
+    for (const currentTrack of mediaStream.getTracks()) {
+      currentTrack.stop();
+    }
+    throw new Error("No microphone audio track was available.");
+  }
+
+  const processor = new MediaStreamTrackProcessor({ track });
+  const reader = processor.readable.getReader();
+  let closed = false;
+
+  void (async () => {
+    try {
+      while (!closed) {
+        const { done, value } = await reader.read();
+        if (done || closed || !value) {
+          break;
+        }
+
+        try {
+          const audio = convertAudioFrameToModelAudioChunk(value);
+          if (audio) {
+            onChunk(audio);
+          }
+        } finally {
+          value.close();
+        }
+      }
+    } catch (error) {
+      if (!closed) {
+        onError(error);
+      }
+    }
+  })();
+
+  return async () => {
+    closed = true;
+    await reader.cancel().catch(() => {});
+    for (const track of mediaStream.getTracks()) {
+      track.stop();
+    }
+  };
 }
 
 export function useComposerDictation({
@@ -167,16 +168,22 @@ export function useComposerDictation({
 }) {
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nativeTranscript, setNativeTranscript] = useState({
+    assistant: "",
+    user: "",
+  });
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const nativeSessionRef = useRef<NativeRealtimeSession | null>(null);
   const dictationMode = useMemo(
-    () => resolveComposerDictationMode({
-      hasNativeRealtimeVoice:
-        typeof window !== "undefined"
-        && threadId.trim().length > 0
-        && Boolean(resolveDesktopVoiceBridge()),
-      hasSpeechRecognition: typeof window !== "undefined" && Boolean(resolveSpeechRecognition()),
-    }),
+    () => {
+      const hasDesktopVoiceBridge =
+        typeof window !== "undefined" &&
+        Boolean(resolveDesktopVoiceBridge());
+      return resolveComposerDictationMode({
+        hasDesktopVoiceBridge,
+        hasSpeechRecognition: typeof window !== "undefined" && Boolean(resolveSpeechRecognition()),
+      });
+    },
     [threadId],
   );
   const supported = dictationMode !== "unsupported";
@@ -189,47 +196,68 @@ export function useComposerDictation({
       return;
     }
 
+    if (requestStop) {
+      if (session.stopping) {
+        return;
+      }
+      session.stopping = true;
+      setActive(false);
+
+      await Promise.allSettled([
+        session.stopCapture(),
+        session.queuedAudio.catch(() => {}),
+      ]);
+
+      if (!session.startAccepted) {
+        nativeSessionRef.current = null;
+      }
+
+      const voiceBridge = resolveDesktopVoiceBridge();
+      if (!voiceBridge || !session.startAccepted) {
+        return;
+      }
+
+      await voiceBridge.stop({
+        threadId: session.threadId,
+      }).catch(() => {});
+      return;
+    }
+
     nativeSessionRef.current = null;
     setActive(false);
 
-    await session.queuedAudio.catch(() => {});
-    const operations = [session.stopCapture()];
-    if (requestStop && session.startAccepted) {
-      const voiceBridge = resolveDesktopVoiceBridge();
-      if (voiceBridge) {
-        operations.push(
-          voiceBridge.stop({
-            threadId: session.threadId,
-          }),
-        );
-      }
-    }
-    await Promise.allSettled(operations);
+    await Promise.allSettled([
+      session.stopCapture(),
+      session.queuedAudio.catch(() => {}),
+    ]);
   }
 
-  function queueNativeRealtimeAudio(audio: DesktopVoiceAudioChunk): void {
-    const session = nativeSessionRef.current;
-    if (!session) {
-      return;
-    }
-
+  function queueNativeRealtimeAudio(
+    session: NativeRealtimeSession,
+    audio: DesktopVoiceAudioChunk,
+  ): void {
     const voiceBridge = resolveDesktopVoiceBridge();
-    if (!voiceBridge) {
-      setError("Voice dictation is not available in this desktop runtime.");
-      void releaseNativeRealtimeSession({ requestStop: false });
+    if (!voiceBridge || nativeSessionRef.current !== session || session.stopping) {
       return;
     }
 
-    session.queuedAudio = session.queuedAudio
-      .then(async () => {
-        await voiceBridge.appendAudio({
-          audio,
-          threadId: session.threadId,
-        });
+    session.queuedAudio = session.queuedAudio.then(async () => {
+      if (nativeSessionRef.current !== session) {
+        return;
+      }
+
+      await voiceBridge.appendAudio({
+        audio,
+        threadId: session.threadId,
       });
+    });
 
     void session.queuedAudio.catch((nextError) => {
-      setError(normalizeDictationError(nextError, "Voice dictation failed while streaming audio."));
+      if (nativeSessionRef.current !== session) {
+        return;
+      }
+
+      setError(normalizeDictationError(nextError, "Voice input failed while streaming audio."));
       void releaseNativeRealtimeSession({ requestStop: false });
     });
   }
@@ -238,41 +266,67 @@ export function useComposerDictation({
     const resolvedThreadId = threadId.trim();
     const voiceBridge = resolveDesktopVoiceBridge();
     if (!resolvedThreadId) {
-      setError("Choose a thread before dictating.");
+      setError("Choose a thread before starting voice input.");
       return;
     }
     if (!voiceBridge) {
-      setError("Voice dictation is not available in this desktop runtime.");
+      setError(resolveComposerDictationUnavailableMessage(dictationMode));
       return;
     }
 
     setError(null);
     setActive(true);
-    nativeSessionRef.current = {
-      baselineValue: value,
+    const nextSession: NativeRealtimeSession = {
+      assistantTranscript: "",
       queuedAudio: Promise.resolve(),
       startAccepted: false,
+      stopping: false,
       stopCapture: async () => {},
       threadId: resolvedThreadId,
+      userTranscript: "",
     };
+    nativeSessionRef.current = nextSession;
+    setNativeTranscript({
+      assistant: "",
+      user: "",
+    });
 
     try {
       await voiceBridge.start({
+        outputModality: "text",
         threadId: resolvedThreadId,
       });
-      if (nativeSessionRef.current?.threadId === resolvedThreadId) {
-        nativeSessionRef.current.startAccepted = true;
-      }
-      const stopCapture = await createNativeRealtimeCapture((audio) => {
-        queueNativeRealtimeAudio(audio);
-      });
-      if (nativeSessionRef.current?.threadId !== resolvedThreadId) {
-        await stopCapture();
+
+      if (nativeSessionRef.current !== nextSession) {
+        await voiceBridge.stop({
+          threadId: resolvedThreadId,
+        }).catch(() => {});
         return;
       }
-      nativeSessionRef.current.stopCapture = stopCapture;
+
+      nextSession.startAccepted = true;
+      const stopCapture = await createNativeRealtimeCapture({
+        onChunk: (audio) => {
+          queueNativeRealtimeAudio(nextSession, audio);
+        },
+        onError: (captureError) => {
+          if (nativeSessionRef.current !== nextSession) {
+            return;
+          }
+          setError(normalizeDictationError(captureError, "Voice input failed while capturing audio."));
+          void releaseNativeRealtimeSession({ requestStop: true });
+        },
+      });
+      if (nativeSessionRef.current !== nextSession) {
+        await stopCapture();
+        await voiceBridge.stop({
+          threadId: resolvedThreadId,
+        }).catch(() => {});
+        return;
+      }
+      nextSession.stopCapture = stopCapture;
     } catch (nextError) {
-      setError(normalizeDictationError(nextError, "Could not start voice dictation."));
+      setError(normalizeDictationError(nextError, "Could not start voice input."));
       await releaseNativeRealtimeSession({ requestStop: true });
     }
   }
@@ -311,7 +365,7 @@ export function useComposerDictation({
     };
     recognition.onerror = (event) => {
       setActive(false);
-      setError(event.error ?? "Dictation failed.");
+      setError(event.error ?? "Voice input failed.");
     };
     recognitionRef.current = recognition;
 
@@ -328,35 +382,53 @@ export function useComposerDictation({
 
     const unsubscribe = window.sense1Desktop.session.onRuntimeEvent((event: DesktopRuntimeEvent) => {
       const session = nativeSessionRef.current;
-      if (!session) {
+      if (
+        !session ||
+        (
+          event.kind !== "voiceTranscriptUpdated" &&
+          event.kind !== "voiceError" &&
+          event.kind !== "voiceStateChanged"
+        ) ||
+        event.threadId !== session.threadId
+      ) {
         return;
       }
 
       if (event.kind === "voiceTranscriptUpdated") {
-        if (event.threadId !== session.threadId) {
+        const normalizedRole = event.role.toLowerCase();
+        if (normalizedRole === "assistant") {
+          session.assistantTranscript = event.isFinal
+            ? event.text.trim()
+            : appendVoiceTranscriptFragment(
+                session.assistantTranscript,
+                event.text,
+              );
+        } else if (normalizedRole === "user") {
+          session.userTranscript = event.isFinal
+            ? event.text.trim()
+            : appendVoiceTranscriptFragment(
+                session.userTranscript,
+                event.text,
+              );
+        } else {
           return;
         }
-        if (event.role.toLowerCase() !== "user") {
-          return;
-        }
-        setValue(appendDictationTranscript(session.baselineValue, event.text));
+
+        setNativeTranscript({
+          assistant: session.assistantTranscript,
+          user: session.userTranscript,
+        });
         return;
       }
 
       if (event.kind === "voiceError") {
-        if (event.threadId !== session.threadId) {
-          return;
-        }
         setError(event.message);
         void releaseNativeRealtimeSession({ requestStop: false });
         return;
       }
 
       if (event.kind === "voiceStateChanged") {
-        if (event.threadId !== session.threadId) {
-          return;
-        }
-        setActive(event.state === "active");
+        setActive(event.state === "active" || event.state === "starting");
         if (event.state === "stopped") {
           void releaseNativeRealtimeSession({ requestStop: false });
         }
@@ -366,7 +438,7 @@ export function useComposerDictation({
     return () => {
       unsubscribe();
     };
-  }, [dictationMode, enabled, setValue]);
+  }, [dictationMode, enabled]);
 
   useEffect(() => {
     return () => {
@@ -424,6 +496,15 @@ export function useComposerDictation({
     active,
     error,
     hint,
+    liveTranscript: nativeTranscript.assistant || nativeTranscript.user
+      ? nativeTranscript
+      : null,
+    statusText:
+      active && !nativeTranscript.assistant && !nativeTranscript.user
+        ? "Listening..."
+        : active
+          ? "Voice conversation active."
+          : null,
     supported,
     toggle,
     value,

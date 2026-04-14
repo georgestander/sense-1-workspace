@@ -137,6 +137,12 @@ export type DesktopRuntimeEvent =
       readonly threadId: string;
       readonly role: string;
       readonly text: string;
+      readonly isFinal: boolean;
+    }
+  | {
+      readonly kind: "voiceSdpReceived";
+      readonly threadId: string;
+      readonly sdp: string;
     }
   | {
       readonly kind: "voiceError";

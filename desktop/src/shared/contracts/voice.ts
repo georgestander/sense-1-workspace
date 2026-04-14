@@ -6,10 +6,23 @@ export interface DesktopVoiceAudioChunk {
   readonly itemId?: string | null;
 }
 
+export type DesktopVoiceOutputModality = "text" | "audio";
+
+export type DesktopVoiceStartTransport =
+  | {
+      readonly type: "websocket";
+    }
+  | {
+      readonly type: "webrtc";
+      readonly sdp: string;
+    };
+
 export interface DesktopVoiceStartRequest {
   readonly threadId: string;
   readonly prompt?: string | null;
+  readonly outputModality?: DesktopVoiceOutputModality;
   readonly sessionId?: string | null;
+  readonly transport?: DesktopVoiceStartTransport | null;
 }
 
 export interface DesktopVoiceAppendAudioRequest {

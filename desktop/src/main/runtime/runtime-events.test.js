@@ -328,8 +328,24 @@ test("mapDesktopRuntimeEvent translates thread list activity into thread-list-ch
 });
 
 test("mapDesktopRuntimeEvent translates realtime transcript notifications", () => {
-  const event = mapDesktopRuntimeEvent({
+  const delta = mapDesktopRuntimeEvent({
+    method: "thread/realtime/transcript/delta",
+    params: {
+      delta: "open the ",
+      role: "user",
+      threadId: "thread-voice-1",
+    },
+  });
+  const packagedDelta = mapDesktopRuntimeEvent({
     method: "thread/realtime/transcriptUpdated",
+    params: {
+      role: "assistant",
+      text: "hello",
+      threadId: "thread-voice-1",
+    },
+  });
+  const done = mapDesktopRuntimeEvent({
+    method: "thread/realtime/transcript/done",
     params: {
       role: "user",
       text: "open the README",
@@ -337,8 +353,23 @@ test("mapDesktopRuntimeEvent translates realtime transcript notifications", () =
     },
   });
 
-  assert.deepEqual(event, {
+  assert.deepEqual(delta, {
     kind: "voiceTranscriptUpdated",
+    isFinal: false,
+    role: "user",
+    text: "open the ",
+    threadId: "thread-voice-1",
+  });
+  assert.deepEqual(packagedDelta, {
+    kind: "voiceTranscriptUpdated",
+    isFinal: false,
+    role: "assistant",
+    text: "hello",
+    threadId: "thread-voice-1",
+  });
+  assert.deepEqual(done, {
+    kind: "voiceTranscriptUpdated",
+    isFinal: true,
     role: "user",
     text: "open the README",
     threadId: "thread-voice-1",
@@ -367,6 +398,13 @@ test("mapDesktopRuntimeEvent translates realtime lifecycle notifications", () =>
       threadId: "thread-voice-2",
     },
   });
+  const sdp = mapDesktopRuntimeEvent({
+    method: "thread/realtime/sdp",
+    params: {
+      sdp: "v=0\r\no=answer",
+      threadId: "thread-voice-2",
+    },
+  });
 
   assert.deepEqual(started, {
     kind: "voiceStateChanged",
@@ -385,6 +423,11 @@ test("mapDesktopRuntimeEvent translates realtime lifecycle notifications", () =>
   assert.deepEqual(failed, {
     kind: "voiceError",
     message: "microphone stream ended",
+    threadId: "thread-voice-2",
+  });
+  assert.deepEqual(sdp, {
+    kind: "voiceSdpReceived",
+    sdp: "v=0\r\no=answer",
     threadId: "thread-voice-2",
   });
 });

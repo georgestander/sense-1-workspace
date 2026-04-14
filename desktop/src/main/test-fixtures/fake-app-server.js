@@ -157,6 +157,7 @@ async function handleLine(line) {
 function resolveEnvironmentContext() {
   return {
     home: process.env.HOME || null,
+    openaiApiKeyPresent: Boolean(process.env.OPENAI_API_KEY),
     pathEntries: (process.env.PATH || "").split(path.delimiter).filter(Boolean),
     xdgCacheHome: process.env.XDG_CACHE_HOME || null,
     xdgConfigHome: process.env.XDG_CONFIG_HOME || null,

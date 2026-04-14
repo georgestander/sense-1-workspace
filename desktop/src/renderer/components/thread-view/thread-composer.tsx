@@ -201,10 +201,17 @@ function ThreadComposerInner({
           </p>
         ) : null}
         {dictation.error ? (
-          <p className="rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft">{dictation.error}</p>
+          <p className="px-1 text-[0.5rem] leading-tight text-black">{dictation.error}</p>
         ) : null}
         {dictation.hint ? (
-          <p className="rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft" role="note">{dictation.hint}</p>
+          <p className="px-1 text-[0.5rem] leading-tight text-black" role="note">{dictation.hint}</p>
+        ) : null}
+        {dictation.statusText || dictation.liveTranscript ? (
+          <div className="px-1 text-[0.5rem] leading-tight text-black" role="status">
+            {dictation.statusText ? <p>{dictation.statusText}</p> : null}
+            {dictation.liveTranscript?.user ? <p>You: {dictation.liveTranscript.user}</p> : null}
+            {dictation.liveTranscript?.assistant ? <p>Codex: {dictation.liveTranscript.assistant}</p> : null}
+          </div>
         ) : null}
         {visibleShortcutSuggestions.length > 0 ? (
           <ShortcutSuggestionMenu
@@ -264,8 +271,8 @@ function ThreadComposerInner({
               <Paperclip />
             </Button>
             {dictation.supported ? (
-              <Button
-                aria-label={dictation.active ? "Stop dictation" : "Dictate"}
+                <Button
+                aria-label={dictation.active ? "Stop voice input" : "Start voice input"}
                 disabled={composerDisabled}
                 onClick={() => dictation.toggle()}
                 size="icon"

@@ -82,6 +82,7 @@ export function useDesktopSessionState({ model, reasoningEffort }: { model: stri
   const [updateState, setUpdateState] = useState<DesktopUpdateState | null>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [accountEmail, setAccountEmail] = useState<string | null>(null);
+  const [accountType, setAccountType] = useState<string | null>(null);
   const [teamSetup, setTeamSetup] = useState<DesktopBootstrapTeamSetup>(DEFAULT_TEAM_SETUP_IDENTITY);
   const [tenant, setTenant] = useState<TenantIdentity>(null);
   const [profileOptions, setProfileOptions] = useState<ProfileOption[]>([]);
@@ -131,6 +132,7 @@ export function useDesktopSessionState({ model, reasoningEffort }: { model: stri
   } = sessionStream;
   const bootstrapStateRef = useRef({
     accountEmail,
+    accountType,
     continuePending,
     isSignedIn,
     logoutPending,
@@ -142,6 +144,7 @@ export function useDesktopSessionState({ model, reasoningEffort }: { model: stri
   });
   bootstrapStateRef.current = {
     accountEmail,
+    accountType,
     continuePending,
     isSignedIn,
     logoutPending,
@@ -174,6 +177,7 @@ export function useDesktopSessionState({ model, reasoningEffort }: { model: stri
     applyDesktopBootstrap(
       {
         accountEmail: bootstrapState.accountEmail,
+        accountType: bootstrapState.accountType,
         continuePending: bootstrapState.continuePending,
         isSignedIn: bootstrapState.isSignedIn,
         logoutPending: bootstrapState.logoutPending,
@@ -188,6 +192,7 @@ export function useDesktopSessionState({ model, reasoningEffort }: { model: stri
         rememberKnownThreadIds: (threadIds, rememberOptions) =>
           sessionStreamCallbacksRef.current.rememberKnownThreadIds(threadIds, rememberOptions),
         setAccountEmail,
+        setAccountType,
         setActiveTurnIdsByThread,
         setIsSignedIn,
         setPendingApprovals,
@@ -351,6 +356,7 @@ export function useDesktopSessionState({ model, reasoningEffort }: { model: stri
 
   return {
     accountEmail,
+    accountType,
     availableModels,
     bootstrapError,
     bootstrapLoading,

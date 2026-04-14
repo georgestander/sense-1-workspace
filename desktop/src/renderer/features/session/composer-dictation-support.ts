@@ -11,13 +11,13 @@ export function appendDictationTranscript(currentValue: string, transcript: stri
 }
 
 export function resolveComposerDictationMode({
-  hasNativeRealtimeVoice,
+  hasDesktopVoiceBridge,
   hasSpeechRecognition,
 }: {
-  hasNativeRealtimeVoice: boolean;
+  hasDesktopVoiceBridge: boolean;
   hasSpeechRecognition: boolean;
 }): ComposerDictationMode {
-  if (hasNativeRealtimeVoice) {
+  if (hasDesktopVoiceBridge) {
     return "nativeRealtime";
   }
 
@@ -33,5 +33,5 @@ export function resolveComposerDictationHint(mode: ComposerDictationMode): strin
 }
 
 export function resolveComposerDictationUnavailableMessage(mode: ComposerDictationMode): string {
-  return "Voice dictation is not available in this desktop runtime.";
+  return "Voice input is not available in this desktop runtime.";
 }
