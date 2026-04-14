@@ -76,6 +76,10 @@
     ],
     "mac": {
       "icon": "resources/icon.icns",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Sense-1 Workspace needs microphone access when voice input is enabled.",
+        "NSSpeechRecognitionUsageDescription": "Sense-1 Workspace needs speech recognition access for voice input features."
+      },
       "target": [
         {
           "target": "zip",

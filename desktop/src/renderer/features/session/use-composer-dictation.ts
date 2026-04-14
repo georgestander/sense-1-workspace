@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import {
+  appendDictationTranscript,
+  resolveComposerDictationHint,
+  resolveComposerDictationMode,
+  resolveComposerDictationUnavailableMessage,
+} from "./composer-dictation-support.js";
+
 type SpeechRecognitionLike = {
   continuous: boolean;
   interimResults: boolean;
@@ -36,10 +43,19 @@ export function useComposerDictation({
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const supported = useMemo(() => typeof window !== "undefined" && Boolean(resolveSpeechRecognition()), []);
+  const dictationMode = useMemo(
+    () => resolveComposerDictationMode({
+      hasDesktopBridge: typeof window !== "undefined" && Boolean(window.sense1Desktop),
+      hasSpeechRecognition: typeof window !== "undefined" && Boolean(resolveSpeechRecognition()),
+      platform: typeof navigator !== "undefined" ? navigator.platform : null,
+    }),
+    [],
+  );
+  const supported = dictationMode === "webSpeech";
+  const hint = enabled ? resolveComposerDictationHint(dictationMode) : null;
 
   useEffect(() => {
-    if (!supported || !enabled) {
+    if (dictationMode !== "webSpeech" || !enabled) {
       return;
     }
     const SpeechRecognition = resolveSpeechRecognition();
@@ -61,7 +77,7 @@ export function useComposerDictation({
       if (!transcript) {
         return;
       }
-      setValue((current) => current.trim() ? `${current.trim()} ${transcript}` : transcript);
+      setValue((current) => appendDictationTranscript(current, transcript));
     };
     recognition.onend = () => {
       setActive(false);
@@ -76,10 +92,10 @@ export function useComposerDictation({
       recognition.stop();
       recognitionRef.current = null;
     };
-  }, [enabled, setValue, supported]);
+  }, [dictationMode, enabled, setValue]);
 
   useEffect(() => {
-    if (!enabled || !supported) {
+    if (!enabled || dictationMode !== "webSpeech") {
       setActive(false);
       return;
     }
@@ -98,11 +114,11 @@ export function useComposerDictation({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [active, enabled, supported]);
+  }, [active, dictationMode, enabled]);
 
   function toggle() {
-    if (!supported || !enabled) {
-      setError("Voice dictation is not available in this desktop runtime.");
+    if (dictationMode !== "webSpeech" || !enabled) {
+      setError(resolveComposerDictationUnavailableMessage(dictationMode));
       return;
     }
     if (active) {
@@ -118,6 +134,7 @@ export function useComposerDictation({
   return {
     active,
     error,
+    hint,
     supported,
     toggle,
     value,
