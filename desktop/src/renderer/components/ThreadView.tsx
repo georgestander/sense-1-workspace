@@ -116,7 +116,7 @@ export function ThreadView(props: ThreadViewProps) {
   } = props;
   return (
     <>
-      <div className="px-6 pb-2 pt-5">
+      <div className="mx-auto max-w-3xl px-6 pb-2 pt-5">
         <h2 className="font-display truncate text-lg font-semibold tracking-tight">{selectedThread.title}</h2>
       </div>
 
