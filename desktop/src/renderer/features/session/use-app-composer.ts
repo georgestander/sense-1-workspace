@@ -3,6 +3,7 @@ import type { DesktopThreadSnapshot } from "../../../main/contracts";
 import {
   buildDraftRunRequest,
   buildSelectedThreadRunRequest,
+  shouldUseSelectedThreadBusyActions,
 } from "./app-composer-utils.js";
 
 type UseAppComposerParams = {
@@ -76,7 +77,11 @@ export function useAppComposer({
     if (!request) {
       return false;
     }
-    if (canSteerSelectedThread && attachedFiles.length > 0) {
+    const useBusyThreadActions = shouldUseSelectedThreadBusyActions({
+      canSteerSelectedThread,
+      effectiveThreadBusy,
+    });
+    if (useBusyThreadActions && attachedFiles.length > 0) {
       setTaskError("Finish the current run before sending attachments.");
       return false;
     }
@@ -86,7 +91,7 @@ export function useAppComposer({
     requestAnimationFrame(() => {
       transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
     });
-    if (canSteerSelectedThread) {
+    if (useBusyThreadActions) {
       await steerTurn(request.prompt);
       return true;
     }
@@ -103,7 +108,11 @@ export function useAppComposer({
     if (!request) {
       return false;
     }
-    if (canSteerSelectedThread && attachedFiles.length > 0) {
+    const useBusyThreadActions = shouldUseSelectedThreadBusyActions({
+      canSteerSelectedThread,
+      effectiveThreadBusy,
+    });
+    if (useBusyThreadActions && attachedFiles.length > 0) {
       setTaskError("Finish the current run before sending attachments.");
       return false;
     }
@@ -113,7 +122,7 @@ export function useAppComposer({
     requestAnimationFrame(() => {
       transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
     });
-    if (canSteerSelectedThread) {
+    if (useBusyThreadActions) {
       await queueTurnInput(request.prompt);
       return true;
     }

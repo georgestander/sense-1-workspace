@@ -52,3 +52,32 @@ test("buildTranscriptScrollAnchor coalesces streaming body growth into larger bu
     "entry-1:completed:0",
   );
 });
+
+test("buildTranscriptScrollAnchor can follow live streaming body overlays", () => {
+  assert.equal(
+    buildTranscriptScrollAnchor(
+      {
+        id: "entry-1",
+        kind: "assistant",
+        title: "Sense-1 activity",
+        body: "stale",
+        status: "streaming",
+      },
+      "x".repeat(2048),
+    ),
+    "entry-1:streaming:2",
+  );
+  assert.equal(
+    buildTranscriptScrollAnchor(
+      {
+        id: "entry-1",
+        kind: "assistant",
+        title: "Sense-1 activity",
+        body: "done",
+        status: "completed",
+      },
+      "x".repeat(2048),
+    ),
+    "entry-1:completed:0",
+  );
+});
