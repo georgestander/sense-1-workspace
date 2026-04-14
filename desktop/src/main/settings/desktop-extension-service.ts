@@ -121,6 +121,43 @@ async function fileExists(targetPath: string): Promise<boolean> {
   }
 }
 
+const ICON_MIME: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp",
+};
+
+async function readIconAsDataUri(filePath: string | null): Promise<string | null> {
+  if (!filePath) {
+    return null;
+  }
+  const ext = path.extname(filePath).toLowerCase();
+  const mime = ICON_MIME[ext];
+  if (!mime) {
+    return null;
+  }
+  try {
+    const data = await fs.readFile(filePath);
+    return `data:${mime};base64,${data.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
+async function resolvePluginIcons(plugins: DesktopPluginRecord[]): Promise<DesktopPluginRecord[]> {
+  return Promise.all(
+    plugins.map(async (plugin) => {
+      if (!plugin.iconPath) {
+        return plugin;
+      }
+      const iconDataUri = await readIconAsDataUri(plugin.iconPath);
+      return iconDataUri ? { ...plugin, iconPath: iconDataUri } : plugin;
+    }),
+  );
+}
+
 function isSubpath(parentPath: string, candidatePath: string): boolean {
   const resolvedParent = path.resolve(parentPath);
   const resolvedCandidate = path.resolve(candidatePath);
@@ -386,6 +423,7 @@ function normalizePlugins(rawPlugins: unknown, pluginConfig: Record<string, unkn
         capabilities: asStringArray(interfaceRecord.capabilities),
         sourcePath: firstString(asRecord(summary.source).path),
         websiteUrl: firstString(interfaceRecord.websiteUrl),
+        iconPath: firstString(interfaceRecord.logo, interfaceRecord.composerIcon),
       });
     }
   }
@@ -463,6 +501,7 @@ function normalizeApps(rawApps: unknown, appConfig: Record<string, unknown>): De
   const data = Array.isArray((rawApps as { data?: unknown[] } | null)?.data)
     ? (rawApps as { data: unknown[] }).data
     : [];
+
   return data
     .map((entry) => {
       const record = asRecord(entry);
@@ -479,6 +518,7 @@ function normalizeApps(rawApps: unknown, appConfig: Record<string, unknown>): De
         isAccessible: asBoolean(record.isAccessible),
         isEnabled: asBoolean(settings.enabled, asBoolean(record.isEnabled, true)),
         pluginDisplayNames: asStringArray(record.pluginDisplayNames),
+        logoUrl: firstString(record.logoUrl),
       } satisfies DesktopAppRecord;
     })
     .filter((entry): entry is DesktopAppRecord => entry !== null)
@@ -791,10 +831,12 @@ export class DesktopExtensionService {
       }),
     };
 
-    const { metadataByPluginId, plugins } = await enrichPluginsWithLocalMetadata(
+    const enriched = await enrichPluginsWithLocalMetadata(
       normalizePlugins(pluginResult, asRecord(config?.plugins)),
       profileCodexHome,
     );
+    const plugins = await resolvePluginIcons(enriched.plugins);
+    const metadataByPluginId = enriched.metadataByPluginId;
     const apps = backfillAppPluginDisplayNames(
       normalizeApps(appResult, asRecord(config?.apps)),
       plugins,

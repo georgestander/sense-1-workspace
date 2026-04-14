@@ -1,8 +1,30 @@
 import { useMemo, useRef, useState } from "react";
-import { ChevronDown, EllipsisVertical, Filter, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Blocks, Cable, ChevronDown, EllipsisVertical, Filter, Plus, PlugZap, RefreshCw, Search, Sparkles, Trash2 } from "lucide-react";
 
 import { Button } from "./ui/button";
 import type { DesktopAppRecord, DesktopExtensionOverviewResult, DesktopPluginRecord, DesktopSkillRecord } from "../../main/contracts";
+
+type ExtensionIconKind = "plugin" | "app" | "mcp" | "skill";
+
+const FALLBACK_ICON: Record<ExtensionIconKind, typeof PlugZap> = {
+  plugin: PlugZap,
+  app: Blocks,
+  mcp: Cable,
+  skill: Sparkles,
+};
+
+function ExtensionIcon({ kind, src }: { kind: ExtensionIconKind; src?: string | null }) {
+  const [failed, setFailed] = useState(false);
+  if (src && !failed) {
+    return <img alt="" className="size-7 shrink-0 rounded-md object-contain" onError={() => setFailed(true)} src={src} />;
+  }
+  const Icon = FALLBACK_ICON[kind];
+  return (
+    <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-surface-strong">
+      <Icon className="size-3.5 text-muted" />
+    </div>
+  );
+}
 
 type PluginsPageProps = {
   error: string | null;
@@ -516,6 +538,7 @@ export function PluginsPage({
                     className={`group flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors ${plugin.enabled ? "bg-surface-soft" : "bg-surface-soft/50"}`}
                     key={plugin.id}
                   >
+                    <ExtensionIcon kind="plugin" src={plugin.iconPath} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="truncate text-[13px] font-medium text-ink">{plugin.displayName}</h3>
@@ -583,6 +606,7 @@ export function PluginsPage({
                     className={`group flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors ${app.isEnabled ? "bg-surface-soft" : "bg-surface-soft/50"}`}
                     key={app.id}
                   >
+                    <ExtensionIcon kind="app" src={app.logoUrl} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="truncate text-[13px] font-medium text-ink">{app.name}</h3>
@@ -623,6 +647,7 @@ export function PluginsPage({
                   className={`group flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors ${server.enabled ? "bg-surface-soft" : "bg-surface-soft/50"}`}
                   key={server.id}
                 >
+                  <ExtensionIcon kind="mcp" />
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate text-[13px] font-medium text-ink">{server.id}</h3>
                     <p className="mt-0.5 truncate text-[11px] leading-4 text-muted">
@@ -655,6 +680,7 @@ export function PluginsPage({
                     className={`group flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${skill.enabled ? "bg-surface-soft" : "bg-surface-soft/30 opacity-70"}`}
                     key={skill.path}
                   >
+                    <ExtensionIcon kind="skill" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="truncate text-[13px] font-medium text-ink">{skill.name}</h3>
