@@ -29,6 +29,8 @@ import {
   resolveSubstratePlanApproval,
   resolveDefaultScopeId,
   resolvePrimaryActorId,
+  updateSubstrateSessionThreadTitle,
+  updateSubstrateSessionTitleContext,
   updateSubstratePlan,
   upsertWorkspacePolicy,
   upsertSubstrateScopeSettingsPolicy,
@@ -846,6 +848,81 @@ test("ensureSubstrateSessionForThread reuses the session and binds a workspace l
       "workspace.registered",
       "workspace.bound",
     ]);
+  } finally {
+    db.close();
+  }
+});
+
+test("ensureSubstrateSessionForThread preserves the original seed title after a manual rename", async () => {
+  const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-substrate-test-"));
+  const env = createTestEnv(runtimeRoot);
+  const { profileId } = await ensureProfileDirectories("ops-team", env);
+  const dbPath = resolveProfileSubstrateDbPath(profileId, env);
+  const scopeId = resolveDefaultScopeId(profileId);
+  const actorId = resolvePrimaryActorId(profileId);
+
+  await ensureProfileSubstrate({
+    actorEmail: "george@example.com",
+    dbPath,
+    profileId,
+  });
+
+  const first = await ensureSubstrateSessionForThread({
+    actorId,
+    codexThreadId: "thread-manual-title",
+    dbPath,
+    effort: "high",
+    model: "gpt-5.4",
+    now: "2026-03-24T11:00:00.000Z",
+    profileId,
+    scopeId,
+    threadTitle: "Fix this",
+    turnId: "turn-first",
+  });
+
+  await updateSubstrateSessionThreadTitle({
+    codexThreadId: "thread-manual-title",
+    dbPath,
+    title: "Manual login crash fix",
+  });
+
+  const second = await ensureSubstrateSessionForThread({
+    actorId,
+    codexThreadId: "thread-manual-title",
+    dbPath,
+    effort: "high",
+    model: "gpt-5.4",
+    now: "2026-03-24T11:05:00.000Z",
+    profileId,
+    scopeId,
+    threadTitle: "Manual login crash fix",
+    turnId: "turn-second",
+  });
+
+  const titleUpdate = await updateSubstrateSessionTitleContext({
+    assistantText: "I'll inspect the login crash and patch the auth handler.",
+    dbPath,
+    sessionId: first.sessionId,
+  });
+
+  assert.equal(first.created, true);
+  assert.equal(second.created, false);
+  assert.equal(first.sessionId, second.sessionId);
+  assert.equal(titleUpdate?.title, "Manual login crash fix");
+  assert.equal(titleUpdate?.titleUpdated, false);
+
+  const db = new DatabaseSync(dbPath);
+  try {
+    const session = db.prepare(
+      "SELECT title, metadata FROM sessions WHERE id = ?",
+    ).get(first.sessionId);
+    assert.equal(session.title, "Manual login crash fix");
+    assert.deepEqual(JSON.parse(session.metadata), {
+      titleContext: {
+        assistantText: "I'll inspect the login crash and patch the auth handler.",
+        seedTitle: "Fix this",
+      },
+    });
   } finally {
     db.close();
   }

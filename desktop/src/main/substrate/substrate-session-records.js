@@ -43,6 +43,14 @@ export {
   updateSubstrateSessionThreadTitle,
 } from "./substrate-session-metadata.js";
 
+function resolveReusedSessionSeedTitle(existingSession, threadTitle) {
+  return firstString(
+    existingSession?.metadata?.titleContext?.seedTitle,
+    normalizeRuntimeThreadTitle(threadTitle),
+    existingSession?.title,
+  );
+}
+
 export async function createSubstrateSessionShell({
   actorId,
   artifactRoot = null,
@@ -362,9 +370,7 @@ export async function ensureSubstrateSessionForThread({
         if (resolvedWorkspaceRoot) {
           metadata.workspaceRoot = path.resolve(resolvedWorkspaceRoot);
         }
-        const resolvedSeedTitle =
-          normalizeRuntimeThreadTitle(threadTitle)
-          ?? firstString(metadata.titleContext?.seedTitle, existingSession.title);
+        const resolvedSeedTitle = resolveReusedSessionSeedTitle(existingSession, threadTitle);
         const titleContext = buildThreadTitleContext(metadata.titleContext, {
           initialPrompt,
           seedTitle: resolvedSeedTitle,
