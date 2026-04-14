@@ -205,7 +205,7 @@ export function ThreadTranscript({
           setShowScrollToBottom((current) => current === nextShowScrollToBottom ? current : nextShowScrollToBottom);
         }}
       >
-        <div className="flex w-full flex-col gap-2.5 pb-10">
+        <div className="flex w-full flex-col gap-2.5 pb-48">
           {threadInteractionState === "review" || hasReviewArtifacts ? (
             <ThreadReviewCard rightRailChangeGroups={rightRailChangeGroups} selectedThread={selectedThread} threadFolderRoot={threadFolderRoot} />
           ) : null}

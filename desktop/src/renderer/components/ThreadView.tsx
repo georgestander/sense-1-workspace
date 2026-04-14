@@ -1,7 +1,4 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
-import { Folder } from "lucide-react";
-
-import { folderDisplayName } from "../state/session/session-selectors.js";
 import { type DesktopApprovalDecision, type DesktopApprovalEvent, type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopExtensionOverviewResult, type DesktopInputQuestion, type DesktopInputRequestState, type DesktopModelEntry, type DesktopThreadChangeGroup, type DesktopThreadSnapshot } from "../../main/contracts";
 import { ThreadComposer } from "./thread-view/thread-composer.js";
 import { ThreadTranscript } from "./thread-view/thread-transcript.js";
@@ -117,18 +114,10 @@ export function ThreadView(props: ThreadViewProps) {
     configNotices,
     footerStatusText,
   } = props;
-  const threadFolderRoot = selectedThread.workspaceRoot ?? selectedThread.cwd ?? null;
-
   return (
     <>
       <div className="px-6 pb-2 pt-5">
         <h2 className="font-display truncate text-lg font-semibold tracking-tight">{selectedThread.title}</h2>
-        {threadFolderRoot ? (
-          <div className="mt-[0.2rem] flex items-center gap-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">
-            <Folder className="size-3.5 shrink-0" />
-            <span className="truncate">{folderDisplayName(threadFolderRoot)}</span>
-          </div>
-        ) : null}
       </div>
 
       <ThreadTranscript
