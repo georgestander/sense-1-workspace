@@ -6,7 +6,7 @@ import fs from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 
 import { DesktopSessionController } from "../session-controller.ts";
-import { readSessionRecord } from "./session-record.ts";
+import { readSessionRecord, writeSessionRecord } from "./session-record.ts";
 import {
   DEFAULT_PROFILE_ID,
   ensureProfileDirectories,
@@ -36,6 +36,7 @@ import {
   getSubstrateSessionByThreadId,
   loadWorkspacePolicy,
   resolveDefaultScopeId,
+  resolvePrimaryActorId,
   upsertWorkspacePolicy,
   upsertSubstrateActor,
 } from "../substrate/substrate.js";
@@ -1527,6 +1528,121 @@ test("runDesktopTask applies persisted workspace policy defaults to the runtime 
     networkAccess: true,
     writableRoots: [await fs.realpath(workspaceRoot)],
   });
+});
+
+test("runDesktopTask adds durable workspace continuity instructions from prior session records", async () => {
+  const root = await makeTempRoot();
+  const env = createTestEnv(root);
+  const managerCalls = [];
+  const manager = {
+    request: async (method, params) => {
+      managerCalls.push({ method, params });
+      if (method === "account/read") {
+        return {
+          account: {
+            email: "george@example.com",
+          },
+        };
+      }
+
+      if (method === "thread/start") {
+        return {
+          thread: {
+            id: "thread-continuity-1",
+            name: "Continuity thread",
+            preview: "Continuity thread",
+            updatedAt: Math.floor(Date.now() / 1000),
+            status: {
+              type: "active",
+              activeFlags: ["running"],
+            },
+          },
+        };
+      }
+
+      if (method === "turn/start") {
+        return {
+          turn: {
+            id: "turn-continuity-1",
+          },
+        };
+      }
+
+      throw new Error(`Unexpected method: ${method}`);
+    },
+    handleProfileChange: async () => {},
+    off: () => {},
+    on: () => {},
+    respond: () => {},
+  };
+
+  const controller = new DesktopSessionController(manager, {
+    appStartedAt: "2026-03-24T10:00:00.000Z",
+    env,
+    openExternal: async () => {},
+    runtimeInfo: {
+      appVersion: "0.1.0",
+      electronVersion: "35.2.1",
+      platform: "darwin",
+      startedAt: "2026-03-24T10:00:00.000Z",
+    },
+  });
+
+  const workspaceRoot = path.join(root, "workspace-continuity");
+  await fs.mkdir(workspaceRoot, { recursive: true });
+  await grantWorkspaceReadPermission(env, workspaceRoot);
+
+  const dbPath = resolveProfileSubstrateDbPath(CANONICAL_PROFILE_ID, env);
+  const artifactRoot = await resolveProfileArtifactRoot(CANONICAL_PROFILE_ID, env);
+  const scopeId = resolveDefaultScopeId(CANONICAL_PROFILE_ID);
+  const actorId = resolvePrimaryActorId(CANONICAL_PROFILE_ID);
+  const previousSession = await createSubstrateSessionShell({
+    actorId,
+    dbPath,
+    model: "gpt-5.4-mini",
+    now: "2026-04-11T09:00:00Z",
+    profileId: CANONICAL_PROFILE_ID,
+    scopeId,
+    title: "Review workspace continuity",
+    workspaceRoot,
+  });
+  await finalizeSubstrateSessionStart({
+    actorId,
+    codexThreadId: "thread-previous-continuity",
+    dbPath,
+    effort: "medium",
+    model: "gpt-5.4-mini",
+    now: "2026-04-11T09:10:00Z",
+    profileId: CANONICAL_PROFILE_ID,
+    scopeId,
+    sessionId: previousSession.sessionId,
+    threadTitle: "Review workspace continuity",
+    workspaceRoot,
+  });
+  await writeSessionRecord({
+    artifactRoot,
+    intent: "Review workspace continuity",
+    outcomes: ["Recovered context from substrate history"],
+    pathsWritten: [path.join(workspaceRoot, "docs", "continuity.md")],
+    sessionId: previousSession.sessionId,
+    startedAt: "2026-04-11T09:00:00Z",
+    workspaceRoot,
+  });
+
+  const result = await controller.runDesktopTask({
+    prompt: "What were we working on in this workspace?",
+    workspaceRoot,
+  });
+
+  assert.equal(result.threadId, "thread-continuity-1");
+  const threadStart = managerCalls.find((entry) => entry.method === "thread/start");
+  const developerInstructions =
+    threadStart?.params.developerInstructions
+    ?? threadStart?.params.config?.developer_instructions
+    ?? "";
+  assert.match(developerInstructions, /Workspace continuity is available from 1 recent durable session record for this folder\./);
+  assert.match(developerInstructions, /Recovered context from substrate history/);
+  assert.match(developerInstructions, /docs\/continuity\.md/);
 });
 
 test("runDesktopTask forwards selected attachment paths through the session controller", async () => {

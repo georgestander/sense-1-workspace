@@ -41,6 +41,7 @@ import {
 import {
   writeSessionRecord,
 } from "./session-record.ts";
+import { buildRuntimeContinuityInstruction } from "./workspace-thread-continuity.ts";
 import {
   getSession as querySession,
 } from "../substrate/substrate-reader.js";
@@ -482,7 +483,16 @@ export class DesktopRunStartService {
         await fs.mkdir(effectiveCwd, { recursive: true });
       }
       const resolvedRuntimeInstructions = mergeRuntimeInstructions(
-        baseRuntimeInstructions,
+        mergeRuntimeInstructions(
+          baseRuntimeInstructions,
+          await buildRuntimeContinuityInstruction({
+            artifactRoot: profileArtifactRoot,
+            currentSessionId: existingSession?.id ?? pendingSessionId,
+            dbPath: substrateDbPath,
+            profileId: profile.id,
+            workspaceRoot: effectiveWorkspaceRoot,
+          }),
+        ),
         buildProfileExtensionRuntimeInstruction({
           inputItems,
           profileCodexHome: resolveProfileCodexHome(profile.id, this.#env),
