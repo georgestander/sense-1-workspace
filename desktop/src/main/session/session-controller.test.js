@@ -2296,6 +2296,7 @@ test("ingestRuntimeMessage auto-renames a generic thread after the first assista
   const root = await makeTempRoot();
   const env = createTestEnv(root);
   const managerCalls = [];
+  const titleChangeCalls = [];
   const manager = {
     request: async (method, params) => {
       managerCalls.push({ method, params });
@@ -2346,6 +2347,9 @@ test("ingestRuntimeMessage auto-renames a generic thread after the first assista
     appStartedAt: "2026-03-24T10:00:00.000Z",
     env,
     openExternal: async () => {},
+    onThreadTitleChanged: async (threadId, title) => {
+      titleChangeCalls.push({ threadId, title });
+    },
     runtimeInfo: {
       appVersion: "0.1.0",
       electronVersion: "35.2.1",
@@ -2399,6 +2403,12 @@ test("ingestRuntimeMessage auto-renames a generic thread after the first assista
         threadId: "thread-auto-title-1",
         name: "Inspect the login crash and patch the auth handler",
       },
+    },
+  ]);
+  assert.deepEqual(titleChangeCalls, [
+    {
+      threadId: "thread-auto-title-1",
+      title: "Inspect the login crash and patch the auth handler",
     },
   ]);
 

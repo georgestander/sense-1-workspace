@@ -102,6 +102,7 @@ export type DesktopSessionControllerOptions = {
   readonly openExternal: (url: string) => Promise<void>;
   readonly onDesktopRunStarted?: (result: DesktopTaskRunResult) => void | Promise<void>;
   readonly onDesktopTaskResult?: (result: DesktopTaskRunResult) => void | Promise<void>;
+  readonly onThreadTitleChanged?: (threadId: string, title: string) => void | Promise<void>;
   readonly runtimeInfo: RuntimeInfo;
 };
 
@@ -128,6 +129,7 @@ export class DesktopSessionController {
   readonly #openExternal: (url: string) => Promise<void>;
   readonly #onDesktopRunStarted: ((result: DesktopTaskRunResult) => void | Promise<void>) | null;
   readonly #onDesktopTaskResult: ((result: DesktopTaskRunResult) => void | Promise<void>) | null;
+  readonly #onThreadTitleChanged: ((threadId: string, title: string) => void | Promise<void>) | null;
   readonly #runtimeInfo: RuntimeInfo;
   readonly #workspaceState: DesktopWorkspaceStateService;
   readonly #workspaceService: DesktopWorkspaceService;
@@ -159,6 +161,7 @@ export class DesktopSessionController {
     this.#resolveProfile = async () => await this.#resolveCurrentProfile();
     this.#onDesktopRunStarted = options.onDesktopRunStarted ?? null;
     this.#onDesktopTaskResult = options.onDesktopTaskResult ?? null;
+    this.#onThreadTitleChanged = options.onThreadTitleChanged ?? null;
     this.#runtimeInfo = options.runtimeInfo;
     this.#workspaceState = new DesktopWorkspaceStateService({
       env: this.#env,
@@ -345,6 +348,9 @@ export class DesktopSessionController {
       threadId: resolvedThreadId,
       name: resolvedTitle,
     });
+    if (this.#onThreadTitleChanged) {
+      await this.#onThreadTitleChanged(resolvedThreadId, resolvedTitle);
+    }
   }
 
   ingestRuntimeEvent(event: DesktopRuntimeEvent): void {
