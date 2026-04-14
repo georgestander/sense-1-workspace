@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { DesktopRuntimeEvent, DesktopVoiceAudioChunk } from "../../../main/contracts";
 import {
   appendDictationTranscript,
+  resolveNativeRealtimeUserTranscriptUpdate,
   resolveComposerDictationHint,
   resolveComposerDictationMode,
   resolveComposerDictationUnavailableMessage,
@@ -404,12 +405,24 @@ export function useComposerDictation({
                 event.text,
               );
         } else if (normalizedRole === "user") {
-          session.userTranscript = event.isFinal
-            ? event.text.trim()
-            : appendVoiceTranscriptFragment(
-                session.userTranscript,
-                event.text,
-              );
+          const currentUserTranscript = session.userTranscript;
+          const previewUpdate = resolveNativeRealtimeUserTranscriptUpdate({
+            currentComposerValue: "",
+            currentLiveTranscript: currentUserTranscript,
+            isFinal: event.isFinal,
+            nextTranscript: event.text,
+          });
+          session.userTranscript = previewUpdate.nextLiveTranscript;
+          if (event.isFinal) {
+            setValue((currentValue) =>
+              resolveNativeRealtimeUserTranscriptUpdate({
+                currentComposerValue: currentValue,
+                currentLiveTranscript: currentUserTranscript,
+                isFinal: true,
+                nextTranscript: event.text,
+              }).nextComposerValue
+            );
+          }
         } else {
           return;
         }
@@ -438,7 +451,7 @@ export function useComposerDictation({
     return () => {
       unsubscribe();
     };
-  }, [dictationMode, enabled]);
+  }, [dictationMode, enabled, setValue]);
 
   useEffect(() => {
     return () => {
@@ -500,11 +513,7 @@ export function useComposerDictation({
       ? nativeTranscript
       : null,
     statusText:
-      active && !nativeTranscript.assistant && !nativeTranscript.user
-        ? "Listening..."
-        : active
-          ? "Voice conversation active."
-          : null,
+      active ? "Listening..." : null,
     supported,
     toggle,
     value,
