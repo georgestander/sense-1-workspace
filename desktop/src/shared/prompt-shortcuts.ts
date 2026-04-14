@@ -22,6 +22,10 @@ export type DesktopActivePromptShortcutQuery = {
   readonly end: number;
 };
 
+function escapeShortcutRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function firstString(...values: Array<unknown>): string | null {
   for (const value of values) {
     if (typeof value !== "string") {
@@ -312,6 +316,11 @@ function chooseSuggestionAppToken(
   app: DesktopAppRecord,
   overview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills">,
 ): string | null {
+  const preferredToken = chooseAppToken(app);
+  if (preferredToken && resolveShortcutTargetKind(preferredToken, overview) === "app") {
+    return preferredToken;
+  }
+
   for (const alias of buildAppAliasKeys(app)) {
     if (resolveShortcutTargetKind(alias, overview) === "app") {
       return alias;
@@ -511,6 +520,34 @@ export function resolvePromptShortcutMatches(
   }
 
   return matches;
+}
+
+export function stripResolvedPromptShortcutText(
+  prompt: string,
+  overview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills">,
+): string {
+  if (typeof prompt !== "string" || !prompt.includes("$")) {
+    return prompt;
+  }
+
+  const matches = resolvePromptShortcutMatches(prompt, overview);
+  if (matches.length === 0) {
+    return prompt;
+  }
+
+  let nextPrompt = prompt;
+  for (const token of new Set(matches.map((match) => match.token))) {
+    const matcher = new RegExp(`(^|[^A-Za-z0-9_])\\$${escapeShortcutRegex(token)}(?=$|[^A-Za-z0-9:_-])`, "gu");
+    nextPrompt = nextPrompt.replace(matcher, "$1");
+  }
+
+  return nextPrompt
+    .replace(/\b(?:in|with|via|through|using|from|on)\s+([,.!?;:]|$)/gi, "$1")
+    .replace(/\s+([,.!?;:])/g, "$1")
+    .replace(/([([{])\s+/g, "$1")
+    .replace(/\s+([)\]}])/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 export function resolvePromptShortcutSuggestions(

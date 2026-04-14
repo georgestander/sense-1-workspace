@@ -40,8 +40,8 @@ function trimStoredText(value, maxLength = 400) {
 
 function stripSkillMentions(value) {
   return normalizeWhitespace(value)
-    .replace(/\[[^\]]*?\$[A-Za-z0-9_-]+[^\]]*?\]\([^)]+\)/g, " ")
-    .replace(/\$[A-Za-z0-9_-]+\b/g, " ");
+    .replace(/\[[^\]]*?\$[A-Za-z0-9:_-]+[^\]]*?\]\([^)]+\)/g, " ")
+    .replace(/\$[A-Za-z0-9:_-]+\b/g, " ");
 }
 
 function firstSentence(value) {
@@ -60,6 +60,7 @@ function stripPromptScaffolding(value) {
   next = next.replace(/\b(?:in|inside)\s+(?:this|the selected|the current|an? empty)\s+workspace\b/ig, "");
   next = next.replace(/\bwithout a folder\b/ig, "");
   next = next.replace(/\bfor me\b/ig, "");
+  next = next.replace(/\b(?:in|with|via|through|using|from|on)\s*(?:[.!?]+)?$/i, "");
   return normalizeWhitespace(next)
     .replace(/^[^A-Za-z0-9]+/, "")
     .replace(/[.!?]+$/, "");
