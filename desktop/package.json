@@ -1,6 +1,6 @@
 {
   "name": "sense-1-workspace",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Sense-1 Workspace Electron desktop app shell",
   "author": "George Stander",
   "type": "module",

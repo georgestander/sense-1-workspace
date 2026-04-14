@@ -2,6 +2,23 @@
 
 All notable changes to Sense-1 Workspace are recorded here.
 
+## [0.9.0] - 2026-04-14
+
+### Added
+
+- Signed-in ChatGPT realtime voice input for supported desktop composer threads, including live microphone session and transcript event handling.
+
+### Changed
+
+- Reworked voice recording into a compact inline composer control so recording status stays visible without taking over the draft area.
+- Improved automatic thread titles from early conversation context so active work is easier to scan while manual renames stay authoritative.
+
+### Fixed
+
+- Replaced the unreliable packaged macOS dictation fallback with the desktop realtime voice path used by the signed-in workspace flow.
+- Kept suggested thread-title updates synchronized with the live thread list after auto-rename events.
+- Prevented invalid realtime voice cleanup requests from being emitted during session startup and teardown.
+
 ## [0.8.0] - 2026-04-14
 
 ### Added
