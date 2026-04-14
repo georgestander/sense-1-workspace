@@ -27,6 +27,7 @@ const DESKTOP_SETTING_KEYS = Object.freeze([
   "sandboxPosture",
   "approvalOperationPosture",
   "approvalTrustedWorkspaces",
+  "trustedSkillApprovals",
   "adminApprovalPosture",
   "roleApprovalLevel",
   "workspaceReadonly",
@@ -113,6 +114,29 @@ function normalizeApprovalTrustedWorkspaces(value, fallback = "") {
   return value.trim();
 }
 
+function normalizeTrustedSkillApprovals(value, fallback = []) {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+
+  const seen = new Set();
+  const approvals = [];
+  for (const entry of value) {
+    const resolved = firstString(entry);
+    if (!resolved) {
+      continue;
+    }
+    const normalized = resolved.replaceAll("\\", "/");
+    if (seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    approvals.push(normalized);
+  }
+
+  return approvals;
+}
+
 function normalizeRuntimeInstructions(value, fallback = null) {
   if (typeof value !== "string") {
     return fallback;
@@ -159,6 +183,9 @@ export function normalizeDesktopSettingsLayer(settings = {}) {
   }
   if (typeof record.approvalTrustedWorkspaces === "string") {
     normalized.approvalTrustedWorkspaces = normalizeApprovalTrustedWorkspaces(record.approvalTrustedWorkspaces, "");
+  }
+  if (Array.isArray(record.trustedSkillApprovals)) {
+    normalized.trustedSkillApprovals = normalizeTrustedSkillApprovals(record.trustedSkillApprovals, []);
   }
   const adminApprovalPosture = normalizeAdminApprovalPosture(record.adminApprovalPosture, null);
   if (adminApprovalPosture) {

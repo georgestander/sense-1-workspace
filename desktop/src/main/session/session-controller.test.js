@@ -7329,6 +7329,256 @@ test("acceptForSession trust does not carry into a new controller session", asyn
   assert.equal(bootstrap.pendingApprovals[0]?.id, 404);
 });
 
+test("trusted skill approvals persist across controller sessions until the skill changes", async () => {
+  const root = await makeTempRoot();
+  const env = createTestEnv(root);
+  const workspaceRootA = path.join(root, "workspace-skill-trust-a");
+  const workspaceRootB = path.join(root, "workspace-skill-trust-b");
+  const workspaceRootC = path.join(root, "workspace-skill-trust-c");
+  await fs.mkdir(workspaceRootA, { recursive: true });
+  await fs.mkdir(workspaceRootB, { recursive: true });
+  await fs.mkdir(workspaceRootC, { recursive: true });
+  await grantWorkspaceReadPermission(env, workspaceRootA);
+  await grantWorkspaceReadPermission(env, workspaceRootB);
+  await grantWorkspaceReadPermission(env, workspaceRootC);
+
+  const profileCodexHome = resolveProfileCodexHome(CANONICAL_PROFILE_ID, env);
+  const skillDir = path.join(profileCodexHome, "skills", "autopilot");
+  const skillPath = path.join(skillDir, "SKILL.md");
+  await fs.mkdir(skillDir, { recursive: true });
+  await fs.writeFile(skillPath, "# Autopilot\n", "utf8");
+
+  let threadCounter = 0;
+  function createManager() {
+    return {
+      handleProfileChange: async () => {},
+      off: () => {},
+      on: () => {},
+      request: async (method) => {
+        if (method === "account/read") {
+          return {
+            account: {
+              email: "george@example.com",
+              type: "chatgpt",
+            },
+            authMode: "chatgpt",
+            requiresOpenaiAuth: false,
+          };
+        }
+
+        if (method === "model/list") {
+          return {
+            data: [
+              {
+                id: "gpt-5.4-mini",
+                supportedReasoningEfforts: ["minimal", "low", "medium", "high", "xhigh"],
+              },
+            ],
+          };
+        }
+
+        if (method === "config/read") {
+          return { config: {} };
+        }
+
+        if (method === "plugin/list") {
+          return { marketplaces: [] };
+        }
+
+        if (method === "app/list") {
+          return { data: [] };
+        }
+
+        if (method === "mcpServerStatus/list") {
+          return { data: [] };
+        }
+
+        if (method === "skills/list") {
+          return {
+            data: [
+              {
+                cwd: profileCodexHome,
+                skills: [
+                  {
+                    name: "autopilot",
+                    path: skillPath,
+                    enabled: true,
+                  },
+                ],
+              },
+            ],
+          };
+        }
+
+        if (method === "thread/start") {
+          threadCounter += 1;
+          return {
+            thread: {
+              id: `thread-skill-trust-${threadCounter}`,
+              name: "Skill trust thread",
+              preview: "Skill trust thread",
+              updatedAt: Math.floor(Date.now() / 1000),
+              status: {
+                type: "active",
+                activeFlags: [],
+              },
+            },
+          };
+        }
+
+        if (method === "turn/start") {
+          return {
+            turn: {
+              id: `turn-skill-trust-${threadCounter}`,
+            },
+          };
+        }
+
+        throw new Error(`Unexpected method: ${method}`);
+      },
+      respondCalls: [],
+      respond(requestId, payload) {
+        this.respondCalls.push({ requestId, payload });
+      },
+      start: async () => {},
+    };
+  }
+
+  const firstManager = createManager();
+  const firstController = new DesktopSessionController(firstManager, {
+    appStartedAt: "2026-03-24T10:00:00.000Z",
+    env,
+    openExternal: async () => {},
+    runtimeInfo: {
+      appVersion: "0.1.0",
+      electronVersion: "35.2.1",
+      platform: "darwin",
+      startedAt: "2026-03-24T10:00:00.000Z",
+    },
+  });
+
+  const firstRun = await firstController.runDesktopTask({
+    prompt: "Use $autopilot to prepare a change summary.",
+    workspaceRoot: workspaceRootA,
+  });
+  assert.equal(firstRun.status, "started");
+
+  firstController.ingestRuntimeEvent({
+    kind: "approvalRequested",
+    approval: makeApproval(601, firstRun.threadId, {
+      command: ["codex", "run", skillPath],
+      reason: "Skill approval required.",
+    }),
+  });
+  await firstController.respondToDesktopApproval({
+    decision: "acceptForSession",
+    requestId: 601,
+  });
+
+  await waitFor(async () => {
+    const settings = await firstController.getDesktopSettings();
+    assert.equal(settings.settings.trustedSkillApprovals.length, 1);
+  });
+
+  const secondManager = createManager();
+  const secondController = new DesktopSessionController(secondManager, {
+    appStartedAt: "2026-03-24T10:10:00.000Z",
+    env,
+    openExternal: async () => {},
+    runtimeInfo: {
+      appVersion: "0.1.0",
+      electronVersion: "35.2.1",
+      platform: "darwin",
+      startedAt: "2026-03-24T10:10:00.000Z",
+    },
+  });
+
+  const secondRun = await secondController.runDesktopTask({
+    prompt: "Use $autopilot to prep another summary.",
+    workspaceRoot: workspaceRootB,
+  });
+  assert.equal(secondRun.status, "started");
+
+  secondController.ingestRuntimeEvent({
+    kind: "approvalRequested",
+    approval: makeApproval(602, secondRun.threadId, {
+      command: ["codex", "run", skillPath],
+      reason: "Skill approval required.",
+    }),
+  });
+
+  await waitFor(async () => {
+    assert.deepEqual(secondManager.respondCalls, [
+      {
+        requestId: 602,
+        payload: "acceptForSession",
+      },
+    ]);
+    const bootstrap = await secondController.getBootstrap();
+    assert.equal(bootstrap.pendingApprovals.length, 0);
+  });
+
+  secondController.ingestRuntimeEvent({
+    kind: "approvalRequested",
+    approval: makeApproval(604, secondRun.threadId, {
+      command: ["git", "status"],
+      reason: "Non-skill command should still prompt.",
+    }),
+  });
+  await flushSubstrateWrites();
+
+  const nonSkillBootstrap = await secondController.getBootstrap();
+  assert.deepEqual(secondManager.respondCalls, [
+    {
+      requestId: 602,
+      payload: "acceptForSession",
+    },
+  ]);
+  assert.equal(nonSkillBootstrap.pendingApprovals.length, 1);
+  assert.equal(nonSkillBootstrap.pendingApprovals[0]?.id, 604);
+  await secondController.respondToDesktopApproval({
+    decision: "decline",
+    requestId: 604,
+  });
+
+  await fs.writeFile(skillPath, "# Autopilot changed\n", "utf8");
+  const changedAt = new Date("2026-03-24T10:20:00.000Z");
+  await fs.utimes(skillPath, changedAt, changedAt);
+
+  const thirdManager = createManager();
+  const thirdController = new DesktopSessionController(thirdManager, {
+    appStartedAt: "2026-03-24T10:20:00.000Z",
+    env,
+    openExternal: async () => {},
+    runtimeInfo: {
+      appVersion: "0.1.0",
+      electronVersion: "35.2.1",
+      platform: "darwin",
+      startedAt: "2026-03-24T10:20:00.000Z",
+    },
+  });
+
+  const thirdRun = await thirdController.runDesktopTask({
+    prompt: "Use $autopilot after it changed.",
+    workspaceRoot: workspaceRootC,
+  });
+  assert.equal(thirdRun.status, "started");
+
+  thirdController.ingestRuntimeEvent({
+    kind: "approvalRequested",
+    approval: makeApproval(603, thirdRun.threadId, {
+      command: ["codex", "run", skillPath],
+      reason: "Skill approval required.",
+    }),
+  });
+  await flushSubstrateWrites();
+
+  const thirdBootstrap = await thirdController.getBootstrap();
+  assert.deepEqual(thirdManager.respondCalls, []);
+  assert.equal(thirdBootstrap.pendingApprovals.length, 1);
+  assert.equal(thirdBootstrap.pendingApprovals[0]?.id, 603);
+});
+
 test("acceptForSession resolutions log approval.trusted for the linked session", async () => {
   const root = await makeTempRoot();
   const env = createTestEnv(root);

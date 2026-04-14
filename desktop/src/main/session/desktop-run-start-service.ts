@@ -68,6 +68,7 @@ import { createPermissionRequiredResult } from "./desktop-run-start-results.ts";
 import { applyTenantMembershipToActor, resolveTenantMembershipForProfile } from "../tenant/tenant-state.ts";
 import type { DesktopExtensionService } from "../settings/desktop-extension-service.ts";
 import { extractPromptShortcutTokens, resolvePromptShortcutInputItems } from "./desktop-prompt-shortcuts.ts";
+import { collectSkillApprovalKeys } from "./skill-approval-state.ts";
 
 const PROFILE_CODEX_HOME_SHORTCUTS = new Set([
   "plugin-creator",
@@ -476,6 +477,7 @@ export class DesktopRunStartService {
           );
         }
       }
+      const skillApprovalKeys = await collectSkillApprovalKeys(inputItems);
       const profileCodexHomeShortcutNames = resolveProfileCodexHomeShortcutNames(inputItems);
       const shouldUseProfileCodexHomeCwd =
         [...profileCodexHomeShortcutNames].some((name) => PROFILE_CODEX_HOME_CWD_SHORTCUTS.has(name));
@@ -507,6 +509,9 @@ export class DesktopRunStartService {
         cwd: effectiveCwd,
         inputItems: inputItems.length > 0 ? inputItems : undefined,
         model: resolvedModel,
+        onThreadReady: async (threadId) => {
+          this.#approvals.rememberThreadSkillApprovals(threadId, skillApprovalKeys);
+        },
         personality: resolvedPersonality,
         reasoningEffort: resolvedEffort ?? undefined,
         runtimeInstructions: resolvedRuntimeInstructions,

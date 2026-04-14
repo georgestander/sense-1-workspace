@@ -210,3 +210,37 @@ test("applyDesktopSettingsPatch keeps cleared trusted workspace rules honest", (
 
   assert.equal(resolveDesktopSettings(next).approvalTrustedWorkspaces, "");
 });
+
+test("applyDesktopSettingsPatch persists trusted skill approvals under approval defaults", () => {
+  const next = applyDesktopSettingsPatch(
+    {
+      version: 2,
+      policy: {
+        system: null,
+        organization: null,
+        profile: null,
+        workspaces: {},
+      },
+    },
+    {
+      trustedSkillApprovals: [
+        "/Users/george/.codex/skills/autopilot/SKILL.md::mtime:1",
+        "/Users/george/.codex/skills/autopilot/SKILL.md::mtime:1",
+        "/Users/george/.codex/plugins/gmail/skills/gmail/SKILL.md::mtime:2",
+      ],
+    },
+  );
+
+  assert.deepEqual(next.policy.profile, {
+    approvalDefaults: {
+      trustedSkillApprovals: [
+        "/Users/george/.codex/skills/autopilot/SKILL.md::mtime:1",
+        "/Users/george/.codex/plugins/gmail/skills/gmail/SKILL.md::mtime:2",
+      ],
+    },
+  });
+  assert.deepEqual(resolveDesktopSettings(next).trustedSkillApprovals, [
+    "/Users/george/.codex/skills/autopilot/SKILL.md::mtime:1",
+    "/Users/george/.codex/plugins/gmail/skills/gmail/SKILL.md::mtime:2",
+  ]);
+});
