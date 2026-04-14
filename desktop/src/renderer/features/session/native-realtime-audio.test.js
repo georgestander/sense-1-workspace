@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  analyzeAudioFrame,
   appendVoiceTranscriptFragment,
   convertAudioFrameToModelAudioChunk,
 } from "./native-realtime-audio.ts";
@@ -42,4 +43,24 @@ test("convertAudioFrameToModelAudioChunk downmixes planar float audio to 24k mon
     samplesPerChannel: 2,
   });
   assert.equal(closedFrames.length, 0);
+});
+
+test("analyzeAudioFrame reports a normalized level from real frame amplitude", () => {
+  const frame = {
+    format: "f32-planar",
+    numberOfChannels: 1,
+    numberOfFrames: 4,
+    sampleRate: 24_000,
+    copyTo(destination) {
+      destination.set(new Float32Array([0.5, -0.5, 0.25, -0.25]));
+    },
+    close() {},
+  };
+
+  const analysis = analyzeAudioFrame(frame);
+
+  assert.equal(analysis.audio?.sampleRate, 24_000);
+  assert.equal(analysis.audio?.samplesPerChannel, 4);
+  assert.ok(analysis.level > 0.9);
+  assert.ok(analysis.level <= 1);
 });

@@ -18,6 +18,11 @@ export type AudioFrameLike = {
   close(): void;
 };
 
+export type AnalyzedAudioFrame = {
+  audio: DesktopVoiceAudioChunk | null;
+  level: number;
+};
+
 function encodePcm16Base64(samples: Int16Array): string {
   const bytes = new Uint8Array(samples.length * 2);
   const view = new DataView(bytes.buffer);
@@ -138,6 +143,26 @@ function resampleAndDownmix(
   return samples;
 }
 
+function measureChannelsLevel(channels: readonly Float32Array[]): number {
+  let totalSquares = 0;
+  let sampleCount = 0;
+
+  for (const channel of channels) {
+    for (let index = 0; index < channel.length; index += 1) {
+      const sample = channel[index] ?? 0;
+      totalSquares += sample * sample;
+      sampleCount += 1;
+    }
+  }
+
+  if (sampleCount === 0) {
+    return 0;
+  }
+
+  const rms = Math.sqrt(totalSquares / sampleCount);
+  return Math.min(1, Math.max(0, rms * 3.2));
+}
+
 export function appendVoiceTranscriptFragment(currentValue: string, fragment: string): string {
   const normalizedFragment = fragment.trim();
   if (!normalizedFragment) {
@@ -152,25 +177,33 @@ export function appendVoiceTranscriptFragment(currentValue: string, fragment: st
   return `${currentValue} ${normalizedFragment}`;
 }
 
-export function convertAudioFrameToModelAudioChunk(
-  frame: AudioFrameLike,
-): DesktopVoiceAudioChunk | null {
+export function analyzeAudioFrame(frame: AudioFrameLike): AnalyzedAudioFrame {
   const inputFrames = frame.numberOfFrames;
   if (inputFrames === 0 || !Number.isFinite(frame.sampleRate) || frame.sampleRate <= 0) {
-    return null;
+    return {
+      audio: null,
+      level: 0,
+    };
   }
 
   const channels = readFrameChannels(frame);
   const samples = resampleAndDownmix(channels, frame.sampleRate);
-  if (samples.length === 0) {
-    return null;
-  }
-
   return {
-    data: encodePcm16Base64(samples),
-    itemId: null,
-    numChannels: MODEL_AUDIO_CHANNELS,
-    sampleRate: MODEL_AUDIO_SAMPLE_RATE,
-    samplesPerChannel: samples.length,
+    audio: samples.length === 0
+      ? null
+      : {
+          data: encodePcm16Base64(samples),
+          itemId: null,
+          numChannels: MODEL_AUDIO_CHANNELS,
+          sampleRate: MODEL_AUDIO_SAMPLE_RATE,
+          samplesPerChannel: samples.length,
+        },
+    level: measureChannelsLevel(channels),
   };
+}
+
+export function convertAudioFrameToModelAudioChunk(
+  frame: AudioFrameLike,
+): DesktopVoiceAudioChunk | null {
+  return analyzeAudioFrame(frame).audio;
 }

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { ChevronDown, ChevronRight, Clock3, Folder, FolderOpen, Mic, MicOff, Paperclip, Send } from "lucide-react";
+import { ChevronDown, ChevronRight, Clock3, Folder, FolderOpen, Mic, Paperclip, Send } from "lucide-react";
 
 import { Button } from "../ui/button";
 import { ShortcutPillRow } from "../composer/shortcut-pill-row.js";
 import { ShortcutSuggestionMenu } from "../composer/shortcut-suggestion-menu.js";
+import { VoiceRecordingPill } from "../composer/voice-recording-pill.js";
 import { Input } from "../ui/input";
 import { cn } from "../../lib/cn";
 import type { DesktopBootstrapTeamSetup, DesktopBootstrapTenant, DesktopExtensionOverviewResult, DesktopModelEntry, DesktopThreadSnapshot, ProjectedSessionRecord, ProjectedWorkspaceRecord } from "../../../main/contracts";
@@ -259,6 +260,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
         <div className="flex items-center gap-2">
           <Input
             autoFocus={Boolean(workInFolder && workspaceFolder && canStartWork)}
+            className="flex-1"
             disabled={!canStartWork}
             onChange={(event) => {
               setDraftPrompt(event.target.value);
@@ -295,15 +297,21 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
             ref={promptInputRef}
             value={draftPrompt}
           />
-          {dictation.supported ? (
+          {dictation.recordingIndicator ? (
+            <VoiceRecordingPill
+              elapsedLabel={dictation.recordingIndicator.elapsedLabel}
+              levels={dictation.recordingIndicator.levels}
+              onStop={() => dictation.stop()}
+            />
+          ) : dictation.supported ? (
             <Button
-              aria-label={dictation.active ? "Stop voice input" : "Start voice input"}
+              aria-label="Start voice input"
               disabled={!canStartWork}
               onClick={() => dictation.toggle()}
               size="icon"
               variant="secondary"
             >
-              {dictation.active ? <MicOff /> : <Mic />}
+              <Mic />
             </Button>
           ) : null}
           <Button aria-label="Send prompt" disabled={!canStartWork || taskPending || !draftPrompt.trim() || (workInFolder && !workspaceFolder)} onClick={submitDraftTask} size="icon" variant="default"><Send /></Button>
@@ -311,10 +319,9 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
         <ShortcutPillRow className="mt-3" overview={extensionOverview} prompt={draftPrompt} />
         {dictation.error ? <p className="mt-2 text-[0.5rem] leading-tight text-black">{dictation.error}</p> : null}
         {dictation.hint ? <p className="mt-2 text-[0.5rem] leading-tight text-black">{dictation.hint}</p> : null}
-        {dictation.statusText || dictation.liveTranscript ? (
+        {dictation.statusText || dictation.liveTranscript?.assistant ? (
           <div className="mt-2 text-[0.5rem] leading-tight text-black" role="status">
             {dictation.statusText ? <p>{dictation.statusText}</p> : null}
-            {dictation.liveTranscript?.user ? <p>You: {dictation.liveTranscript.user}</p> : null}
             {dictation.liveTranscript?.assistant ? <p>Codex: {dictation.liveTranscript.assistant}</p> : null}
           </div>
         ) : null}

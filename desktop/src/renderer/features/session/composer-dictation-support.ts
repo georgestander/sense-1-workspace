@@ -1,4 +1,5 @@
 export type ComposerDictationMode = "webSpeech" | "nativeRealtime" | "unsupported";
+export const VOICE_RECORDING_LEVEL_COUNT = 18;
 
 function appendRealtimeTranscriptPreview(currentValue: string, fragment: string): string {
   const normalizedFragment = fragment.trim();
@@ -78,4 +79,32 @@ export function resolveComposerDictationHint(mode: ComposerDictationMode): strin
 
 export function resolveComposerDictationUnavailableMessage(mode: ComposerDictationMode): string {
   return "Voice input is not available in this desktop runtime.";
+}
+
+export function createVoiceRecordingLevels(levelCount = VOICE_RECORDING_LEVEL_COUNT): number[] {
+  return Array.from({ length: levelCount }, () => 0);
+}
+
+export function pushVoiceRecordingLevel(
+  currentLevels: readonly number[],
+  nextLevel: number,
+  levelCount = VOICE_RECORDING_LEVEL_COUNT,
+): number[] {
+  const clampedLevel = Math.max(0, Math.min(1, nextLevel));
+  const preservedLevels = currentLevels.slice(-(levelCount - 1));
+  const paddedLevels =
+    preservedLevels.length >= levelCount - 1
+      ? preservedLevels
+      : [
+          ...Array.from({ length: (levelCount - 1) - preservedLevels.length }, () => 0),
+          ...preservedLevels,
+        ];
+  return [...paddedLevels, clampedLevel];
+}
+
+export function formatVoiceRecordingElapsed(elapsedMs: number): string {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }

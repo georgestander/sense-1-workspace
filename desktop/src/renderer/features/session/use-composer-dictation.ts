@@ -3,14 +3,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { DesktopRuntimeEvent, DesktopVoiceAudioChunk } from "../../../main/contracts";
 import {
   appendDictationTranscript,
+  createVoiceRecordingLevels,
+  formatVoiceRecordingElapsed,
+  pushVoiceRecordingLevel,
   resolveNativeRealtimeUserTranscriptUpdate,
   resolveComposerDictationHint,
   resolveComposerDictationMode,
   resolveComposerDictationUnavailableMessage,
 } from "./composer-dictation-support.js";
 import {
+  analyzeAudioFrame,
   appendVoiceTranscriptFragment,
-  convertAudioFrameToModelAudioChunk,
   type AudioFrameLike,
 } from "./native-realtime-audio.js";
 
@@ -89,9 +92,11 @@ async function createNativeRealtimeCapture(
   {
     onChunk,
     onError,
+    onLevel,
   }: {
     onChunk: (audio: DesktopVoiceAudioChunk) => void;
     onError: (error: unknown) => void;
+    onLevel: (level: number) => void;
   },
 ): Promise<() => Promise<void>> {
   if (!navigator.mediaDevices?.getUserMedia) {
@@ -132,9 +137,10 @@ async function createNativeRealtimeCapture(
         }
 
         try {
-          const audio = convertAudioFrameToModelAudioChunk(value);
-          if (audio) {
-            onChunk(audio);
+          const analysis = analyzeAudioFrame(value);
+          onLevel(analysis.level);
+          if (analysis.audio) {
+            onChunk(analysis.audio);
           }
         } finally {
           value.close();
@@ -173,6 +179,10 @@ export function useComposerDictation({
     assistant: "",
     user: "",
   });
+  const [recordingElapsedMs, setRecordingElapsedMs] = useState(0);
+  const [recordingLevels, setRecordingLevels] = useState(() => createVoiceRecordingLevels());
+  const recordingStartedAtRef = useRef<number | null>(null);
+  const lastLevelFrameAtRef = useRef(0);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const nativeSessionRef = useRef<NativeRealtimeSession | null>(null);
   const dictationMode = useMemo(
@@ -189,6 +199,13 @@ export function useComposerDictation({
   );
   const supported = dictationMode !== "unsupported";
   const hint = enabled ? resolveComposerDictationHint(dictationMode) : null;
+
+  function resetRecordingHud(): void {
+    recordingStartedAtRef.current = null;
+    lastLevelFrameAtRef.current = 0;
+    setRecordingElapsedMs(0);
+    setRecordingLevels(createVoiceRecordingLevels());
+  }
 
   async function releaseNativeRealtimeSession({ requestStop }: { requestStop: boolean }): Promise<void> {
     const session = nativeSessionRef.current;
@@ -226,6 +243,7 @@ export function useComposerDictation({
 
     nativeSessionRef.current = null;
     setActive(false);
+    resetRecordingHud();
 
     await Promise.allSettled([
       session.stopCapture(),
@@ -277,6 +295,10 @@ export function useComposerDictation({
 
     setError(null);
     setActive(true);
+    recordingStartedAtRef.current = Date.now();
+    lastLevelFrameAtRef.current = 0;
+    setRecordingElapsedMs(0);
+    setRecordingLevels(createVoiceRecordingLevels());
     const nextSession: NativeRealtimeSession = {
       assistantTranscript: "",
       queuedAudio: Promise.resolve(),
@@ -316,6 +338,14 @@ export function useComposerDictation({
           }
           setError(normalizeDictationError(captureError, "Voice input failed while capturing audio."));
           void releaseNativeRealtimeSession({ requestStop: true });
+        },
+        onLevel: (level) => {
+          const now = performance.now();
+          if (now - lastLevelFrameAtRef.current < 64) {
+            return;
+          }
+          lastLevelFrameAtRef.current = now;
+          setRecordingLevels((current) => pushVoiceRecordingLevel(current, level));
         },
       });
       if (nativeSessionRef.current !== nextSession) {
@@ -375,6 +405,24 @@ export function useComposerDictation({
       recognitionRef.current = null;
     };
   }, [dictationMode, enabled, setValue]);
+
+  useEffect(() => {
+    if (dictationMode !== "nativeRealtime" || !active) {
+      return;
+    }
+
+    const updateElapsed = () => {
+      const startedAt = recordingStartedAtRef.current;
+      if (startedAt == null) {
+        return;
+      }
+      setRecordingElapsedMs(Date.now() - startedAt);
+    };
+
+    updateElapsed();
+    const timerId = window.setInterval(updateElapsed, 200);
+    return () => window.clearInterval(timerId);
+  }, [active, dictationMode]);
 
   useEffect(() => {
     if (dictationMode !== "nativeRealtime" || !enabled) {
@@ -505,15 +553,42 @@ export function useComposerDictation({
     setError(resolveComposerDictationUnavailableMessage(dictationMode));
   }
 
+  async function stop(): Promise<void> {
+    if (!active) {
+      return;
+    }
+
+    if (dictationMode === "webSpeech") {
+      recognitionRef.current?.stop();
+      setActive(false);
+      return;
+    }
+
+    if (dictationMode === "nativeRealtime") {
+      await stopNativeRealtime();
+    }
+  }
+
   return {
     active,
     error,
     hint,
-    liveTranscript: nativeTranscript.assistant || nativeTranscript.user
-      ? nativeTranscript
+    liveTranscript: nativeTranscript.assistant
+      ? {
+          assistant: nativeTranscript.assistant,
+          user: "",
+        }
       : null,
+    recordingIndicator:
+      dictationMode === "nativeRealtime" && active
+        ? {
+            elapsedLabel: formatVoiceRecordingElapsed(recordingElapsedMs),
+            levels: recordingLevels,
+          }
+        : null,
     statusText:
-      active ? "Listening..." : null,
+      dictationMode === "webSpeech" && active ? "Listening..." : null,
+    stop,
     supported,
     toggle,
     value,

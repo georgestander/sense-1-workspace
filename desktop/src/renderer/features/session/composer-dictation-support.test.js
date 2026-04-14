@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   appendDictationTranscript,
+  createVoiceRecordingLevels,
+  formatVoiceRecordingElapsed,
+  pushVoiceRecordingLevel,
   resolveNativeRealtimeUserTranscriptUpdate,
   resolveComposerDictationHint,
   resolveComposerDictationMode,
@@ -96,4 +99,19 @@ test("resolveNativeRealtimeUserTranscriptUpdate falls back to the live preview w
       nextLiveTranscript: "",
     },
   );
+});
+
+test("createVoiceRecordingLevels seeds a compact visualization history", () => {
+  assert.deepEqual(createVoiceRecordingLevels(4), [0, 0, 0, 0]);
+});
+
+test("pushVoiceRecordingLevel keeps a fixed-size level history", () => {
+  assert.deepEqual(pushVoiceRecordingLevel([0.1, 0.2, 0.3], 0.9, 4), [0.1, 0.2, 0.3, 0.9]);
+  assert.deepEqual(pushVoiceRecordingLevel([0.1, 0.2, 0.3, 0.4], 2, 4), [0.2, 0.3, 0.4, 1]);
+});
+
+test("formatVoiceRecordingElapsed keeps the recorder timer small and predictable", () => {
+  assert.equal(formatVoiceRecordingElapsed(0), "0:00");
+  assert.equal(formatVoiceRecordingElapsed(9_999), "0:09");
+  assert.equal(formatVoiceRecordingElapsed(65_000), "1:05");
 });
