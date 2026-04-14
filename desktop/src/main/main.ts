@@ -467,6 +467,15 @@ const desktopSessionController = new DesktopSessionController(appServerManager, 
       return;
     }
   },
+  onThreadTitleChanged: async (threadId, title) => {
+    enqueueAccumulatorNotification({
+      method: "thread/name/updated",
+      params: {
+        threadId,
+        name: title,
+      },
+    });
+  },
   runtimeInfo,
 });
 let runtimeStartInFlight: Promise<void> | null = null;
