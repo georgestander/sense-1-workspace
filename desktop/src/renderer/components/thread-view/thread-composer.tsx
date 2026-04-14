@@ -202,6 +202,9 @@ function ThreadComposerInner({
         {dictation.error ? (
           <p className="rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft">{dictation.error}</p>
         ) : null}
+        {dictation.hint ? (
+          <p className="rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft" role="note">{dictation.hint}</p>
+        ) : null}
         {visibleShortcutSuggestions.length > 0 ? (
           <ShortcutSuggestionMenu
             activeIndex={shortcutSelectionIndex}
@@ -259,15 +262,17 @@ function ThreadComposerInner({
             >
               <Paperclip />
             </Button>
-            <Button
-              aria-label={dictation.active ? "Stop dictation" : "Dictate"}
-              disabled={composerDisabled || !dictation.supported}
-              onClick={() => dictation.toggle()}
-              size="icon"
-              variant="secondary"
-            >
-              {dictation.active ? <MicOff /> : <Mic />}
-            </Button>
+            {dictation.supported ? (
+              <Button
+                aria-label={dictation.active ? "Stop dictation" : "Dictate"}
+                disabled={composerDisabled}
+                onClick={() => dictation.toggle()}
+                size="icon"
+                variant="secondary"
+              >
+                {dictation.active ? <MicOff /> : <Mic />}
+              </Button>
+            ) : null}
             <label className="inline-flex items-center gap-2 rounded-xl border border-line/40 px-2 py-1 text-xs text-muted">
               <select
                 className="bg-transparent text-ink outline-none"
