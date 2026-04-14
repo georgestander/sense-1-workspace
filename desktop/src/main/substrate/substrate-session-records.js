@@ -15,6 +15,7 @@ import {
   listSubstrateSessionsByWorkspace,
   normalizeRuntimeThreadTitle,
   setSubstrateSessionStatus,
+  updateSubstrateSessionTitleContext,
   updateSubstrateSessionReviewSummary,
   updateSubstrateSessionThreadTitle,
 } from "./substrate-session-metadata.js";
@@ -27,6 +28,9 @@ import {
   openDatabase,
   runInTransaction,
 } from "./substrate-store-core.js";
+import {
+  buildThreadTitleContext,
+} from "./thread-title-summarizer.js";
 export {
   appendSubstrateEvent,
   appendSubstrateObjectRef,
@@ -34,15 +38,25 @@ export {
   getSubstrateSessionByThreadId,
   listSubstrateSessionsByWorkspace,
   setSubstrateSessionStatus,
+  updateSubstrateSessionTitleContext,
   updateSubstrateSessionReviewSummary,
   updateSubstrateSessionThreadTitle,
 } from "./substrate-session-metadata.js";
+
+function resolveReusedSessionSeedTitle(existingSession, threadTitle) {
+  return firstString(
+    existingSession?.metadata?.titleContext?.seedTitle,
+    normalizeRuntimeThreadTitle(threadTitle),
+    existingSession?.title,
+  );
+}
 
 export async function createSubstrateSessionShell({
   actorId,
   artifactRoot = null,
   dbPath,
   effort = null,
+  initialPrompt = null,
   model = null,
   now = new Date().toISOString(),
   profileId,
@@ -71,11 +85,18 @@ export async function createSubstrateSessionShell({
       const metadata = {};
       const resolvedArtifactRoot = firstString(artifactRoot);
       const resolvedWorkspaceRoot = firstString(workspaceRoot);
+      const titleContext = buildThreadTitleContext(null, {
+        initialPrompt,
+        seedTitle: title,
+      });
       if (resolvedArtifactRoot) {
         metadata.artifactRoot = path.resolve(resolvedArtifactRoot);
       }
       if (resolvedWorkspaceRoot) {
         metadata.workspaceRoot = path.resolve(resolvedWorkspaceRoot);
+      }
+      if (Object.keys(titleContext).length > 0) {
+        metadata.titleContext = titleContext;
       }
 
       db.prepare(
@@ -125,6 +146,7 @@ export async function finalizeSubstrateSessionStart({
   codexThreadId,
   dbPath,
   effort = null,
+  initialPrompt = null,
   model = null,
   now = new Date().toISOString(),
   profileId,
@@ -176,6 +198,19 @@ export async function finalizeSubstrateSessionStart({
       }
       if (resolvedWorkspaceRoot) {
         metadata.workspaceRoot = path.resolve(resolvedWorkspaceRoot);
+      }
+      const resolvedSeedTitle =
+        normalizeRuntimeThreadTitle(threadTitle)
+        ?? firstString(metadata.titleContext?.seedTitle, existingSession.title);
+      const titleContext = buildThreadTitleContext(metadata.titleContext, {
+        initialPrompt,
+        seedTitle: resolvedSeedTitle,
+      });
+      if (resolvedSeedTitle) {
+        titleContext.seedTitle = resolvedSeedTitle;
+      }
+      if (Object.keys(titleContext).length > 0) {
+        metadata.titleContext = titleContext;
       }
       const serializedMetadata =
         Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null;
@@ -267,6 +302,7 @@ export async function ensureSubstrateSessionForThread({
   codexThreadId,
   dbPath,
   effort = null,
+  initialPrompt = null,
   model = null,
   now = new Date().toISOString(),
   profileId,
@@ -334,6 +370,17 @@ export async function ensureSubstrateSessionForThread({
         if (resolvedWorkspaceRoot) {
           metadata.workspaceRoot = path.resolve(resolvedWorkspaceRoot);
         }
+        const resolvedSeedTitle = resolveReusedSessionSeedTitle(existingSession, threadTitle);
+        const titleContext = buildThreadTitleContext(metadata.titleContext, {
+          initialPrompt,
+          seedTitle: resolvedSeedTitle,
+        });
+        if (resolvedSeedTitle) {
+          titleContext.seedTitle = resolvedSeedTitle;
+        }
+        if (Object.keys(titleContext).length > 0) {
+          metadata.titleContext = titleContext;
+        }
         db.prepare(
           `UPDATE sessions
           SET workspace_id = COALESCE(?, workspace_id),
@@ -374,6 +421,13 @@ export async function ensureSubstrateSessionForThread({
       }
       if (resolvedWorkspaceRoot) {
         metadata.workspaceRoot = path.resolve(resolvedWorkspaceRoot);
+      }
+      const titleContext = buildThreadTitleContext(null, {
+        initialPrompt,
+        seedTitle: normalizeRuntimeThreadTitle(threadTitle),
+      });
+      if (Object.keys(titleContext).length > 0) {
+        metadata.titleContext = titleContext;
       }
 
       db.prepare(

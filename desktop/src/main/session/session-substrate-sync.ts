@@ -25,12 +25,14 @@ type RuntimeSessionContext = {
 
 type SessionSubstrateSyncOptions = {
   env: NodeJS.ProcessEnv;
+  onThreadTitleSuggested?: ((threadId: string, title: string) => Promise<void>) | null;
   resolveProfile: () => Promise<{ id: string }>;
   resolveSessionContextByThreadId: (threadId: string) => Promise<RuntimeSessionContext | null>;
 };
 
 export class SessionSubstrateSync {
   readonly #env: NodeJS.ProcessEnv;
+  readonly #onThreadTitleSuggested: ((threadId: string, title: string) => Promise<void>) | null;
   readonly #resolveProfile: () => Promise<{ id: string }>;
   readonly #resolveSessionContextByThreadId: (
     threadId: string,
@@ -38,8 +40,9 @@ export class SessionSubstrateSync {
   readonly #deferredSubstrateMessagesByThreadId = new Map<string, DeferredSubstrateMessage[]>();
   #substrateWriteQueue: Promise<void> = Promise.resolve();
 
-  constructor({ env, resolveProfile, resolveSessionContextByThreadId }: SessionSubstrateSyncOptions) {
+  constructor({ env, onThreadTitleSuggested, resolveProfile, resolveSessionContextByThreadId }: SessionSubstrateSyncOptions) {
     this.#env = env;
+    this.#onThreadTitleSuggested = onThreadTitleSuggested ?? null;
     this.#resolveProfile = resolveProfile;
     this.#resolveSessionContextByThreadId = resolveSessionContextByThreadId;
   }
@@ -115,6 +118,20 @@ export class SessionSubstrateSync {
           ? receivedAt.trim()
           : new Date().toISOString();
       this.#deferSubstrateMessage(outcome.threadId, message, deferredAt);
+      return;
+    }
+
+    if (
+      this.#onThreadTitleSuggested
+      && outcome.threadId
+      && typeof outcome.suggestedThreadTitle === "string"
+      && outcome.suggestedThreadTitle.trim()
+    ) {
+      try {
+        await this.#onThreadTitleSuggested(outcome.threadId, outcome.suggestedThreadTitle);
+      } catch (error) {
+        console.warn(`[desktop:substrate] Failed to sync suggested thread title: ${formatError(error)}`);
+      }
     }
   }
 

@@ -447,6 +447,7 @@ export function createSubstrateSessionShell(options: {
   artifactRoot?: string | null;
   model?: string | null;
   effort?: string | null;
+  initialPrompt?: string | null;
   title?: string | null;
   now?: string;
 }): Promise<{
@@ -468,6 +469,7 @@ export function finalizeSubstrateSessionStart(options: {
   artifactRoot?: string | null;
   model?: string | null;
   effort?: string | null;
+  initialPrompt?: string | null;
   threadTitle?: string | null;
   turnId?: string | null;
   workspaceRoot?: string | null;
@@ -486,6 +488,7 @@ export function ensureSubstrateSessionForThread(options: {
   artifactRoot?: string | null;
   model?: string | null;
   effort?: string | null;
+  initialPrompt?: string | null;
   threadTitle?: string | null;
   turnId?: string | null;
   now?: string;

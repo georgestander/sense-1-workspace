@@ -93,6 +93,8 @@ import { DesktopExtensionService } from "./settings/desktop-extension-service.ts
 import { DesktopQueryService } from "./substrate/desktop-query-service.ts";
 import { DesktopAutomationService } from "./automation/desktop-automation-service.ts";
 import { DesktopTenantService } from "./tenant/desktop-tenant-service.ts";
+import { updateSubstrateSessionThreadTitle } from "./substrate/substrate.js";
+import { resolveProfileSubstrateDbPath } from "./profile/profile-state.js";
 
 export type DesktopSessionControllerOptions = {
   readonly appStartedAt: string;
@@ -137,6 +139,7 @@ export class DesktopSessionController {
   readonly #approvals: DesktopApprovalService;
   readonly #auditEvents: DesktopAuditEvent[] = [];
   readonly #runContextByThreadId = new Map<string, DesktopRunContext | null>();
+  readonly #pendingExplicitThreadTitles = new Map<string, string>();
   readonly #selectedThreadIdByProfile = new Map<string, string | null>();
   readonly #runtimeArchivedThreadIds = new Set<string>();
   readonly #substrateSync: SessionSubstrateSync;
@@ -197,6 +200,9 @@ export class DesktopSessionController {
     });
     this.#substrateSync = new SessionSubstrateSync({
       env: this.#env,
+      onThreadTitleSuggested: async (threadId, title) => {
+        await this.#applySuggestedThreadTitle(threadId, title);
+      },
       resolveProfile: this.#resolveProfile,
       resolveSessionContextByThreadId: async (threadId) =>
         await this.#workspaceService.resolveSubstrateSessionByThreadId(threadId),
@@ -324,6 +330,23 @@ export class DesktopSessionController {
     });
   }
 
+  async #applySuggestedThreadTitle(threadId: string, title: string): Promise<void> {
+    const resolvedThreadId = firstString(threadId);
+    const resolvedTitle = firstString(title);
+    if (!resolvedThreadId || !resolvedTitle) {
+      return;
+    }
+
+    if (this.#pendingExplicitThreadTitles.has(resolvedThreadId)) {
+      return;
+    }
+
+    await this.#manager.request("thread/name/set", {
+      threadId: resolvedThreadId,
+      name: resolvedTitle,
+    });
+  }
+
   ingestRuntimeEvent(event: DesktopRuntimeEvent): void {
     handleRuntimeEvent({
       approvals: this.#approvals,
@@ -336,6 +359,19 @@ export class DesktopSessionController {
   }
 
   ingestRuntimeMessage(message: unknown): void {
+    const method = firstString((message as { method?: unknown } | null)?.method);
+    const params = typeof message === "object" && message !== null
+      ? (message as { params?: { threadId?: unknown; name?: unknown } | null }).params
+      : null;
+    const runtimeThreadId = firstString(params?.threadId);
+    if (method === "thread/name/updated" && runtimeThreadId) {
+      const pendingTitle = this.#pendingExplicitThreadTitles.get(runtimeThreadId);
+      const updatedTitle = firstString(params?.name);
+      if (!pendingTitle || (updatedTitle && pendingTitle === updatedTitle)) {
+        this.#pendingExplicitThreadTitles.delete(runtimeThreadId);
+      }
+    }
+
     handleRuntimeMessage({
       env: this.#env,
       message,
@@ -382,7 +418,33 @@ export class DesktopSessionController {
   }
 
   async renameDesktopThread({ threadId, title }: DesktopThreadRenameRequest): Promise<void> {
-    await this.#workspaceService.renameDesktopThread({ threadId, title });
+    const resolvedThreadId = firstString(threadId);
+    const resolvedTitle = firstString(title);
+    if (resolvedThreadId && resolvedTitle) {
+      this.#pendingExplicitThreadTitles.set(resolvedThreadId, resolvedTitle);
+    }
+
+    try {
+      await this.#workspaceService.renameDesktopThread({ threadId, title });
+      const profile = await this.#resolveProfile();
+      const session = resolvedThreadId
+        ? await this.#workspaceService.resolveSubstrateSessionByThreadId(resolvedThreadId)
+        : null;
+      if (session?.codex_thread_id && session.title !== resolvedTitle) {
+        await updateSubstrateSessionThreadTitle({
+          codexThreadId: session.codex_thread_id,
+          dbPath: session.profile_id
+            ? resolveProfileSubstrateDbPath(session.profile_id, this.#env)
+            : resolveProfileSubstrateDbPath(profile.id, this.#env),
+          title: resolvedTitle,
+        });
+      }
+    } catch (error) {
+      if (resolvedThreadId && this.#pendingExplicitThreadTitles.get(resolvedThreadId) === resolvedTitle) {
+        this.#pendingExplicitThreadTitles.delete(resolvedThreadId);
+      }
+      throw error;
+    }
   }
 
   async archiveDesktopThread({ threadId }: DesktopThreadArchiveRequest): Promise<void> {

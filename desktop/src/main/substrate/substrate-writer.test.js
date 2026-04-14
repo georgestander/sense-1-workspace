@@ -255,6 +255,97 @@ test("writeRuntimeMessageToSubstrate persists renamed thread titles without lett
   assert.equal(session?.title, "Start a quick QA note about desktop continuity.");
 });
 
+test("writeRuntimeMessageToSubstrate suggests a descriptive title from early conversation context", async () => {
+  const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-substrate-writer-test-"));
+  const env = createTestEnv(runtimeRoot);
+  const { profileId } = await ensureProfileDirectories("ops-team", env);
+  const dbPath = resolveProfileSubstrateDbPath(profileId, env);
+
+  await ensureProfileSubstrate({
+    actorEmail: "george@example.com",
+    dbPath,
+    profileId,
+  });
+
+  await ensureSubstrateSessionForThread({
+    actorId: "actor_ops_team_primary",
+    codexThreadId: "thread-writer-title-1",
+    dbPath,
+    initialPrompt: "Fix this",
+    model: "gpt-5.4",
+    profileId,
+    scopeId: "scope_ops-team_private",
+    threadTitle: "Fix this",
+    turnId: "turn-seed-title-1",
+  });
+
+  const resolveSessionContextByThreadId = async (threadId) =>
+    await getSubstrateSessionByThreadId({
+      codexThreadId: threadId,
+      dbPath,
+    });
+
+  assert.deepEqual(
+    await writeRuntimeMessageToSubstrate({
+      dbPath,
+      message: {
+        method: "item/completed",
+        params: {
+          threadId: "thread-writer-title-1",
+          turnId: "turn-live-title-1",
+          item: {
+            id: "user-title-1",
+            type: "userMessage",
+            content: [
+              { type: "text", text: "Fix this" },
+            ],
+          },
+        },
+      },
+      resolveSessionContextByThreadId,
+    }),
+    { status: "written", threadId: "thread-writer-title-1" },
+  );
+
+  assert.deepEqual(
+    await writeRuntimeMessageToSubstrate({
+      dbPath,
+      message: {
+        method: "item/completed",
+        params: {
+          threadId: "thread-writer-title-1",
+          turnId: "turn-live-title-1",
+          item: {
+            id: "agent-title-1",
+            type: "agentMessage",
+            phase: "final_answer",
+            text: "I'll inspect the login crash and patch the auth handler.",
+          },
+        },
+      },
+      resolveSessionContextByThreadId,
+    }),
+    {
+      status: "written",
+      suggestedThreadTitle: "Inspect the login crash and patch the auth handler",
+      threadId: "thread-writer-title-1",
+    },
+  );
+
+  const session = await getSubstrateSessionByThreadId({
+    codexThreadId: "thread-writer-title-1",
+    dbPath,
+  });
+  assert.equal(session?.title, "Inspect the login crash and patch the auth handler");
+  assert.deepEqual(session?.metadata?.titleContext, {
+    initialPrompt: "Fix this",
+    seedTitle: "Fix this",
+    userText: "Fix this",
+    assistantText: "I'll inspect the login crash and patch the auth handler.",
+    autoTitle: "Inspect the login crash and patch the auth handler",
+  });
+});
+
 test("writeRuntimeMessageToSubstrate records canonical runtime activity events for command, write, and read items", async () => {
   const { dbPath } = await setupLinkedSession();
   const linkedSession = await getSubstrateSessionByThreadId({
@@ -335,7 +426,11 @@ test("writeRuntimeMessageToSubstrate records canonical runtime activity events f
       },
       resolveSessionContextByThreadId,
     }),
-    { status: "written", threadId: "thread-writer-1" },
+    {
+      status: "written",
+      suggestedThreadTitle: "Inspect /tmp/project/src/main.ts and /tmp/project/README.md before",
+      threadId: "thread-writer-1",
+    },
   );
 
   assert.deepEqual(
@@ -952,7 +1047,11 @@ test("writeRuntimeMessageToSubstrate emits runtime activity hooks and session pa
       onSessionRecordUpdate: async (update) => sessionRecordUpdates.push(update),
       resolveSessionContextByThreadId,
     }),
-    { status: "written", threadId: "thread-writer-1" },
+    {
+      status: "written",
+      suggestedThreadTitle: "Read /tmp/project/src/app.ts before editing it",
+      threadId: "thread-writer-1",
+    },
   );
 
   assert.deepEqual(

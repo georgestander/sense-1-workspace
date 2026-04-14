@@ -34,4 +34,5 @@ export function writeRuntimeMessageToSubstrate(options: {
 }): Promise<{
   status: "written" | "deferred" | "ignored";
   threadId: string | null;
+  suggestedThreadTitle?: string;
 }>;

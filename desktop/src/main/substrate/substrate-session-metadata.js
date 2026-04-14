@@ -8,6 +8,11 @@ import {
   openDatabase,
   runInTransaction,
 } from "./substrate-store-core.js";
+import {
+  buildThreadTitleContext,
+  shouldAutoRenameThreadTitle,
+  summarizeEarlyConversationThreadTitle,
+} from "./thread-title-summarizer.js";
 
 const PLACEHOLDER_THREAD_TITLES = new Set([
   "untitled thread",
@@ -303,6 +308,66 @@ export async function updateSubstrateSessionReviewSummary({
         sessionId: resolvedSessionId,
         summary: firstString(summary, existingSession.summary),
         updatedAt: resolvedUpdatedAt,
+      };
+    });
+  } finally {
+    db.close();
+  }
+}
+
+export async function updateSubstrateSessionTitleContext({
+  assistantText = null,
+  dbPath,
+  sessionId,
+  userText = null,
+}) {
+  const resolvedDbPath = firstString(dbPath);
+  const resolvedSessionId = firstString(sessionId);
+  if (!resolvedDbPath || !resolvedSessionId) {
+    throw new Error("A substrate database path and session id are required to update title context.");
+  }
+
+  const db = openDatabase(resolvedDbPath);
+  try {
+    return runInTransaction(db, () => {
+      const existingSession = getSessionByIdWithDatabase(db, resolvedSessionId);
+      if (!existingSession) {
+        throw new Error(`Could not find substrate session ${resolvedSessionId}.`);
+      }
+
+      const metadata = { ...existingSession.metadata };
+      const titleContext = buildThreadTitleContext(metadata.titleContext, {
+        assistantText,
+        seedTitle: existingSession.title,
+        userText,
+      });
+      const suggestedTitle = shouldAutoRenameThreadTitle({
+        currentTitle: existingSession.title,
+        titleContext,
+      })
+        ? summarizeEarlyConversationThreadTitle(titleContext)
+        : null;
+      const nextTitle = firstString(suggestedTitle, existingSession.title);
+      const nextTitleContext = buildThreadTitleContext(titleContext, {
+        autoTitle: suggestedTitle,
+      });
+      metadata.titleContext = nextTitleContext;
+
+      db.prepare(
+        `UPDATE sessions
+        SET title = COALESCE(?, title),
+            metadata = ?
+        WHERE id = ?`,
+      ).run(
+        firstString(suggestedTitle),
+        JSON.stringify(metadata),
+        resolvedSessionId,
+      );
+
+      return {
+        sessionId: resolvedSessionId,
+        title: nextTitle,
+        titleUpdated: Boolean(suggestedTitle && suggestedTitle !== existingSession.title),
       };
     });
   } finally {
