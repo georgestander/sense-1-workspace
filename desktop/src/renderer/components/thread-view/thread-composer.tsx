@@ -2,10 +2,15 @@ import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type Disp
 import { BrainCircuit, Mic, Paperclip, Send, Square } from "lucide-react";
 
 import { Button } from "../ui/button";
+import { FastModeSuggestionMenu } from "../composer/fast-mode-suggestion-menu.js";
 import { ShortcutPillRow } from "../composer/shortcut-pill-row.js";
 import { ShortcutSuggestionMenu } from "../composer/shortcut-suggestion-menu.js";
 import { VoiceRecordingPill } from "../composer/voice-recording-pill.js";
 import { buildThreadComposerIdentity } from "../../state/session/tenant-identity.js";
+import {
+  applyFastModeSuggestion,
+  resolveFastModeSuggestions,
+} from "../../features/session/fast-mode-command.js";
 import { useComposerDictation } from "../../features/session/use-composer-dictation.js";
 import { type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopExtensionOverviewResult, type DesktopModelEntry } from "../../../main/contracts";
 import { replaceActivePromptShortcut, resolvePromptShortcutSuggestions } from "../../../shared/prompt-shortcuts.ts";
@@ -23,7 +28,9 @@ type ThreadComposerProps = {
   modelOptions: string[];
   availableModels: DesktopModelEntry[];
   selectedModel: string;
+  selectedServiceTier: "flex" | "fast";
   handleModelSelection: (nextModel: string) => void;
+  handleServiceTierSelection: (nextServiceTier: "flex" | "fast") => void;
   queueSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
   queuedMessageCount: number;
   reasoningOptions: string[];
@@ -48,7 +55,9 @@ function ThreadComposerInner({
   modelOptions,
   availableModels,
   selectedModel,
+  selectedServiceTier,
   handleModelSelection,
+  handleServiceTierSelection,
   queueSelectedThreadPrompt,
   queuedMessageCount,
   reasoningOptions,
@@ -80,6 +89,10 @@ function ThreadComposerInner({
     [deferredThreadPrompt, extensionOverview, shortcutCursorIndex],
   );
   const visibleShortcutSuggestions = shortcutSuggestions.slice(0, 8);
+  const fastModeSuggestions = useMemo(
+    () => resolveFastModeSuggestions(threadPrompt, shortcutCursorIndex),
+    [threadPrompt, shortcutCursorIndex],
+  );
 
   useEffect(() => {
     setThreadPrompt(threadPromptOverride);
@@ -126,7 +139,40 @@ function ThreadComposerInner({
     });
   }
 
+  function applyFastSuggestion(command: string) {
+    const nextSelection = applyFastModeSuggestion(command);
+    setThreadPrompt(nextSelection.prompt);
+    setShortcutCursorIndex(nextSelection.cursorIndex);
+    setShortcutSelectionIndex(0);
+    requestAnimationFrame(() => {
+      composerRef.current?.focus();
+      composerRef.current?.setSelectionRange(nextSelection.cursorIndex, nextSelection.cursorIndex);
+    });
+  }
+
   function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (fastModeSuggestions.length > 0) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setShortcutSelectionIndex((current) => (current + 1) % fastModeSuggestions.length);
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setShortcutSelectionIndex((current) => (current - 1 + fastModeSuggestions.length) % fastModeSuggestions.length);
+        return;
+      }
+      if ((event.key === "Enter" && !event.shiftKey) || event.key === "Tab") {
+        event.preventDefault();
+        applyFastSuggestion(fastModeSuggestions[shortcutSelectionIndex]?.command ?? fastModeSuggestions[0]?.command ?? "");
+        return;
+      }
+      if (event.key === "Escape") {
+        setShortcutSelectionIndex(0);
+        return;
+      }
+    }
+
     if (visibleShortcutSuggestions.length > 0) {
       if (event.key === "ArrowDown") {
         event.preventDefault();
@@ -213,14 +259,32 @@ function ThreadComposerInner({
             {dictation.liveTranscript?.assistant ? <p>Codex: {dictation.liveTranscript.assistant}</p> : null}
           </div>
         ) : null}
-        {visibleShortcutSuggestions.length > 0 ? (
+        {fastModeSuggestions.length > 0 ? (
+          <FastModeSuggestionMenu
+            activeIndex={shortcutSelectionIndex}
+            onSelect={(suggestion) => applyFastSuggestion(suggestion.command)}
+            suggestions={fastModeSuggestions}
+          />
+        ) : null}
+        {fastModeSuggestions.length === 0 && visibleShortcutSuggestions.length > 0 ? (
           <ShortcutSuggestionMenu
             activeIndex={shortcutSelectionIndex}
             onSelect={(suggestion) => applyShortcutSuggestion(suggestion.token)}
             suggestions={visibleShortcutSuggestions}
           />
         ) : null}
-        <ShortcutPillRow overview={extensionOverview} prompt={deferredThreadPrompt} />
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedServiceTier === "fast" ? (
+            <button
+              className="inline-flex items-center gap-1.5 rounded-full bg-[oklch(18%_0.03_55)] px-3 py-1 text-xs font-semibold text-white shadow-[0_8px_20px_rgba(10,15,20,0.12)]"
+              onClick={() => handleServiceTierSelection("flex")}
+              type="button"
+            >
+              Fast mode
+            </button>
+          ) : null}
+          <ShortcutPillRow overview={extensionOverview} prompt={deferredThreadPrompt} />
+        </div>
         <textarea
           className="min-h-[5.5rem] resize-none rounded-xl border border-line/40 bg-canvas px-3 py-2 text-sm outline-none transition-all placeholder:text-muted focus-visible:ring-[3px] focus-visible:ring-accent/30 disabled:cursor-not-allowed disabled:opacity-70"
           disabled={composerDisabled}
@@ -307,6 +371,14 @@ function ThreadComposerInner({
                 )}
               </select>
             </label>
+            <button
+              className={`inline-flex items-center gap-2 rounded-xl border px-2 py-1 text-xs ${selectedServiceTier === "fast" ? "border-[oklch(76%_0.17_75)] bg-[oklch(95%_0.04_85)] text-ink" : "border-line/40 text-muted"}`}
+              disabled={composerDisabled}
+              onClick={() => handleServiceTierSelection(selectedServiceTier === "fast" ? "flex" : "fast")}
+              type="button"
+            >
+              Fast
+            </button>
           </div>
           <div className="flex items-center gap-2">
             {dictation.recordingIndicator ? (

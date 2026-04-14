@@ -124,6 +124,7 @@ export function ensureDesktopThread(
     executionIntent?: ReturnType<typeof classifyDesktopExecutionIntent> | null;
     model?: string | null;
     personality?: string | null;
+    serviceTier?: "flex" | "fast" | null;
     runContext?: DesktopRunContext | null;
     runtimeInstructions?: string | null;
     settings?: Record<string, unknown> | null;

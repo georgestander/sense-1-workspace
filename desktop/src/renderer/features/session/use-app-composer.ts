@@ -11,6 +11,7 @@ type UseAppComposerParams = {
   currentRequestId: number | string | null;
   clearSelectedThread: () => Promise<void>;
   effectiveThreadBusy: boolean;
+  handleFastModeCommand: (prompt: string) => Promise<boolean>;
   queueTurnInput: (input: string) => Promise<void>;
   runTask: (request: {
     prompt: string;
@@ -34,6 +35,7 @@ export function useAppComposer({
   currentRequestId,
   clearSelectedThread,
   effectiveThreadBusy,
+  handleFastModeCommand,
   queueTurnInput,
   runTask,
   selectedThread,
@@ -69,6 +71,13 @@ export function useAppComposer({
   }
 
   async function submitSelectedThreadPrompt(threadPrompt: string) {
+    if (await handleFastModeCommand(threadPrompt)) {
+      setThreadPromptOverride("");
+      setAttachedFiles([]);
+      setTaskError(null);
+      return true;
+    }
+
     const request = buildSelectedThreadRunRequest({
       attachedFiles,
       selectedThread,
@@ -100,6 +109,13 @@ export function useAppComposer({
   }
 
   async function queueSelectedThreadPrompt(threadPrompt: string) {
+    if (await handleFastModeCommand(threadPrompt)) {
+      setThreadPromptOverride("");
+      setAttachedFiles([]);
+      setTaskError(null);
+      return true;
+    }
+
     const request = buildSelectedThreadRunRequest({
       attachedFiles,
       selectedThread,
@@ -130,7 +146,14 @@ export function useAppComposer({
     return true;
   }
 
-  function submitDraftTask() {
+  async function submitDraftTask() {
+    if (await handleFastModeCommand(draftPrompt)) {
+      setDraftPrompt("");
+      setAttachedFiles([]);
+      setTaskError(null);
+      return;
+    }
+
     const request = buildDraftRunRequest({
       attachedFiles,
       draftPrompt,
@@ -149,7 +172,7 @@ export function useAppComposer({
     requestAnimationFrame(() => {
       transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
     });
-    void runTask(request);
+    await runTask(request);
   }
 
   return {

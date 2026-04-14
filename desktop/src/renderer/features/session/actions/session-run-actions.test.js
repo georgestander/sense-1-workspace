@@ -5,14 +5,17 @@ import { createSessionRunActions } from "./session-run-actions.ts";
 
 function createDeps({ runResult }) {
   let pendingPermission = null;
+  const turnRunCalls = [];
 
   return {
     getPendingPermission: () => pendingPermission,
+    getTurnRunCalls: () => turnRunCalls,
     getRunContext: () => null,
     getSelectedThreadId: () => null,
     getActiveTurnIdsByThread: () => ({}),
     model: "",
     reasoningEffort: "",
+    serviceTier: "fast",
     flushPendingThreadDeltas: () => {},
     rememberKnownThreadIds: () => {},
     refreshBootstrap: async () => null,
@@ -22,7 +25,10 @@ function createDeps({ runResult }) {
       turns: {
         interrupt: async () => {},
         queue: async () => {},
-        run: async () => runResult,
+        run: async (request) => {
+          turnRunCalls.push(request);
+          return runResult;
+        },
         steer: async () => {},
       },
       workspace: { rememberThreadRoot: async () => {} },
@@ -74,4 +80,5 @@ test("runTask rewrites permission retry requests to the granted workspace root",
       workspaceRoot: "/tmp",
     },
   });
+  assert.equal(deps.getTurnRunCalls()[0]?.serviceTier, "fast");
 });
