@@ -111,6 +111,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
   const canStartWork = teamIdentity.canStartWork;
   const dictation = useComposerDictation({
     enabled: canStartWork,
+    threadId: primaryWorkspaceSession?.codex_thread_id ?? "",
     value: draftPrompt,
     setValue: (value) => setDraftPrompt(typeof value === "function" ? value(draftPrompt) : value),
   });

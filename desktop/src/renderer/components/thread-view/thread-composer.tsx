@@ -64,6 +64,7 @@ function ThreadComposerInner({
   const sendDisabled = composerDisabled || !threadPrompt.trim();
   const dictation = useComposerDictation({
     enabled: !composerDisabled,
+    threadId: selectedThreadId,
     value: threadPrompt,
     setValue: setThreadPrompt,
   });

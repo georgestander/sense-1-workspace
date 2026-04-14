@@ -38,6 +38,9 @@ import {
   type DesktopRuntimeEvent,
   type DesktopThreadDelta,
   type DesktopUpdateState,
+  type DesktopVoiceAppendAudioRequest,
+  type DesktopVoiceStartRequest,
+  type DesktopVoiceStopRequest,
   type DesktopThreadArchiveRequest,
   type DesktopThreadDeleteRequest,
   type DesktopThreadRenameRequest,
@@ -110,6 +113,9 @@ type DesktopIpcServices = {
   selectDesktopProfile(profileId: string): Promise<SelectDesktopProfileResult>;
   listModels(): Promise<DesktopModelListResult>;
   respondToInputRequest(request: DesktopInputResponseRequest): Promise<void>;
+  startDesktopVoice(request: DesktopVoiceStartRequest): Promise<void>;
+  appendDesktopVoiceAudio(request: DesktopVoiceAppendAudioRequest): Promise<void>;
+  stopDesktopVoice(request: DesktopVoiceStopRequest): Promise<void>;
   rememberWorkspaceFolder(folderPath: string): Promise<void>;
   archiveWorkspace(request: DesktopWorkspaceArchiveRequest): Promise<void>;
   restoreWorkspace(request: DesktopWorkspaceRestoreRequest): Promise<void>;
@@ -303,6 +309,27 @@ export function registerDesktopIpcHandlers(services: DesktopIpcServices): void {
     IPC_CHANNELS.respondToInputRequest,
     async (_event, request: DesktopInputResponseRequest): Promise<void> => {
       await services.respondToInputRequest(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.startDesktopVoice,
+    async (_event, request: DesktopVoiceStartRequest): Promise<void> => {
+      await services.startDesktopVoice(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.appendDesktopVoiceAudio,
+    async (_event, request: DesktopVoiceAppendAudioRequest): Promise<void> => {
+      await services.appendDesktopVoiceAudio(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.stopDesktopVoice,
+    async (_event, request: DesktopVoiceStopRequest): Promise<void> => {
+      await services.stopDesktopVoice(request);
     },
   );
 

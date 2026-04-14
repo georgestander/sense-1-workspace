@@ -24,12 +24,15 @@ import {
   type LogoutChatgptResult,
   type RuntimeInfo,
   type SelectDesktopProfileResult,
+  type DesktopVoiceAppendAudioRequest,
+  type DesktopVoiceStartRequest,
+  type DesktopVoiceStopRequest,
 } from "../../shared/contracts/index";
 import { shouldRefreshSessionSnapshot } from "./utils";
 
 type SessionBridge = Pick<
   DesktopBridge,
-  "runtime" | "session" | "auth" | "profiles" | "threads" | "turns" | "approvals" | "models" | "input"
+  "runtime" | "session" | "auth" | "profiles" | "threads" | "turns" | "approvals" | "models" | "input" | "voice"
 >;
 
 export function createSessionBridge(ipcRenderer: IpcRenderer): SessionBridge {
@@ -150,6 +153,17 @@ export function createSessionBridge(ipcRenderer: IpcRenderer): SessionBridge {
     input: {
       respond: async (request: DesktopInputResponseRequest): Promise<void> => {
         return ipcRenderer.invoke(IPC_CHANNELS.respondToInputRequest, request) as Promise<void>;
+      },
+    },
+    voice: {
+      start: async (request: DesktopVoiceStartRequest): Promise<void> => {
+        return ipcRenderer.invoke(IPC_CHANNELS.startDesktopVoice, request) as Promise<void>;
+      },
+      appendAudio: async (request: DesktopVoiceAppendAudioRequest): Promise<void> => {
+        return ipcRenderer.invoke(IPC_CHANNELS.appendDesktopVoiceAudio, request) as Promise<void>;
+      },
+      stop: async (request: DesktopVoiceStopRequest): Promise<void> => {
+        return ipcRenderer.invoke(IPC_CHANNELS.stopDesktopVoice, request) as Promise<void>;
       },
     },
   };

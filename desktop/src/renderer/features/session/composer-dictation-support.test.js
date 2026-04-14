@@ -8,33 +8,31 @@ import {
   resolveComposerDictationUnavailableMessage,
 } from "./composer-dictation-support.ts";
 
-test("resolveComposerDictationMode prefers native macOS dictation for Electron desktop", () => {
+test("resolveComposerDictationMode prefers native realtime dictation when the desktop bridge exposes it", () => {
   assert.equal(
     resolveComposerDictationMode({
-      hasDesktopBridge: true,
+      hasNativeRealtimeVoice: true,
       hasSpeechRecognition: true,
-      platform: "MacIntel",
     }),
-    "nativeMacos",
+    "nativeRealtime",
   );
 });
 
 test("resolveComposerDictationMode preserves web speech support in supported browser contexts", () => {
   assert.equal(
     resolveComposerDictationMode({
-      hasDesktopBridge: false,
+      hasNativeRealtimeVoice: false,
       hasSpeechRecognition: true,
-      platform: "Win32",
     }),
     "webSpeech",
   );
 });
 
-test("resolveComposerDictationHint and unavailable message explain the native macOS fallback", () => {
-  assert.match(resolveComposerDictationHint("nativeMacos") ?? "", /macOS Dictation/u);
+test("resolveComposerDictationHint removes the desktop dictation fallback banner", () => {
+  assert.equal(resolveComposerDictationHint("nativeRealtime"), null);
   assert.equal(
-    resolveComposerDictationUnavailableMessage("nativeMacos"),
-    "Use macOS Dictation while the composer is focused.",
+    resolveComposerDictationUnavailableMessage("nativeRealtime"),
+    "Voice dictation is not available in this desktop runtime.",
   );
 });
 

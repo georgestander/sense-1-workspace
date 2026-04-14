@@ -45,6 +45,9 @@ import type {
   DesktopTeamStateResult,
   DesktopCreateFirstTeamRequest,
   DesktopSaveTeamMemberRequest,
+  DesktopVoiceAppendAudioRequest,
+  DesktopVoiceStartRequest,
+  DesktopVoiceStopRequest,
   DesktopWorkspaceArchiveRequest,
   DesktopWorkspaceDeleteRequest,
   DesktopWorkspacePermissionGrantRequest,
@@ -526,6 +529,72 @@ export class DesktopSessionController {
         requestId,
         text,
       },
+    });
+  }
+
+  async startDesktopVoice({
+    prompt,
+    sessionId,
+    threadId,
+  }: DesktopVoiceStartRequest): Promise<void> {
+    const resolvedThreadId = firstString(threadId);
+    if (!resolvedThreadId) {
+      throw new Error("Choose a thread before starting voice dictation.");
+    }
+
+    await this.#manager.request("thread/realtime/start", {
+      threadId: resolvedThreadId,
+      prompt: firstString(prompt),
+      sessionId: firstString(sessionId),
+    });
+  }
+
+  async appendDesktopVoiceAudio({
+    audio,
+    threadId,
+  }: DesktopVoiceAppendAudioRequest): Promise<void> {
+    const resolvedThreadId = firstString(threadId);
+    const resolvedAudioData = firstString(audio?.data);
+    if (!resolvedThreadId) {
+      throw new Error("Choose a thread before sending voice audio.");
+    }
+    if (!resolvedAudioData) {
+      throw new Error("Voice audio chunk was empty.");
+    }
+
+    const sampleRate = Number(audio?.sampleRate);
+    const numChannels = Number(audio?.numChannels);
+    const samplesPerChannel = audio?.samplesPerChannel == null ? null : Number(audio.samplesPerChannel);
+    if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
+      throw new Error("Voice audio sample rate must be greater than zero.");
+    }
+    if (!Number.isFinite(numChannels) || numChannels <= 0) {
+      throw new Error("Voice audio channel count must be greater than zero.");
+    }
+    if (samplesPerChannel !== null && (!Number.isFinite(samplesPerChannel) || samplesPerChannel <= 0)) {
+      throw new Error("Voice audio sample count must be greater than zero.");
+    }
+
+    await this.#manager.request("thread/realtime/appendAudio", {
+      threadId: resolvedThreadId,
+      audio: {
+        data: resolvedAudioData,
+        itemId: firstString(audio?.itemId),
+        numChannels,
+        sampleRate,
+        samplesPerChannel,
+      },
+    });
+  }
+
+  async stopDesktopVoice({ threadId }: DesktopVoiceStopRequest): Promise<void> {
+    const resolvedThreadId = firstString(threadId);
+    if (!resolvedThreadId) {
+      throw new Error("Choose a thread before stopping voice dictation.");
+    }
+
+    await this.#manager.request("thread/realtime/stop", {
+      threadId: resolvedThreadId,
     });
   }
 

@@ -1,4 +1,4 @@
-export type ComposerDictationMode = "webSpeech" | "nativeMacos" | "unsupported";
+export type ComposerDictationMode = "webSpeech" | "nativeRealtime" | "unsupported";
 
 export function appendDictationTranscript(currentValue: string, transcript: string): string {
   const normalizedTranscript = transcript.trim();
@@ -11,17 +11,14 @@ export function appendDictationTranscript(currentValue: string, transcript: stri
 }
 
 export function resolveComposerDictationMode({
-  hasDesktopBridge,
+  hasNativeRealtimeVoice,
   hasSpeechRecognition,
-  platform,
 }: {
-  hasDesktopBridge: boolean;
+  hasNativeRealtimeVoice: boolean;
   hasSpeechRecognition: boolean;
-  platform: string | null;
 }): ComposerDictationMode {
-  const normalizedPlatform = platform?.trim().toLowerCase() ?? "";
-  if (hasDesktopBridge && (normalizedPlatform === "macintel" || normalizedPlatform === "darwin" || normalizedPlatform === "macos")) {
-    return "nativeMacos";
+  if (hasNativeRealtimeVoice) {
+    return "nativeRealtime";
   }
 
   if (hasSpeechRecognition) {
@@ -32,17 +29,9 @@ export function resolveComposerDictationMode({
 }
 
 export function resolveComposerDictationHint(mode: ComposerDictationMode): string | null {
-  if (mode !== "nativeMacos") {
-    return null;
-  }
-
-  return "Use macOS Dictation while the composer is focused. The built-in mic button is hidden on desktop because Electron's speech-recognition path is unreliable on macOS.";
+  return null;
 }
 
 export function resolveComposerDictationUnavailableMessage(mode: ComposerDictationMode): string {
-  if (mode === "nativeMacos") {
-    return "Use macOS Dictation while the composer is focused.";
-  }
-
   return "Voice dictation is not available in this desktop runtime.";
 }
