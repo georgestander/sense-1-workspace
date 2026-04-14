@@ -190,7 +190,7 @@ export default function App() {
         setActiveView("home");
         resetToStartSurface();
       }}
-      showRightRail={sessionState.showRightRail}
+      showRightRail={activeView === "home" && sessionState.showRightRail}
       rightRailOpen={rightRailOpen}
       onToggleRightRail={() => setRightRailOpen((value) => !value)}
       runtimeStatus={sessionState.runtimeStatus}
