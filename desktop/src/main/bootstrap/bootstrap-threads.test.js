@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { mergeSubstrateSessionsIntoRecentThreads } from "./bootstrap-threads.js";
+import { mergeSubstrateSessionsIntoRecentThreads, normalizeRecentThreads } from "./bootstrap-threads.js";
 
 test("mergeSubstrateSessionsIntoRecentThreads restores unseen substrate sessions with workspace roots", () => {
   const merged = mergeSubstrateSessionsIntoRecentThreads(
@@ -40,4 +40,25 @@ test("mergeSubstrateSessionsIntoRecentThreads restores unseen substrate sessions
   assert.equal(merged[0]?.id, "thread-substrate");
   assert.equal(merged[0]?.workspaceRoot, "/tmp/recovered-workspace");
   assert.equal(merged[0]?.subtitle, "recovered-workspace");
+});
+
+test("normalizeRecentThreads drops session artifact roots from bootstrap summaries", () => {
+  const normalized = normalizeRecentThreads(
+    {
+      data: [
+        {
+          id: "thread-chat-only",
+          title: "Chat only",
+          updated_at: "2026-04-09T09:00:00.000Z",
+          state: "idle",
+        },
+      ],
+    },
+    {
+      "thread-chat-only": "/Users/george/Sense-1 Workspace/sessions/sess_chat_only",
+    },
+  );
+
+  assert.equal(normalized[0]?.workspaceRoot, null);
+  assert.equal(normalized[0]?.interactionState, "conversation");
 });

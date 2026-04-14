@@ -15,6 +15,7 @@ import {
   sortProjectedSessionsByContinuity,
   synthesizeProjectedWorkspaceFromSessions,
 } from "./workspace-continuity.js";
+import { normalizeUserFacingWorkspaceRoot } from "../../../shared/workspace-roots.ts";
 
 type WorkspaceCollectionsResult = {
   activeWorkspaceProjection: ProjectedWorkspaceRecord | null;
@@ -40,6 +41,7 @@ export function useWorkspaceCollections({
   selectedProfileId: string;
 }): WorkspaceCollectionsResult {
   perfCount("render.useWorkspaceCollections");
+  const resolvedActiveWorkspaceRoot = normalizeUserFacingWorkspaceRoot(activeWorkspaceRoot);
   const [projectedWorkspaces, setProjectedWorkspaces] = useState<ProjectedWorkspaceRecord[]>([]);
   const [knownWorkspaces, setKnownWorkspaces] = useState<SubstrateWorkspaceRecord[]>([]);
   const [archivedWorkspaces, setArchivedWorkspaces] = useState<SubstrateWorkspaceRecord[]>([]);
@@ -100,7 +102,7 @@ export function useWorkspaceCollections({
   }, [isSignedIn, selectedProfileId]);
 
   useEffect(() => {
-    if (!isSignedIn || !activeWorkspaceRoot) {
+    if (!isSignedIn || !resolvedActiveWorkspaceRoot) {
       activeWorkspaceRequestIdRef.current += 1;
       setActiveWorkspaceProjection(null);
       setWorkspaceSessions([]);
@@ -126,7 +128,7 @@ export function useWorkspaceCollections({
       try {
         const [wsResult, recentSessionResult, recentWorkspaceResult] = await Promise.all([
           bridge?.projections?.workspaceByRoot
-            ? bridge.projections.workspaceByRoot({ rootPath: activeWorkspaceRoot })
+            ? bridge.projections.workspaceByRoot({ rootPath: resolvedActiveWorkspaceRoot })
             : Promise.resolve({ workspace: null }),
           bridge?.substrate?.recentSessions
             ? bridge.substrate.recentSessions({ limit: 200 }) as Promise<{ sessions: SubstrateSessionRecord[] }>
@@ -139,7 +141,7 @@ export function useWorkspaceCollections({
           return;
         }
 
-        const fallbackWorkspaceRecord = findSubstrateWorkspaceByRoot(recentWorkspaceResult.workspaces, activeWorkspaceRoot);
+        const fallbackWorkspaceRecord = findSubstrateWorkspaceByRoot(recentWorkspaceResult.workspaces, resolvedActiveWorkspaceRoot);
         let workspace = wsResult.workspace ?? (
           fallbackWorkspaceRecord
             ? projectSubstrateWorkspaceToProjectedWorkspace(fallbackWorkspaceRecord)
@@ -162,7 +164,7 @@ export function useWorkspaceCollections({
           const fallbackSessions = (Array.isArray(recentSessionResult.sessions) ? recentSessionResult.sessions : [])
             .filter((session) => matchesWorkspaceSession(session, {
               workspaceId: workspace?.workspace_id ?? fallbackWorkspaceRecord?.id ?? null,
-              workspaceRoot: activeWorkspaceRoot,
+              workspaceRoot: resolvedActiveWorkspaceRoot,
             }))
             .map((session) => projectSubstrateSessionToProjectedSession(
               session,
@@ -173,7 +175,7 @@ export function useWorkspaceCollections({
         if (!workspace && sessions.length > 0) {
           workspace = synthesizeProjectedWorkspaceFromSessions({
             profileId: sessions[0]?.profile_id ?? selectedProfileId,
-            rootPath: activeWorkspaceRoot,
+            rootPath: resolvedActiveWorkspaceRoot,
             sessions,
           });
         }
@@ -195,7 +197,7 @@ export function useWorkspaceCollections({
     return () => {
       isActive = false;
     };
-  }, [activeWorkspaceRoot, isSignedIn, selectedProfileId]);
+  }, [isSignedIn, resolvedActiveWorkspaceRoot, selectedProfileId]);
 
   return {
     activeWorkspaceProjection,

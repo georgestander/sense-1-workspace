@@ -127,6 +127,24 @@ test("matchesWorkspaceSession falls back to metadata.workspaceRoot when projecti
   );
 });
 
+test("matchesWorkspaceSession ignores session artifact roots when recovering workspace continuity", () => {
+  assert.equal(
+    matchesWorkspaceSession(
+      {
+        workspace_id: null,
+        metadata: {
+          workspaceRoot: "/Users/george/Sense-1 Workspace/sessions/sess_chat_only",
+        },
+      },
+      {
+        workspaceId: null,
+        workspaceRoot: "/Users/george/Sense-1 Workspace/sessions/sess_chat_only",
+      },
+    ),
+    false,
+  );
+});
+
 test("projectSubstrateSessionToProjectedSession produces a resumable session shape for fallback UI history", () => {
   const projected = projectSubstrateSessionToProjectedSession(
     {
@@ -173,4 +191,23 @@ test("synthesizeProjectedWorkspaceFromSessions creates an active workspace shell
   assert.equal(workspace.last_session_id, "sess_alpha");
   assert.equal(workspace.last_thread_id, "thread_alpha");
   assert.equal(workspace.status, "active");
+});
+
+test("synthesizeProjectedWorkspaceFromSessions refuses to synthesize fake workspaces from session artifact roots", () => {
+  assert.equal(
+    synthesizeProjectedWorkspaceFromSessions({
+      profileId: "ops-team",
+      rootPath: "/Users/george/Sense-1 Workspace/sessions/sess_chat_only",
+      sessions: [
+        {
+          session_id: "sess_chat_only",
+          profile_id: "ops-team",
+          codex_thread_id: "thread_chat_only",
+          started_at: "2026-03-24T08:00:00Z",
+          last_activity_at: "2026-03-24T08:05:00Z",
+        },
+      ],
+    }),
+    null,
+  );
 });
