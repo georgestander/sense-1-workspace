@@ -123,10 +123,10 @@ export function LeftSidebar({
 
   return (
     <aside
-      className={cn("z-20 min-h-0 bg-surface-soft transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] max-lg:absolute max-lg:inset-y-0 max-lg:left-0", leftRailOpen ? "w-72 p-3 max-lg:shadow-2xl" : "w-0 overflow-hidden p-0 max-lg:hidden")}
+      className={cn("z-20 min-h-0 bg-surface-soft transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] max-lg:absolute max-lg:inset-y-0 max-lg:left-0", leftRailOpen ? "w-72 pb-3 pl-3 pt-3 max-lg:shadow-2xl" : "w-0 overflow-hidden p-0 max-lg:hidden")}
     >
       <div className="flex h-full min-h-0 flex-col overflow-hidden">
-        <div className="sticky top-0 z-10 shrink-0 bg-surface-soft pb-4">
+        <div className="sticky top-0 z-10 shrink-0 bg-surface-soft pb-4 pr-3">
           <Button className="w-full justify-start" onClick={resetToStartSurface} variant="default">
             <Plus />
             New chat
@@ -247,7 +247,7 @@ export function LeftSidebar({
           </div>
         </div>
 
-        <div className="mt-4 shrink-0 rounded-2xl bg-surface-strong p-3">
+        <div className="mr-3 mt-4 shrink-0 rounded-2xl bg-surface-strong p-3">
           <button className="flex w-full items-center gap-2 text-left" onClick={() => setAccountMenuOpen((value) => !value)} type="button">
             <UserCircle2 className="text-muted" />
             <div className="min-w-0 flex-1">

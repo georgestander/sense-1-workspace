@@ -170,8 +170,8 @@ function ThreadComposerInner({
   }
 
   return (
-    <div className="sticky bottom-0 z-10 bg-white/94 px-6 py-3 backdrop-blur-sm">
-      <div className="flex w-full flex-col gap-3 rounded-[1.7rem] bg-white p-3 shadow-[0_-12px_28px_rgba(10,15,20,0.04)]">
+    <div className="sticky bottom-0 z-10 py-3">
+      <div className="fixed bottom-3 left-1/2 z-50 flex w-full max-w-3xl -translate-x-1/2 flex-col gap-3 rounded-[1.7rem] bg-white p-3 shadow-[0_-12px_28px_rgba(10,15,20,0.04)]">
         {taskError ? (
           <p className="rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft" role="alert">
             {taskError}
@@ -231,9 +231,10 @@ function ThreadComposerInner({
             ))}
           </div>
         ) : null}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-1.5">
+          <div className="flex items-center gap-1.5">
             <Button
+              aria-label="Add local files"
               disabled={composerDisabled || effectiveThreadBusy}
               onClick={async () => {
                 const paths = await pickFiles();
@@ -241,20 +242,19 @@ function ThreadComposerInner({
                   setAttachedFiles((current) => [...new Set([...current, ...paths])]);
                 }
               }}
-              size="sm"
+              size="icon"
               variant="secondary"
             >
               <Paperclip />
-              Add local files
             </Button>
             <Button
+              aria-label={dictation.active ? "Stop dictation" : "Dictate"}
               disabled={composerDisabled || !dictation.supported}
               onClick={() => dictation.toggle()}
-              size="sm"
+              size="icon"
               variant="secondary"
             >
               {dictation.active ? <MicOff /> : <Mic />}
-              {dictation.active ? "Stop dictation" : "Dictate"}
             </Button>
             <label className="inline-flex items-center gap-2 rounded-xl border border-line/40 px-2 py-1 text-xs text-muted">
               <select

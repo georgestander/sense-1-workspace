@@ -99,16 +99,14 @@ export function WorkspaceSidebarGroup({
       onDragStart={(event) => handleWorkspaceDragStart(event, root)}
       onDrop={(event) => void handleWorkspaceDrop(event, root)}
     >
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         {isDraggable ? (
           <GripVertical className="size-3 shrink-0 cursor-grab text-muted opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing" />
-        ) : (
-          <span className="w-3 shrink-0" />
-        )}
+        ) : null}
         <button
           aria-label={`${isExpanded ? "Collapse" : "Expand"} workspace ${folderName}`}
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs transition-colors",
+            "flex min-w-0 flex-1 items-center gap-1 rounded-lg px-1 py-1.5 text-left text-xs transition-colors",
             group.isActive ? "bg-surface-strong text-ink" : "text-ink-faint hover:bg-surface-soft",
           )}
           onClick={() => toggleWorkspaceExpanded(root)}
@@ -182,7 +180,7 @@ export function WorkspaceSidebarGroup({
         ) : null}
       </div>
       {isExpanded ? (
-        <div className="ml-4 space-y-0.5 pl-2">
+        <div className="space-y-0.5 pl-3">
           {wsThreads.map((thread) => (
             <ThreadSidebarItem
               archivePending={threadArchivePendingId === thread.id}
