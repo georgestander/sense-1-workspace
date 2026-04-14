@@ -3,6 +3,7 @@ import {
   appendSubstrateEvent,
   appendSubstrateObjectRef,
   ingestSubstratePlanSuggestion,
+  updateSubstrateSessionTitleContext,
   updateSubstrateSessionThreadTitle,
   updateSubstrateSessionReviewSummary,
 } from "./substrate.js";
@@ -404,6 +405,11 @@ export async function writeRuntimeMessageToSubstrate({
   }
 
   if (itemType === "agentMessage") {
+    const titleUpdate = await updateSubstrateSessionTitleContext({
+      assistantText: collectItemText(item),
+      dbPath,
+      sessionId: session.id,
+    });
     const fileReadActivities = buildFileReadActivities({
       text: collectItemText(item),
       itemId,
@@ -430,8 +436,37 @@ export async function writeRuntimeMessageToSubstrate({
       });
     }
     if (fileReadActivities.length > 0) {
-      return { status: "written", threadId };
+      return {
+        ...(titleUpdate?.titleUpdated
+          ? { suggestedThreadTitle: titleUpdate.title }
+          : {}),
+        status: "written",
+        threadId,
+      };
     }
+
+    if (titleUpdate?.titleUpdated) {
+      return {
+        status: "written",
+        suggestedThreadTitle: titleUpdate.title,
+        threadId,
+      };
+    }
+  }
+
+  if (itemType === "userMessage") {
+    const titleUpdate = await updateSubstrateSessionTitleContext({
+      dbPath,
+      sessionId: session.id,
+      userText: collectItemText(item),
+    });
+    return {
+      ...(titleUpdate?.titleUpdated
+        ? { suggestedThreadTitle: titleUpdate.title }
+        : {}),
+      status: "written",
+      threadId,
+    };
   }
 
   if (TOOL_ITEM_TYPES.has(itemType)) {

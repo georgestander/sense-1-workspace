@@ -738,6 +738,9 @@ test("createSubstrateSessionShell and finalizeSubstrateSessionStart register a w
     assert.equal(session.model, "gpt-5.4");
     assert.equal(session.effort, "medium");
     assert.deepEqual(JSON.parse(session.metadata), {
+      titleContext: {
+        seedTitle: "Investigate failing build",
+      },
       workspaceRoot: path.resolve(workspaceRoot),
     });
     assert.equal(typeof session.workspace_id, "string");
@@ -818,6 +821,9 @@ test("ensureSubstrateSessionForThread reuses the session and binds a workspace l
     assert.equal(typeof session.workspace_id, "string");
     assert.deepEqual(JSON.parse(session.metadata), {
       artifactRoot: path.resolve(artifactRoot),
+      titleContext: {
+        seedTitle: "Plan release",
+      },
       workspaceRoot: path.resolve(workspaceRoot),
     });
 

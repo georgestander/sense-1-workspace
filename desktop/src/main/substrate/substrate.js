@@ -69,6 +69,7 @@ export {
   getSubstrateSessionByThreadId,
   listSubstrateSessionsByWorkspace,
   setSubstrateSessionStatus,
+  updateSubstrateSessionTitleContext,
   updateSubstrateSessionReviewSummary,
   updateSubstrateSessionThreadTitle,
 } from "./substrate-session-records.js";

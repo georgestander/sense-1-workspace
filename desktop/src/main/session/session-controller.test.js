@@ -2164,6 +2164,10 @@ test("runDesktopTask creates a substrate session, workspace, and lifecycle event
     assert.equal(sessionRows[0].model, "gpt-5.4-mini");
     assert.equal(sessionRows[0].effort, "xhigh");
     assert.deepEqual(JSON.parse(sessionRows[0].metadata), {
+      titleContext: {
+        initialPrompt: "Wire the substrate path",
+        seedTitle: "Initial thread title",
+      },
       workspaceRoot,
     });
 
@@ -2286,6 +2290,245 @@ test("ingestRuntimeMessage syncs file writes into session.json paths_written", a
     assert.deepEqual(updatedSessionRecord?.paths_written, [writtenFilePath]);
     assert.ok(updatedSessionRecord?.log_cursor.to_ts);
   }, { timeoutMs: 1500, intervalMs: 25 });
+});
+
+test("ingestRuntimeMessage auto-renames a generic thread after the first assistant answer", async () => {
+  const root = await makeTempRoot();
+  const env = createTestEnv(root);
+  const managerCalls = [];
+  const manager = {
+    request: async (method, params) => {
+      managerCalls.push({ method, params });
+      if (method === "account/read") {
+        return {
+          account: {
+            email: "george@example.com",
+          },
+        };
+      }
+
+      if (method === "thread/start") {
+        return {
+          thread: {
+            id: "thread-auto-title-1",
+            name: "Fix this",
+            preview: "Fix this",
+            updatedAt: Math.floor(Date.now() / 1000),
+            status: {
+              type: "active",
+              activeFlags: ["running"],
+            },
+          },
+        };
+      }
+
+      if (method === "turn/start") {
+        return {
+          turn: {
+            id: "turn-auto-title-1",
+          },
+        };
+      }
+
+      if (method === "thread/name/set") {
+        return {};
+      }
+
+      throw new Error(`Unexpected method: ${method}`);
+    },
+    handleProfileChange: async () => {},
+    off: () => {},
+    on: () => {},
+    respond: () => {},
+  };
+
+  const controller = new DesktopSessionController(manager, {
+    appStartedAt: "2026-03-24T10:00:00.000Z",
+    env,
+    openExternal: async () => {},
+    runtimeInfo: {
+      appVersion: "0.1.0",
+      electronVersion: "35.2.1",
+      platform: "darwin",
+      startedAt: "2026-03-24T10:00:00.000Z",
+    },
+  });
+
+  const workspaceRoot = path.join(root, "workspace-auto-title");
+  await fs.mkdir(workspaceRoot, { recursive: true });
+  await grantWorkspaceReadPermission(env, workspaceRoot);
+  await controller.runDesktopTask({
+    prompt: "Fix this",
+    workspaceRoot,
+  });
+
+  controller.ingestRuntimeMessage({
+    method: "item/completed",
+    params: {
+      threadId: "thread-auto-title-1",
+      turnId: "turn-auto-title-1",
+      item: {
+        id: "user-auto-title-1",
+        type: "userMessage",
+        content: [
+          { type: "text", text: "Fix this" },
+        ],
+      },
+    },
+  });
+  controller.ingestRuntimeMessage({
+    method: "item/completed",
+    params: {
+      threadId: "thread-auto-title-1",
+      turnId: "turn-auto-title-1",
+      item: {
+        id: "assistant-auto-title-1",
+        type: "agentMessage",
+        phase: "final_answer",
+        text: "I'll inspect the login crash and patch the auth handler.",
+      },
+    },
+  });
+  await flushSubstrateWrites();
+
+  const renameCalls = managerCalls.filter((entry) => entry.method === "thread/name/set");
+  assert.deepEqual(renameCalls, [
+    {
+      method: "thread/name/set",
+      params: {
+        threadId: "thread-auto-title-1",
+        name: "Inspect the login crash and patch the auth handler",
+      },
+    },
+  ]);
+
+  const session = await getSubstrateSessionByThreadId({
+    codexThreadId: "thread-auto-title-1",
+    dbPath: resolveProfileSubstrateDbPath("default", env),
+  });
+  assert.equal(session?.title, "Inspect the login crash and patch the auth handler");
+});
+
+test("renameDesktopThread prevents auto-title suggestions from overriding a manual rename", async () => {
+  const root = await makeTempRoot();
+  const env = createTestEnv(root);
+  const managerCalls = [];
+  const manager = {
+    request: async (method, params) => {
+      managerCalls.push({ method, params });
+      if (method === "account/read") {
+        return {
+          account: {
+            email: "george@example.com",
+          },
+        };
+      }
+
+      if (method === "thread/start") {
+        return {
+          thread: {
+            id: "thread-manual-title-1",
+            name: "Fix this",
+            preview: "Fix this",
+            updatedAt: Math.floor(Date.now() / 1000),
+            status: {
+              type: "active",
+              activeFlags: ["running"],
+            },
+          },
+        };
+      }
+
+      if (method === "turn/start") {
+        return {
+          turn: {
+            id: "turn-manual-title-1",
+          },
+        };
+      }
+
+      if (method === "thread/name/set") {
+        return {};
+      }
+
+      throw new Error(`Unexpected method: ${method}`);
+    },
+    handleProfileChange: async () => {},
+    off: () => {},
+    on: () => {},
+    respond: () => {},
+  };
+
+  const controller = new DesktopSessionController(manager, {
+    appStartedAt: "2026-03-24T10:00:00.000Z",
+    env,
+    openExternal: async () => {},
+    runtimeInfo: {
+      appVersion: "0.1.0",
+      electronVersion: "35.2.1",
+      platform: "darwin",
+      startedAt: "2026-03-24T10:00:00.000Z",
+    },
+  });
+
+  const workspaceRoot = path.join(root, "workspace-manual-title");
+  await fs.mkdir(workspaceRoot, { recursive: true });
+  await grantWorkspaceReadPermission(env, workspaceRoot);
+  await controller.runDesktopTask({
+    prompt: "Fix this",
+    workspaceRoot,
+  });
+
+  await controller.renameDesktopThread({
+    threadId: "thread-manual-title-1",
+    title: "Manual login crash fix",
+  });
+
+  controller.ingestRuntimeMessage({
+    method: "item/completed",
+    params: {
+      threadId: "thread-manual-title-1",
+      turnId: "turn-manual-title-1",
+      item: {
+        id: "user-manual-title-1",
+        type: "userMessage",
+        content: [
+          { type: "text", text: "Fix this" },
+        ],
+      },
+    },
+  });
+  controller.ingestRuntimeMessage({
+    method: "item/completed",
+    params: {
+      threadId: "thread-manual-title-1",
+      turnId: "turn-manual-title-1",
+      item: {
+        id: "assistant-manual-title-1",
+        type: "agentMessage",
+        phase: "final_answer",
+        text: "I'll inspect the login crash and patch the auth handler.",
+      },
+    },
+  });
+  await flushSubstrateWrites();
+
+  const renameCalls = managerCalls.filter((entry) => entry.method === "thread/name/set");
+  assert.deepEqual(renameCalls, [
+    {
+      method: "thread/name/set",
+      params: {
+        threadId: "thread-manual-title-1",
+        name: "Manual login crash fix",
+      },
+    },
+  ]);
+
+  const session = await getSubstrateSessionByThreadId({
+    codexThreadId: "thread-manual-title-1",
+    dbPath: resolveProfileSubstrateDbPath("default", env),
+  });
+  assert.equal(session?.title, "Manual login crash fix");
 });
 
 test("archiveDesktopThread writes summary.md and closes the session record", async () => {
