@@ -19,6 +19,10 @@ test("isSessionArtifactWorkspaceRoot detects sense session artifact paths", () =
     isSessionArtifactWorkspaceRoot("/Users/george/projects/real-workspace"),
     false,
   );
+  assert.equal(
+    isSessionArtifactWorkspaceRoot("/repo/sessions/sess_migration"),
+    false,
+  );
 });
 
 test("normalizeUserFacingWorkspaceRoot drops session artifact roots but keeps real folders", () => {

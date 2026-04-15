@@ -13,6 +13,13 @@ function firstString(...values: Array<unknown>): string | null {
   return null;
 }
 
+const APP_ARTIFACT_ROOT_NAMES = [
+  "Sense-1 Workspace",
+  "sense-1-workspace",
+  "Sense-1",
+  "sense-1",
+];
+
 export function normalizeWorkspaceRootPath(workspaceRoot: string | null | undefined): string | null {
   const resolvedWorkspaceRoot = firstString(workspaceRoot);
   if (!resolvedWorkspaceRoot) {
@@ -28,7 +35,10 @@ export function isSessionArtifactWorkspaceRoot(workspaceRoot: string | null | un
     return false;
   }
 
-  return /(?:^|\/)sessions\/sess[_-][^/]+(?:\/|$)/i.test(normalizedWorkspaceRoot);
+  return APP_ARTIFACT_ROOT_NAMES.some((rootName) => {
+    const escapedRootName = rootName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(?:^|/)${escapedRootName}/sessions/sess[_-][^/]+(?:/|$)`, "i").test(normalizedWorkspaceRoot);
+  });
 }
 
 export function normalizeUserFacingWorkspaceRoot(workspaceRoot: string | null | undefined): string | null {
