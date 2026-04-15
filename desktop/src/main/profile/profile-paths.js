@@ -198,25 +198,47 @@ export async function fileExists(targetPath) {
   }
 }
 
+function isMissingPathError(error) {
+  return error?.code === "ENOENT";
+}
+
 async function copyDirectoryEntriesIfMissing(sourceDir, targetDir) {
   if (!(await fileExists(sourceDir))) {
     return;
   }
 
   await fs.mkdir(targetDir, { recursive: true });
-  for (const entry of await fs.readdir(sourceDir, { withFileTypes: true })) {
+
+  let entries;
+  try {
+    entries = await fs.readdir(sourceDir, { withFileTypes: true });
+  } catch (error) {
+    if (isMissingPathError(error)) {
+      return;
+    }
+    throw error;
+  }
+
+  for (const entry of entries) {
     const sourcePath = path.join(sourceDir, entry.name);
     const targetPath = path.join(targetDir, entry.name);
-    if (entry.isDirectory()) {
-      await copyDirectoryEntriesIfMissing(sourcePath, targetPath);
-      continue;
-    }
+    try {
+      if (entry.isDirectory()) {
+        await copyDirectoryEntriesIfMissing(sourcePath, targetPath);
+        continue;
+      }
 
-    if (await fileExists(targetPath)) {
-      continue;
-    }
+      if (await fileExists(targetPath)) {
+        continue;
+      }
 
-    await fs.copyFile(sourcePath, targetPath);
+      await fs.copyFile(sourcePath, targetPath);
+    } catch (error) {
+      if (isMissingPathError(error)) {
+        continue;
+      }
+      throw error;
+    }
   }
 }
 
@@ -298,7 +320,16 @@ export async function ensureProfileDirectories(profileId, env = process.env) {
   await fs.mkdir(profileRoot, { recursive: true });
   await fs.mkdir(codexHome, { recursive: true });
   await healProfileAuthFromLegacyDesktopRoot(profile, env);
-  await syncProfileSystemSkills(codexHome, env);
+  try {
+    await syncProfileSystemSkills(codexHome, env);
+  } catch (error) {
+    if (!isMissingPathError(error)) {
+      throw error;
+    }
+    console.warn(
+      `[desktop:profile] Skipping transient system skill sync failure for profile "${profile}". ${error.message}`,
+    );
+  }
 
   return {
     profileId: profile,
