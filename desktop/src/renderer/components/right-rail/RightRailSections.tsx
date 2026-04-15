@@ -163,7 +163,6 @@ export function RightRailContextSection({
 }
 
 export type RightRailProgressSectionProps = RightRailSectionSharedProps & {
-  effectiveRightRailProgressSummary: string[];
   persistedSessionActivityLoading: boolean;
   persistedSessionActivitySummary: {
     approvalsGranted: number;
@@ -171,18 +170,15 @@ export type RightRailProgressSectionProps = RightRailSectionSharedProps & {
     fileWrites: number;
     lastActivity: string | null;
   } | null;
-  threadInteractionState: DesktopInteractionState | null;
   threadPlanState: DesktopPlanState | null;
   selectedThread: DesktopThreadSnapshot | null;
 };
 
 export function RightRailProgressSection({
-  effectiveRightRailProgressSummary,
   isRightRailSectionOpen,
   persistedSessionActivityLoading,
   persistedSessionActivitySummary,
   selectedThread,
-  threadInteractionState,
   threadPlanState,
   toggleRightRailSection,
 }: RightRailProgressSectionProps) {
@@ -190,7 +186,6 @@ export function RightRailProgressSection({
   const structuredSteps = threadPlanState?.planSteps ?? [];
   const hasStructuredSteps = structuredSteps.length > 0;
   const hasPlanSteps = hasStructuredSteps || Boolean(threadPlanState && threadPlanState.steps.length > 0);
-  const hasProgressLines = effectiveRightRailProgressSummary.length > 0;
   const hasPersistedActivity = Boolean(
     persistedSessionActivitySummary
     && (
@@ -201,7 +196,7 @@ export function RightRailProgressSection({
     ),
   );
   const isWorkspaceThread = Boolean(folderRoot);
-  if (!hasPlanSteps && !hasProgressLines && !hasPersistedActivity && !persistedSessionActivityLoading && !isWorkspaceThread) {
+  if (!hasPlanSteps && !hasPersistedActivity && !persistedSessionActivityLoading && !isWorkspaceThread) {
     return null;
   }
 
@@ -244,34 +239,6 @@ export function RightRailProgressSection({
           </ol>
         ) : null}
 
-        {hasProgressLines ? (
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-[0.08em] text-muted">
-              {threadInteractionState === "review" ? "Task summary" : "Task progress"}
-            </p>
-            <ol className="space-y-2 text-sm text-ink">
-              {effectiveRightRailProgressSummary.map((line, i) => (
-                <li className="flex items-start gap-3" key={line}>
-                  {line.includes("actively working") ? (
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-on-accent">
-                      <Asterisk className="size-3.5 animate-starburst" />
-                    </span>
-                  ) : line.includes("done") || line.includes("complete") ? (
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-on-accent">
-                      <Check className="size-3.5" />
-                    </span>
-                  ) : (
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-on-accent">
-                      {i + 1}
-                    </span>
-                  )}
-                  <span className="text-sm text-ink">{line}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        ) : null}
-
         {persistedSessionActivityLoading ? (
           <p className="text-center text-[0.8125rem] leading-[1.52] text-ink-muted">Loading activity...</p>
         ) : hasPersistedActivity && persistedSessionActivitySummary ? (
@@ -286,7 +253,7 @@ export function RightRailProgressSection({
           </div>
         ) : null}
 
-        {!hasPlanSteps && !hasProgressLines && !hasPersistedActivity && !persistedSessionActivityLoading && isWorkspaceThread ? (
+        {!hasPlanSteps && !hasPersistedActivity && !persistedSessionActivityLoading && isWorkspaceThread ? (
           <p className="text-center text-[0.8125rem] leading-[1.52] text-ink-muted">No activity yet.</p>
         ) : null}
       </div>
