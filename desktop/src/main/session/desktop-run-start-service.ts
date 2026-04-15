@@ -171,9 +171,12 @@ function buildProfileExtensionRuntimeInstruction({
     instructions.push(
       `When creating or installing Sense-1 skills, treat ${profileCodexHome} as the active profile CODEX_HOME. Install them there so they are callable from any thread in this profile.`,
     );
+    instructions.push(
+      `This run already has write access to ${profileCodexHome}. Do not claim sandbox, workspace-boundary, or permission blocking for profile skill installation when writing under that root.`,
+    );
     if (shortcutNames.has("skill-creator")) {
       instructions.push(
-        `When the user asks for a new Sense-1 skill, finish with a callable profile skill in ${profileCodexHome}/skills. Do not stop at a TODO-only template or placeholder scaffold.`,
+        `When the user asks for a new Sense-1 skill, finish with a callable installed profile skill in ${profileCodexHome}/skills. Do not stop at a TODO-only template, placeholder scaffold, or a draft left in the selected workspace for later move/install unless the user explicitly asked for workspace-local scaffold output.`,
       );
     }
   }
@@ -186,6 +189,9 @@ function buildProfileExtensionRuntimeInstruction({
       : "";
     instructions.push(
       `When scaffolding a Sense-1 profile plugin, treat ${profileCodexHome} as the active home root. Create the plugin under ${profilePluginsDir} and, if you need a marketplace entry for home-local discovery, write it to ${profileMarketplacePath}.`,
+    );
+    instructions.push(
+      `Do not leave the finished plugin scaffold in the selected workspace for later manual move/install when ${profileCodexHome} is writable in this run.`,
     );
     if (pluginCreatorSkillPath && pluginCreatorScriptPath) {
       instructions.push(

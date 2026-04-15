@@ -6393,8 +6393,11 @@ test("runDesktopTask keeps folder-bound creator shortcuts inside the selected wo
   );
   assert.match(developerInstructions, /profile plugin/u);
   assert.match(developerInstructions, /profile CODEX_HOME/u);
+  assert.match(developerInstructions, /already has write access/u);
+  assert.match(developerInstructions, /Do not claim sandbox, workspace-boundary, or permission blocking/u);
   assert.match(developerInstructions, /create_basic_plugin\.py/u);
   assert.match(developerInstructions, /Do not stop at a TODO-only template/u);
+  assert.match(developerInstructions, /or a draft left in the selected workspace for later move\/install/u);
 });
 
 test("runDesktopTask falls back to plain text when shortcut overview lookup fails", async () => {

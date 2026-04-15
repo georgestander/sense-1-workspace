@@ -6,6 +6,10 @@ import { DesktopSessionController } from "./session-controller.js";
 import { resolveDesktopProfile } from "./bootstrap/desktop-bootstrap.js";
 import { resolveSignedInDesktopProfile } from "./bootstrap/bootstrap-profile.js";
 import {
+  filterProfileCodexHomeRoots,
+  ManagementInventoryChangeTracker,
+} from "./settings/management-inventory-change.ts";
+import {
   createMainWindow,
   focusMainWindow,
 } from "./window";
@@ -50,6 +54,7 @@ const threadAccumulator = new ThreadStateAccumulator();
 const threadInputQueue = new ThreadInputQueueService();
 const workspaceFileActivity = new WorkspaceFileActivityTracker();
 const runtimeFileChangeTracker = new RuntimeFileChangeTracker();
+const managementInventoryChangeTracker = new ManagementInventoryChangeTracker();
 const workspaceState = new DesktopWorkspaceStateService({
   env: process.env,
   resolveProfile: async () => await resolveSignedInDesktopProfile(appServerManager, process.env),
@@ -523,6 +528,13 @@ appServerManager.on("notification", (message) => {
   }
   runtimeFileChangeTracker.observe(message);
   if (threadId) {
+    const threadRunContext = desktopSessionController.getThreadRunContext(threadId);
+    managementInventoryChangeTracker.observe(
+      message,
+      filterProfileCodexHomeRoots(threadRunContext?.grants.map((grant) => grant.rootPath) ?? []),
+    );
+  }
+  if (threadId) {
     const folderRoot = currentThreadState?.workspaceRoot ?? currentThreadState?.cwd ?? null;
     const runContext = desktopSessionController.getThreadRunContext(threadId);
     const outsideWorkspacePaths = collectOutOfWorkspacePathsFromRuntimeMessage(
@@ -614,6 +626,9 @@ appServerManager.on("notification", (message) => {
       void persistInteractionState(threadId).catch(() => {});
     }
     runtimeFileChangeTracker.clear(threadId);
+    if (managementInventoryChangeTracker.consume(threadId)) {
+      emitDesktopRuntimeEvent({ kind: "managementInventoryChanged" });
+    }
 
     const completionStatus = completionStatusLabel(messageParams?.turn?.status ?? messageParams?.status);
     const completionResult = threadInputQueue.handleTurnCompleted({

@@ -13,6 +13,7 @@ import type {
   DesktopSkillUninstallRequest,
 } from "../../../main/contracts";
 import { requireDesktopBridge } from "../../state/session/desktop-bridge.js";
+import { shouldReloadManagementOverviewForRuntimeEvent } from "./management-runtime-events.ts";
 
 export function useDesktopManagement({
   enabled,
@@ -50,6 +51,23 @@ export function useDesktopManagement({
   useEffect(() => {
     void loadOverview(false);
   }, [loadOverview]);
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    const bridge = requireDesktopBridge();
+    const unsubscribe = bridge.session.onRuntimeEvent((event) => {
+      if (shouldReloadManagementOverviewForRuntimeEvent(event)) {
+        void loadOverview(true);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [enabled, loadOverview]);
 
   const setPluginEnabled = useCallback(async (request: DesktopPluginEnabledRequest) => {
     const bridge = requireDesktopBridge();

@@ -2,7 +2,6 @@ import { memo, useRef, useState } from "react";
 import { Blocks, Check, ChevronRight, Copy, PlugZap, Sparkles } from "lucide-react";
 
 import { ThreadMarkdown } from "../../thread-markdown.js";
-import { ShortcutPillRow } from "../composer/shortcut-pill-row.js";
 import {
   coerceDisplayText,
   firstLinePreview,
@@ -193,7 +192,6 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
         {"promptShortcuts" in entry && Array.isArray(entry.promptShortcuts) && entry.promptShortcuts.length > 0 ? (
           <ThreadEntryShortcutPills matches={entry.promptShortcuts} />
         ) : null}
-        <ShortcutPillRow className="mb-2" overview={extensionOverview} prompt={entryBody} />
         <ThreadMarkdown className="thread-markdown-user" workspaceRoot={workspaceRoot}>
           {visibleUserBody}
         </ThreadMarkdown>
