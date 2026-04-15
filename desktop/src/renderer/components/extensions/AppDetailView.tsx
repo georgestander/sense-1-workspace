@@ -144,7 +144,7 @@ export function AppDetailView({
           </section>
 
           {/* Remove */}
-          {managedRecord.canUninstall ? (
+          {legacyApp?.isAccessible || managedRecord.enablementState === "enabled" ? (
             <section>
               <Button
                 className="h-8 gap-1.5 rounded-lg px-3 text-xs"
