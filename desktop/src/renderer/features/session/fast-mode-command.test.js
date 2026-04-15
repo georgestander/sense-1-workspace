@@ -24,6 +24,10 @@ test("resolveFastModeSuggestions offers matching slash completions", () => {
     resolveFastModeSuggestions("/fast o", 7).map((suggestion) => suggestion.command),
     ["/fast on", "/fast off"],
   );
+  assert.deepEqual(resolveFastModeSuggestions("/fast", 5), []);
+  assert.deepEqual(resolveFastModeSuggestions("/fast on", 8), []);
+  assert.deepEqual(resolveFastModeSuggestions("/fast off", 9), []);
+  assert.deepEqual(resolveFastModeSuggestions("/fast status", 12), []);
   assert.deepEqual(resolveFastModeSuggestions("ship it", 7), []);
 });
 

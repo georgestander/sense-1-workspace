@@ -50,6 +50,10 @@ export function resolveFastModeSuggestions(prompt: string, cursorIndex: number):
     return [];
   }
 
+  if (parseFastModeCommand(trimmed) !== null) {
+    return [];
+  }
+
   if ("/fast".startsWith(trimmed.toLowerCase())) {
     return [...FAST_MODE_SUGGESTIONS];
   }
