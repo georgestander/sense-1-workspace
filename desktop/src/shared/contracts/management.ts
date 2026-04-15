@@ -66,6 +66,8 @@ export interface DesktopManagedExtensionRecord {
   readonly canOpen: boolean;
   readonly canUninstall: boolean;
   readonly canDisable: boolean;
+  readonly canConnect: boolean;
+  readonly canReload: boolean;
 }
 
 export interface DesktopAppRecord {
@@ -130,6 +132,31 @@ export interface DesktopPluginUninstallRequest {
   readonly pluginId: string;
 }
 
+export interface DesktopPluginDetailRequest {
+  readonly pluginId: string;
+}
+
+export interface DesktopPluginDetailSkillRecord {
+  readonly name: string;
+  readonly description: string | null;
+  readonly path: string | null;
+}
+
+export interface DesktopPluginDetailResult {
+  readonly pluginId: string;
+  readonly name: string;
+  readonly displayName: string;
+  readonly description: string | null;
+  readonly marketplaceName: string | null;
+  readonly marketplacePath: string | null;
+  readonly sourcePath: string | null;
+  readonly websiteUrl: string | null;
+  readonly capabilities: string[];
+  readonly skills: DesktopPluginDetailSkillRecord[];
+  readonly apps: string[];
+  readonly mcpServers: string[];
+}
+
 export interface DesktopAppEnabledRequest {
   readonly appId: string;
   readonly enabled: boolean;
@@ -149,6 +176,15 @@ export interface DesktopMcpServerEnabledRequest {
   readonly enabled: boolean;
 }
 
+export interface DesktopMcpServerAuthRequest {
+  readonly serverId: string;
+}
+
+export interface DesktopMcpServerAuthResult {
+  readonly authorizationUrl: string;
+  readonly overview: DesktopExtensionOverviewResult;
+}
+
 export interface DesktopSkillEnabledRequest {
   readonly path: string;
   readonly enabled: boolean;
@@ -156,4 +192,17 @@ export interface DesktopSkillEnabledRequest {
 
 export interface DesktopSkillUninstallRequest {
   readonly path: string;
+}
+
+export interface DesktopSkillDetailRequest {
+  readonly path: string;
+}
+
+export interface DesktopSkillDetailResult {
+  readonly path: string;
+  readonly name: string;
+  readonly description: string | null;
+  readonly scope: string | null;
+  readonly cwd: string | null;
+  readonly content: string;
 }

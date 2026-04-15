@@ -12,12 +12,18 @@ import type {
   DesktopAppRemoveRequest,
   DesktopAppInstallRequest,
   DesktopAppEnabledRequest,
+  DesktopMcpServerAuthRequest,
+  DesktopMcpServerAuthResult,
   DesktopExtensionOverviewRequest,
   DesktopExtensionOverviewResult,
   DesktopMcpServerEnabledRequest,
+  DesktopPluginDetailRequest,
+  DesktopPluginDetailResult,
   DesktopPluginInstallRequest,
   DesktopPluginUninstallRequest,
   DesktopPluginEnabledRequest,
+  DesktopSkillDetailRequest,
+  DesktopSkillDetailResult,
   DesktopSkillEnabledRequest,
   DesktopSkillUninstallRequest,
 } from "./management.js";
@@ -113,13 +119,16 @@ export interface DesktopBridge {
   };
   management: {
     getOverview(request?: DesktopExtensionOverviewRequest): Promise<DesktopExtensionOverviewResult>;
+    readPluginDetail(request: DesktopPluginDetailRequest): Promise<DesktopPluginDetailResult>;
     installPlugin(request: DesktopPluginInstallRequest): Promise<DesktopExtensionOverviewResult>;
     uninstallPlugin(request: DesktopPluginUninstallRequest): Promise<DesktopExtensionOverviewResult>;
     setPluginEnabled(request: DesktopPluginEnabledRequest): Promise<DesktopExtensionOverviewResult>;
     openAppInstall(request: DesktopAppInstallRequest): Promise<DesktopExtensionOverviewResult>;
     removeApp(request: DesktopAppRemoveRequest): Promise<DesktopExtensionOverviewResult>;
     setAppEnabled(request: DesktopAppEnabledRequest): Promise<DesktopExtensionOverviewResult>;
+    startMcpServerAuth(request: DesktopMcpServerAuthRequest): Promise<DesktopMcpServerAuthResult>;
     setMcpServerEnabled(request: DesktopMcpServerEnabledRequest): Promise<DesktopExtensionOverviewResult>;
+    readSkillDetail(request: DesktopSkillDetailRequest): Promise<DesktopSkillDetailResult>;
     setSkillEnabled(request: DesktopSkillEnabledRequest): Promise<DesktopExtensionOverviewResult>;
     uninstallSkill(request: DesktopSkillUninstallRequest): Promise<DesktopExtensionOverviewResult>;
   };

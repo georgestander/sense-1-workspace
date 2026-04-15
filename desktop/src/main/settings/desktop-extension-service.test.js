@@ -337,6 +337,8 @@ test("getOverview emits normalized managed extensions with ownership, auth, and 
       canOpen: true,
       canUninstall: false,
       canDisable: true,
+      canConnect: true,
+      canReload: false,
     });
     assert.deepEqual(appRecord, {
       id: "connector_gmail",
@@ -360,6 +362,8 @@ test("getOverview emits normalized managed extensions with ownership, auth, and 
       canOpen: false,
       canUninstall: false,
       canDisable: false,
+      canConnect: true,
+      canReload: false,
     });
     assert.deepEqual(skillRecord, {
       id: path.join(pluginRoot, "skills", "gmail", "SKILL.md"),
@@ -383,6 +387,8 @@ test("getOverview emits normalized managed extensions with ownership, auth, and 
       canOpen: true,
       canUninstall: false,
       canDisable: true,
+      canConnect: false,
+      canReload: false,
     });
     assert.deepEqual(mcpRecord, {
       id: "plugin-mcp",
@@ -406,6 +412,8 @@ test("getOverview emits normalized managed extensions with ownership, auth, and 
       canOpen: false,
       canUninstall: false,
       canDisable: true,
+      canConnect: true,
+      canReload: true,
     });
   } finally {
     await fs.rm(runtimeStateRoot, { force: true, recursive: true });
@@ -574,6 +582,10 @@ test("getOverview does not treat apps linked only to discoverable plugins as ins
         return { data: [] };
       }
 
+      if (method === "config/mcpServer/reload") {
+        return { ok: true };
+      }
+
       if (method === "skills/list") {
         return { data: [] };
       }
@@ -612,6 +624,8 @@ test("getOverview does not treat apps linked only to discoverable plugins as ins
       canOpen: false,
       canUninstall: false,
       canDisable: false,
+      canConnect: true,
+      canReload: false,
     });
   } finally {
     await fs.rm(runtimeStateRoot, { force: true, recursive: true });
@@ -703,6 +717,10 @@ test("installPlugin enables manifest-backed apps even when plugin/install omits 
         return { data: [] };
       }
 
+      if (method === "config/mcpServer/reload") {
+        return { ok: true };
+      }
+
       if (method === "skills/list") {
         return { data: [] };
       }
@@ -743,8 +761,14 @@ test("installPlugin enables manifest-backed apps even when plugin/install omits 
         mergeStrategy: "upsert",
         value: true,
       },
+      {
+        keyPath: "mcp_servers.plugin-mcp.enabled",
+        mergeStrategy: "upsert",
+        value: true,
+      },
     ],
   });
+  assert.ok(managerCalls.some((entry) => entry.method === "config/mcpServer/reload"));
   assert.deepEqual(opened, ["https://chatgpt.com/gmail/install"]);
   assert.equal(overview.plugins[0]?.installed, true);
   assert.deepEqual(overview.apps[0]?.pluginDisplayNames, ["Gmail", "gmail"]);
@@ -832,6 +856,10 @@ test("installPlugin writes enablement using the canonical installed plugin id", 
         return { data: [] };
       }
 
+      if (method === "config/mcpServer/reload") {
+        return { ok: true };
+      }
+
       if (method === "skills/list") {
         return { data: [] };
       }
@@ -861,12 +889,17 @@ test("installPlugin writes enablement using the canonical installed plugin id", 
         value: true,
       },
       {
-        keyPath: 'plugins.gmail@openai-curated.enabled',
+        keyPath: 'plugins."gmail@openai-curated".enabled',
         mergeStrategy: "upsert",
         value: true,
       },
       {
         keyPath: "apps.connector_gmail.enabled",
+        mergeStrategy: "upsert",
+        value: true,
+      },
+      {
+        keyPath: "mcp_servers.plugin-mcp.enabled",
         mergeStrategy: "upsert",
         value: true,
       },
@@ -950,6 +983,10 @@ test("setPluginEnabled enables manifest-backed apps for installed plugins", asyn
         return { data: [] };
       }
 
+      if (method === "config/mcpServer/reload") {
+        return { ok: true };
+      }
+
       if (method === "skills/list") {
         return { data: [] };
       }
@@ -987,8 +1024,14 @@ test("setPluginEnabled enables manifest-backed apps for installed plugins", asyn
         mergeStrategy: "upsert",
         value: true,
       },
+      {
+        keyPath: "mcp_servers.plugin-mcp.enabled",
+        mergeStrategy: "upsert",
+        value: true,
+      },
     ],
   });
+  assert.ok(managerCalls.some((entry) => entry.method === "config/mcpServer/reload"));
 });
 
 test("setPluginEnabled disables manifest-backed apps when no other plugin still claims them", async () => {
@@ -1067,6 +1110,10 @@ test("setPluginEnabled disables manifest-backed apps when no other plugin still 
         return { data: [] };
       }
 
+      if (method === "config/mcpServer/reload") {
+        return { ok: true };
+      }
+
       if (method === "skills/list") {
         return { data: [] };
       }
@@ -1099,8 +1146,14 @@ test("setPluginEnabled disables manifest-backed apps when no other plugin still 
         mergeStrategy: "upsert",
         value: false,
       },
+      {
+        keyPath: "mcp_servers.plugin-mcp.enabled",
+        mergeStrategy: "upsert",
+        value: false,
+      },
     ],
   });
+  assert.ok(managerCalls.some((entry) => entry.method === "config/mcpServer/reload"));
 });
 
 test("openAppInstall enables the app and opens its install URL", async () => {
@@ -1325,6 +1378,554 @@ test("uninstallPlugin removes a profile-owned plugin directory and disables its 
           value: false,
         },
       ],
+    });
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+  }
+});
+
+test("uninstallPlugin prefers runtime uninstall for marketplace-installed plugins and cascades orphaned MCP state", async () => {
+  const pluginRoot = await createInstalledPluginFixture();
+  const managerCalls = [];
+
+  try {
+    const service = new DesktopExtensionService({
+      manager: createManager(async (method, params) => {
+        managerCalls.push({ method, params });
+
+        if (method === "plugin/uninstall") {
+          return {};
+        }
+
+        if (method === "config/batchWrite") {
+          return { ok: true };
+        }
+
+        if (method === "config/mcpServer/reload") {
+          return { ok: true };
+        }
+
+        if (method === "config/read") {
+          return {
+            config: {
+              apps: {
+                connector_gmail: {
+                  enabled: true,
+                },
+              },
+              mcp_servers: {
+                "plugin-mcp": {
+                  enabled: true,
+                },
+              },
+              plugins: {
+                gmail: {
+                  enabled: true,
+                },
+              },
+            },
+          };
+        }
+
+        if (method === "plugin/list") {
+          return {
+            marketplaces: [
+              {
+                name: "OpenAI Curated",
+                path: "/tmp/openai-curated-marketplace.json",
+                plugins: [
+                  {
+                    id: "gmail",
+                    name: "gmail",
+                    installed: true,
+                    enabled: true,
+                    source: {
+                      path: pluginRoot,
+                    },
+                    interface: {
+                      displayName: "Gmail",
+                    },
+                  },
+                ],
+              },
+            ],
+          };
+        }
+
+        if (method === "app/list") {
+          return {
+            data: [
+              {
+                id: "connector_gmail",
+                name: "Gmail",
+                isAccessible: true,
+                isEnabled: true,
+                pluginDisplayNames: [],
+              },
+            ],
+          };
+        }
+
+        if (method === "mcpServerStatus/list") {
+          return {
+            data: [
+              {
+                id: "plugin-mcp",
+                state: "ready",
+                authStatus: "connected",
+                tools: [],
+                resources: [],
+              },
+            ],
+          };
+        }
+
+        if (method === "skills/list") {
+          return { data: [] };
+        }
+
+        if (method === "account/read") {
+          return createAccountReadResult();
+        }
+
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    await service.uninstallPlugin({ pluginId: "gmail" });
+
+    const runtimeUninstallCall = managerCalls.find((entry) => entry.method === "plugin/uninstall");
+    assert.deepEqual(runtimeUninstallCall?.params, {
+      marketplacePath: "/tmp/openai-curated-marketplace.json",
+      pluginId: "gmail",
+      pluginName: "gmail",
+    });
+    const batchWriteCall = managerCalls.find((entry) => entry.method === "config/batchWrite");
+    assert.deepEqual(batchWriteCall?.params, {
+      edits: [
+        {
+          keyPath: "plugins.gmail.enabled",
+          mergeStrategy: "upsert",
+          value: false,
+        },
+        {
+          keyPath: "apps.connector_gmail.enabled",
+          mergeStrategy: "upsert",
+          value: false,
+        },
+        {
+          keyPath: "mcp_servers.plugin-mcp.enabled",
+          mergeStrategy: "upsert",
+          value: false,
+        },
+      ],
+    });
+    assert.ok(managerCalls.some((entry) => entry.method === "config/mcpServer/reload"));
+  } finally {
+    await fs.rm(pluginRoot, { force: true, recursive: true });
+  }
+});
+
+test("setPluginEnabled preserves shared apps while disabling orphaned MCP servers", async () => {
+  const pluginRoot = await createInstalledPluginFixture();
+  const siblingPluginRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-plugin-sibling-"));
+  await fs.writeFile(
+    path.join(siblingPluginRoot, ".app.json"),
+    JSON.stringify({
+      apps: {
+        gmail: {
+          id: "connector_gmail",
+        },
+      },
+    }),
+    "utf8",
+  );
+
+  const managerCalls = [];
+
+  try {
+    const service = new DesktopExtensionService({
+      manager: createManager(async (method, params) => {
+        managerCalls.push({ method, params });
+
+        if (method === "config/read") {
+          return {
+            config: {
+              apps: {
+                connector_gmail: {
+                  enabled: true,
+                },
+              },
+              mcp_servers: {
+                "plugin-mcp": {
+                  enabled: true,
+                },
+              },
+              plugins: {
+                gmail: {
+                  enabled: true,
+                },
+                sibling: {
+                  enabled: true,
+                },
+              },
+              features: {
+                apps: true,
+              },
+            },
+          };
+        }
+
+        if (method === "config/batchWrite") {
+          return { ok: true };
+        }
+
+        if (method === "config/mcpServer/reload") {
+          return { ok: true };
+        }
+
+        if (method === "plugin/list") {
+          return {
+            marketplaces: [
+              {
+                name: "OpenAI Curated",
+                path: "/tmp/openai-curated-marketplace.json",
+                plugins: [
+                  {
+                    id: "gmail",
+                    name: "gmail",
+                    installed: true,
+                    enabled: true,
+                    source: {
+                      path: pluginRoot,
+                    },
+                    interface: {
+                      displayName: "Gmail",
+                    },
+                  },
+                  {
+                    id: "sibling",
+                    name: "sibling",
+                    installed: true,
+                    enabled: true,
+                    source: {
+                      path: siblingPluginRoot,
+                    },
+                    interface: {
+                      displayName: "Sibling",
+                    },
+                  },
+                ],
+              },
+            ],
+          };
+        }
+
+        if (method === "app/list") {
+          return {
+            data: [
+              {
+                id: "connector_gmail",
+                name: "Gmail",
+                isAccessible: true,
+                isEnabled: true,
+                pluginDisplayNames: [],
+              },
+            ],
+          };
+        }
+
+        if (method === "mcpServerStatus/list") {
+          return {
+            data: [
+              {
+                id: "plugin-mcp",
+                state: "ready",
+                authStatus: "connected",
+                tools: [],
+                resources: [],
+              },
+            ],
+          };
+        }
+
+        if (method === "skills/list") {
+          return { data: [] };
+        }
+
+        if (method === "account/read") {
+          return createAccountReadResult();
+        }
+
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    await service.setPluginEnabled({
+      pluginId: "gmail",
+      enabled: false,
+    });
+
+    const batchWriteCall = managerCalls.find((entry) => entry.method === "config/batchWrite");
+    assert.deepEqual(batchWriteCall?.params, {
+      edits: [
+        {
+          keyPath: "plugins.gmail.enabled",
+          mergeStrategy: "upsert",
+          value: false,
+        },
+        {
+          keyPath: "mcp_servers.plugin-mcp.enabled",
+          mergeStrategy: "upsert",
+          value: false,
+        },
+      ],
+    });
+  } finally {
+    await fs.rm(pluginRoot, { force: true, recursive: true });
+    await fs.rm(siblingPluginRoot, { force: true, recursive: true });
+  }
+});
+
+test("readPluginDetail prefers plugin/read and falls back to local metadata", async () => {
+  const pluginRoot = await createInstalledPluginFixture();
+
+  try {
+    const service = new DesktopExtensionService({
+      manager: createManager(async (method, _params) => {
+        if (method === "config/read") {
+          return { config: { plugins: { gmail: { enabled: true } } } };
+        }
+
+        if (method === "plugin/list") {
+          return {
+            marketplaces: [
+              {
+                name: "OpenAI Curated",
+                path: "/tmp/openai-curated-marketplace.json",
+                plugins: [
+                  {
+                    id: "gmail",
+                    name: "gmail",
+                    installed: true,
+                    enabled: true,
+                    source: {
+                      path: pluginRoot,
+                    },
+                    interface: {
+                      displayName: "Gmail",
+                    },
+                  },
+                ],
+              },
+            ],
+          };
+        }
+
+        if (method === "plugin/read") {
+          return {
+            plugin: {
+              interface: {
+                displayName: "Gmail",
+                shortDescription: "Read and draft Gmail.",
+                websiteUrl: "https://example.com/gmail",
+                capabilities: ["Interactive"],
+              },
+              skills: [{ name: "gmail:gmail", description: "Gmail workflow" }],
+              apps: [{ id: "connector_gmail" }],
+              mcpServers: [{ name: "plugin-mcp" }],
+            },
+          };
+        }
+
+        if (method === "app/list") {
+          return { data: [] };
+        }
+
+        if (method === "mcpServerStatus/list") {
+          return { data: [] };
+        }
+
+        if (method === "skills/list") {
+          return { data: [] };
+        }
+
+        if (method === "account/read") {
+          return createAccountReadResult();
+        }
+
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const detail = await service.readPluginDetail({ pluginId: "gmail" });
+    assert.deepEqual(detail, {
+      pluginId: "gmail",
+      name: "gmail",
+      displayName: "Gmail",
+      description: "Read and draft Gmail.",
+      marketplaceName: "OpenAI Curated",
+      marketplacePath: "/tmp/openai-curated-marketplace.json",
+      sourcePath: pluginRoot,
+      websiteUrl: "https://example.com/gmail",
+      capabilities: ["Interactive"],
+      skills: [
+        {
+          name: "gmail:gmail",
+          description: "Gmail workflow",
+          path: null,
+        },
+      ],
+      apps: ["connector_gmail"],
+      mcpServers: ["plugin-mcp"],
+    });
+  } finally {
+    await fs.rm(pluginRoot, { force: true, recursive: true });
+  }
+});
+
+test("startMcpServerAuth opens the returned authorization URL", async () => {
+  const opened = [];
+
+  const service = new DesktopExtensionService({
+    manager: createManager(async (method) => {
+      if (method === "mcpServer/oauth/login") {
+        return {
+          authorizationUrl: "https://example.com/oauth/start",
+        };
+      }
+
+      if (method === "config/read") {
+        return {
+          config: {
+            mcp_servers: {
+              docs: {
+                enabled: true,
+              },
+            },
+          },
+        };
+      }
+
+      if (method === "plugin/list") {
+        return { marketplaces: [] };
+      }
+
+      if (method === "app/list") {
+        return { data: [] };
+      }
+
+      if (method === "mcpServerStatus/list") {
+        return {
+          data: [
+            {
+              id: "docs",
+              state: "pending_auth",
+              authStatus: "required",
+              tools: [],
+              resources: [],
+            },
+          ],
+        };
+      }
+
+      if (method === "skills/list") {
+        return { data: [] };
+      }
+
+      if (method === "account/read") {
+        return createAccountReadResult();
+      }
+
+      throw new Error(`Unexpected method: ${method}`);
+    }),
+    openExternal: async (url) => {
+      opened.push(url);
+    },
+    resolveProfile: async () => ({ id: "default" }),
+  });
+
+  const result = await service.startMcpServerAuth({ serverId: "docs" });
+  assert.equal(result.authorizationUrl, "https://example.com/oauth/start");
+  assert.deepEqual(opened, ["https://example.com/oauth/start"]);
+});
+
+test("readSkillDetail returns the skill markdown body", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const { codexHome } = await ensureProfileDirectories("default", env);
+  const skillRoot = path.join(codexHome, "skills", "gmail");
+  const skillPath = path.join(skillRoot, "SKILL.md");
+
+  await fs.mkdir(skillRoot, { recursive: true });
+  await fs.writeFile(skillPath, "# Gmail\nDraft replies.\n", "utf8");
+
+  try {
+    const service = new DesktopExtensionService({
+      env,
+      manager: createManager(async (method) => {
+        if (method === "config/read") {
+          return { config: {} };
+        }
+
+        if (method === "plugin/list") {
+          return { marketplaces: [] };
+        }
+
+        if (method === "app/list") {
+          return { data: [] };
+        }
+
+        if (method === "mcpServerStatus/list") {
+          return { data: [] };
+        }
+
+        if (method === "skills/list") {
+          return {
+            data: [
+              {
+                cwd: codexHome,
+                skills: [
+                  {
+                    name: "gmail",
+                    path: skillPath,
+                    description: "Draft replies",
+                    scope: "profile",
+                    enabled: true,
+                  },
+                ],
+              },
+            ],
+          };
+        }
+
+        if (method === "account/read") {
+          return createAccountReadResult();
+        }
+
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const detail = await service.readSkillDetail({ path: skillPath });
+    assert.deepEqual(detail, {
+      path: skillPath,
+      name: "gmail",
+      description: "Draft replies",
+      scope: "profile",
+      cwd: codexHome,
+      content: "# Gmail\nDraft replies.\n",
     });
   } finally {
     await fs.rm(runtimeStateRoot, { force: true, recursive: true });
