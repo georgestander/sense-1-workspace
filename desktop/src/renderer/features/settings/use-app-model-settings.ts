@@ -21,15 +21,18 @@ export const REASONING_LABELS: Record<string, string> = {
 type SaveSettings = (patch: {
   model?: string;
   reasoningEffort?: string;
+  serviceTier?: "flex" | "fast";
 }) => Promise<unknown>;
 
 type UseAppModelSettingsParams = {
   availableModels: DesktopModelEntry[];
   model: string;
   reasoning: string;
+  serviceTier: "flex" | "fast";
   selectedThreadId: string | null;
   setModel: Dispatch<SetStateAction<string>>;
   setReasoning: Dispatch<SetStateAction<string>>;
+  setServiceTier: Dispatch<SetStateAction<"flex" | "fast">>;
   settingsData: DesktopSettings | null;
   saveSettings: SaveSettings;
 };
@@ -38,9 +41,11 @@ export function useAppModelSettings({
   availableModels,
   model,
   reasoning,
+  serviceTier,
   selectedThreadId,
   setModel,
   setReasoning,
+  setServiceTier,
   settingsData,
   saveSettings,
 }: UseAppModelSettingsParams) {
@@ -83,11 +88,22 @@ export function useAppModelSettings({
         modelId: settingsModel,
         requestedReasoning: settingsData?.reasoningEffort ?? selectedReasoning,
       });
+  const selectedServiceTier: "flex" | "fast" = serviceTier === "fast" ? "fast" : "flex";
+  const settingsServiceTier: "flex" | "fast" = settingsData?.serviceTier === "fast" ? "fast" : "flex";
 
   const prevModelRef = useRef(selectedModel);
   const prevReasoningRef = useRef(selectedReasoning);
+  const prevServiceTierRef = useRef(selectedServiceTier);
   const [configNotices, setConfigNotices] = useState<Array<{ id: number; text: string }>>([]);
   const configNoticeIdRef = useRef(0);
+
+  function pushConfigNotice(text: string) {
+    const id = ++configNoticeIdRef.current;
+    setConfigNotices((current) => [...current, { id, text }]);
+    setTimeout(() => {
+      setConfigNotices((current) => current.filter((notice) => notice.id !== id));
+    }, 3000);
+  }
 
   useEffect(() => {
     if (availableModels.length === 0) {
@@ -115,11 +131,7 @@ export function useAppModelSettings({
     prevModelRef.current = selectedModel;
     if (prev && prev !== selectedModel) {
       const toLabel = availableModels.find((entry) => entry.id === selectedModel)?.name ?? selectedModel;
-      const id = ++configNoticeIdRef.current;
-      setConfigNotices((current) => [...current, { id, text: `Model changed to ${toLabel}` }]);
-      setTimeout(() => {
-        setConfigNotices((current) => current.filter((notice) => notice.id !== id));
-      }, 3000);
+      pushConfigNotice(`Model changed to ${toLabel}`);
     }
   }, [selectedModel, availableModels]);
 
@@ -128,13 +140,23 @@ export function useAppModelSettings({
     prevReasoningRef.current = selectedReasoning;
     if (prev && prev !== selectedReasoning) {
       const toLabel = REASONING_LABELS[selectedReasoning] ?? selectedReasoning;
-      const id = ++configNoticeIdRef.current;
-      setConfigNotices((current) => [...current, { id, text: `Reasoning effort changed to ${toLabel}` }]);
-      setTimeout(() => {
-        setConfigNotices((current) => current.filter((notice) => notice.id !== id));
-      }, 3000);
+      pushConfigNotice(`Reasoning effort changed to ${toLabel}`);
     }
   }, [selectedReasoning]);
+
+  useEffect(() => {
+    const prev = prevServiceTierRef.current;
+    prevServiceTierRef.current = selectedServiceTier;
+    if (!prev || prev === selectedServiceTier) {
+      return;
+    }
+
+    pushConfigNotice(
+      selectedServiceTier === "fast"
+        ? "Fast mode enabled"
+        : "Fast mode disabled",
+    );
+  }, [selectedServiceTier]);
 
   useEffect(() => {
     setConfigNotices([]);
@@ -166,17 +188,28 @@ export function useAppModelSettings({
     });
   }
 
+  function handleServiceTierSelection(nextServiceTier: "flex" | "fast") {
+    setServiceTier(nextServiceTier);
+    void saveSettings({
+      serviceTier: nextServiceTier,
+    });
+  }
+
   return {
     REASONING_LABELS,
     configNotices,
     handleModelSelection,
+    handleServiceTierSelection,
     modelOptions,
+    pushConfigNotice,
     reasoningOptions,
     saveSettingsModelSelection,
     selectedModel,
     selectedReasoning,
+    selectedServiceTier,
     settingsModel,
     settingsReasoning,
     settingsReasoningOptions,
+    settingsServiceTier,
   };
 }

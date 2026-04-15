@@ -33,7 +33,6 @@ export interface RightRailProps {
   inputResponsePending: boolean;
   setInputResponsePending: (pending: boolean) => void;
   respondToInputRequest: (requestId: number, text: string) => Promise<void>;
-  effectiveRightRailProgressSummary: string[];
   persistedSessionActivitySummary: {
     approvalsGranted: number;
     commandsRun: number;
@@ -79,7 +78,6 @@ export function RightRail(props: RightRailProps) {
     inputResponsePending,
     setInputResponsePending,
     respondToInputRequest,
-    effectiveRightRailProgressSummary,
     persistedSessionActivitySummary,
     persistedSessionActivityLoading,
     rightRailChangeGroups,
@@ -145,12 +143,10 @@ export function RightRail(props: RightRailProps) {
           workspaceSessions={workspaceSessions}
         />
         <RightRailProgressSection
-          effectiveRightRailProgressSummary={effectiveRightRailProgressSummary}
           isRightRailSectionOpen={isRightRailSectionOpen}
           persistedSessionActivityLoading={persistedSessionActivityLoading}
           persistedSessionActivitySummary={persistedSessionActivitySummary}
           selectedThread={selectedThread}
-          threadInteractionState={threadInteractionState}
           threadPlanState={threadPlanState}
           toggleRightRailSection={toggleRightRailSection}
         />

@@ -101,9 +101,6 @@ export function useAppRightRail({
   );
   const autoFollowFrameRef = useRef<number | null>(null);
 
-  const rightRailProgressSummary = Array.isArray(rightRailThread?.progressSummary)
-    ? rightRailThread.progressSummary
-    : [];
   const rightRailChangeGroups = Array.isArray(rightRailThread?.changeGroups)
     ? rightRailThread.changeGroups
     : [];
@@ -123,17 +120,6 @@ export function useAppRightRail({
   const structuredQuestions = threadInputRequest?.questions ?? [];
   const hasStructuredQuestions =
     structuredQuestions.length > 0 && structuredQuestions.some((question) => question.choices.length > 0);
-
-  const effectiveRightRailProgressSummary = isPreExecution
-    ? []
-    : threadInteractionState === "review"
-      ? [
-          ...(selectedThread?.reviewSummary?.summary?.trim()
-            ? [selectedThread.reviewSummary.summary.trim()]
-            : []),
-          ...rightRailProgressSummary.filter((line) => !/actively working/i.test(line)),
-        ].filter((line, index, values) => values.indexOf(line) === index)
-      : rightRailProgressSummary;
 
   function isRightRailSectionOpen(section: string): boolean {
     return rightRailSectionsOpen[section] !== false;
@@ -199,7 +185,6 @@ export function useAppRightRail({
     inputResponsePending,
     setInputResponsePending,
     respondToInputRequest,
-    effectiveRightRailProgressSummary,
     persistedSessionActivitySummary,
     persistedSessionActivityLoading,
     rightRailChangeGroups,

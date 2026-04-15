@@ -8,6 +8,7 @@ export type DesktopSettingsPatch = Partial<
     DesktopSettings,
     | "model"
     | "reasoningEffort"
+    | "serviceTier"
     | "personality"
     | "defaultOperatingMode"
     | "runtimeInstructions"
@@ -31,6 +32,7 @@ export type DesktopSettingsPatch = Partial<
 export interface DesktopWorkspaceDefaults {
   readonly model?: string;
   readonly reasoningEffort?: string;
+  readonly serviceTier?: DesktopSettings["serviceTier"];
   readonly personality?: string;
 }
 

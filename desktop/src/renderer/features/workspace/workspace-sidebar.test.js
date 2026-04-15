@@ -69,6 +69,24 @@ test("home view keeps workspace groups visible but collapsed by default", () => 
   );
 });
 
+test("session artifact roots stay in standalone threads instead of forming fake workspace groups", () => {
+  const result = buildWorkspaceSidebarGroups({
+    threads: [
+      {
+        id: "thread-chat",
+        title: "Chat only",
+        updatedAt: "2026-03-26T10:00:00.000Z",
+        workspaceRoot: "/Users/george/Sense-1 Workspace/sessions/sess_chat_only",
+      },
+    ],
+    savedOrder: [],
+    activeWorkspaceRoot: null,
+  });
+
+  assert.deepEqual(result.workspaces, []);
+  assert.deepEqual(result.standalone.map((thread) => thread.id), ["thread-chat"]);
+});
+
 test("workspace view keeps full workspace history visible while expanding the active workspace", () => {
   const result = buildWorkspaceSidebarGroups({
     threads: [

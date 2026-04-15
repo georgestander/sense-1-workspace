@@ -12,8 +12,6 @@ type BuildThreadViewPropsArgs = {
   sessionState: SessionState;
   extensionOverview: ThreadViewProps["extensionOverview"];
   ui: {
-    model: string;
-    reasoning: string;
     setReasoning: Dispatch<SetStateAction<string>>;
   };
   composer: Pick<
@@ -38,9 +36,11 @@ type BuildThreadViewPropsArgs = {
     ThreadViewProps,
     | "selectedModel"
     | "selectedReasoning"
+    | "selectedServiceTier"
     | "modelOptions"
     | "reasoningOptions"
     | "handleModelSelection"
+    | "handleServiceTierSelection"
   >;
   rightRail: Pick<
     ThreadViewProps,
@@ -80,7 +80,9 @@ type BuildStartSurfacePropsArgs = {
   modelState: Pick<
     StartSurfaceProps,
     | "selectedModel"
+    | "selectedServiceTier"
     | "handleModelSelection"
+    | "handleServiceTierSelection"
     | "modelOptions"
   >;
   workspace: Pick<
@@ -171,14 +173,14 @@ export function buildThreadViewProps({
     queueSelectedThreadPrompt: composer.queueSelectedThreadPrompt,
     queuedMessageCount: selectedThread.threadInputState?.queuedMessages.length ?? 0,
     submitSelectedThreadPrompt: composer.submitSelectedThreadPrompt,
-    model: ui.model,
-    reasoning: ui.reasoning,
     selectedModel: modelState.selectedModel,
     selectedReasoning: modelState.selectedReasoning,
+    selectedServiceTier: modelState.selectedServiceTier,
     setReasoning: ui.setReasoning,
     modelOptions: modelState.modelOptions,
     reasoningOptions: modelState.reasoningOptions,
     handleModelSelection: modelState.handleModelSelection,
+    handleServiceTierSelection: modelState.handleServiceTierSelection,
     REASONING_LABELS,
     availableModels: sessionState.availableModels,
     taskPending: sessionState.taskPending,
@@ -225,7 +227,9 @@ export function buildStartSurfaceProps({
     setAttachedFiles: composer.setAttachedFiles,
     pickFiles: sessionState.pickFiles,
     selectedModel: modelState.selectedModel,
+    selectedServiceTier: modelState.selectedServiceTier,
     handleModelSelection: modelState.handleModelSelection,
+    handleServiceTierSelection: modelState.handleServiceTierSelection,
     modelOptions: modelState.modelOptions,
     availableModels: sessionState.availableModels,
     submitDraftTask: composer.submitDraftTask,

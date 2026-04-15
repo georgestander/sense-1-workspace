@@ -29,6 +29,7 @@ export type GeneralSettingsSectionProps = SectionProps & {
   settingsModel: string;
   settingsReasoning: string;
   settingsReasoningOptions: string[];
+  settingsServiceTier: "flex" | "fast";
   updateState: DesktopUpdateState | null;
 };
 
@@ -45,6 +46,7 @@ export function GeneralSettingsSection({
   settingsModel,
   settingsReasoning,
   settingsReasoningOptions,
+  settingsServiceTier,
   updateState,
 }: GeneralSettingsSectionProps) {
   const updateSummary = resolveSettingsUpdateSummary(updateState);
@@ -199,6 +201,22 @@ export function GeneralSettingsSection({
               <p className="mt-[0.65rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
             ) : null}
           </div>
+          <label className="flex flex-col gap-[0.4rem]">
+            <span className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Service tier</span>
+            <select
+              className="rounded-md bg-surface-high px-[0.65rem] py-[0.4rem] text-[0.875rem] leading-[1.6] text-ink outline-none focus:ring-1 focus:ring-line"
+              onChange={(e) => void saveSettings({ serviceTier: e.target.value as "flex" | "fast" })}
+              value={settingsServiceTier}
+            >
+              <option value="flex">Flex</option>
+              <option value="fast">Fast</option>
+            </select>
+            {settingsError?.key === "serviceTier" ? (
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+            ) : (
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">Fast mode prefers the low-latency service tier for new runs.</p>
+            )}
+          </label>
         </div>
       ) : (
         <p className="mt-[1.25rem] text-[0.875rem] leading-[1.6] text-ink-muted">Loading settings...</p>

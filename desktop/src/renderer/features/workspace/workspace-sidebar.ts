@@ -1,4 +1,5 @@
 import type { DesktopThreadSnapshot } from "../../../main/contracts";
+import { normalizeUserFacingWorkspaceRoot } from "../../../shared/workspace-roots.ts";
 
 export type WorkspaceSidebarThread = {
   readonly id: string;
@@ -20,7 +21,7 @@ export function toWorkspaceSidebarThreadSummary(
     title: thread.title,
     updatedAt: thread.updatedAt,
     updatedLabel: thread.updatedLabel,
-    workspaceRoot: thread.workspaceRoot,
+    workspaceRoot: normalizeUserFacingWorkspaceRoot(thread.workspaceRoot),
     state: thread.state,
     threadInputState: thread.threadInputState,
   };
@@ -247,7 +248,7 @@ export function buildWorkspaceSidebarGroups<T extends WorkspaceSidebarThread>(pa
   const standalone: T[] = [];
 
   for (const thread of params.threads) {
-    const root = typeof thread.workspaceRoot === "string" ? thread.workspaceRoot.trim() : "";
+    const root = normalizeUserFacingWorkspaceRoot(thread.workspaceRoot) ?? "";
     if (!root) {
       standalone.push(thread);
       continue;

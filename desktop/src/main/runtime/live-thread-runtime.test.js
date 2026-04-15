@@ -528,6 +528,7 @@ test("runDesktopTask starts a new thread then starts a turn with prompt and cwd"
     prompt: "Replace the fake desktop task flow",
     cwd: workspaceRoot,
     model: "gpt-5.4",
+    serviceTier: "fast",
     runContext,
     workspaceRoot,
   });
@@ -588,6 +589,7 @@ test("runDesktopTask starts a new thread then starts a turn with prompt and cwd"
             developer_instructions: null,
             model: "gpt-5.4",
             reasoning_effort: null,
+            service_tier: "fast",
           },
         },
         model: "gpt-5.4",
@@ -608,6 +610,7 @@ test("runDesktopTask starts a new thread then starts a turn with prompt and cwd"
           sense1: {
             executionIntent,
             runContext,
+            serviceTier: "fast",
           },
         },
       },
@@ -934,6 +937,7 @@ test("runDesktopTask does not bind a new chat-only thread to the desktop cwd", a
             developer_instructions: null,
             model: "gpt-5.4",
             reasoning_effort: null,
+            service_tier: "flex",
           },
         },
         model: "gpt-5.4",
@@ -959,6 +963,7 @@ test("runDesktopTask does not bind a new chat-only thread to the desktop cwd", a
               workspaceBound: false,
             },
             runContext,
+            serviceTier: "flex",
           },
         },
       },
@@ -1344,6 +1349,7 @@ test("runDesktopTask keeps the same chat artifact instructions when it has to re
       developer_instructions: null,
       model: "gpt-5.4",
       reasoning_effort: null,
+      service_tier: "flex",
     },
   });
   assert.deepEqual(calls[1].params.sandboxPolicy, {
@@ -1364,6 +1370,7 @@ test("runDesktopTask keeps the same chat artifact instructions when it has to re
       developer_instructions: null,
       model: "gpt-5.4",
       reasoning_effort: null,
+      service_tier: "flex",
     },
   });
   assert.deepEqual(calls[3].params.sandboxPolicy, {
@@ -1498,6 +1505,7 @@ test("runDesktopTask resumes an existing thread before starting a turn", async (
             developer_instructions: null,
             model: "gpt-5.4",
             reasoning_effort: null,
+            service_tier: "flex",
           },
         },
         model: "gpt-5.4",
@@ -1523,6 +1531,7 @@ test("runDesktopTask resumes an existing thread before starting a turn", async (
               workspaceBound: false,
             },
             runContext,
+            serviceTier: "flex",
           },
         },
       },
@@ -1697,6 +1706,7 @@ test("runDesktopTask keeps plainly read-only workspace conversation out of the p
       developer_instructions: null,
       model: "gpt-5.4",
       reasoning_effort: null,
+      service_tier: "flex",
     },
   });
   assert.deepEqual(calls[1].params.sandboxPolicy, {
@@ -2157,6 +2167,7 @@ test("runDesktopTask can start the first real turn on an approval-created thread
       developer_instructions: null,
       model: "",
       reasoning_effort: null,
+      service_tier: "flex",
     },
   });
   assert.deepEqual(calls[1].params.sandboxPolicy, {
