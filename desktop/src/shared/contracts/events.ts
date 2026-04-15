@@ -110,6 +110,9 @@ export type DesktopRuntimeEvent =
       readonly kind: "accountChanged";
     }
   | {
+      readonly kind: "managementInventoryChanged";
+    }
+  | {
       readonly kind: "threadContentChanged";
       readonly threadId: string | null;
     }

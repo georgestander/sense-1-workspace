@@ -118,7 +118,6 @@ test("buildThreadEntries counts non-shortcut mention attachments as files", () =
     },
   ]);
 });
-
 test("buildChangeGroups and progress summary reflect live file changes", () => {
   const entries = buildThreadEntries([
     {
