@@ -19,7 +19,8 @@ const SENSE1_SKILL_CREATOR_OVERRIDE = [
   "- do not stop after running `init_skill.py`",
   "- inspect the generated skill files in the same turn",
   "- replace every generated TODO or placeholder before you finish",
-  "- leave a finished, callable skill in `$CODEX_HOME/skills` unless the user explicitly asked for scaffold-only output",
+  "- leave a finished, callable skill in the user's Sense-1 Skills library so it appears in the Skills page unless the user explicitly asked for scaffold-only output",
+  "- when talking to the user, never mention `$CODEX_HOME`, `codex-home`, or raw filesystem install paths for skills; say `Sense-1 Skills library`, `installed skills`, or `Skills page` instead",
 ].join("\n");
 
 function resolveSharedCodexHome(env = process.env) {
