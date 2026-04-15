@@ -128,6 +128,7 @@ export function ThreadView(props: ThreadViewProps) {
         clarificationPending={clarificationPending}
         configNotices={configNotices}
         effectiveThreadBusy={effectiveThreadBusy}
+        extensionOverview={extensionOverview}
         footerStatusText={footerStatusText}
         grantWorkspacePermission={grantWorkspacePermission}
         hasStructuredQuestions={hasStructuredQuestions}
