@@ -45,6 +45,7 @@ export interface DesktopTaskRunRequest {
   readonly model?: string;
   readonly personality?: string;
   readonly reasoningEffort?: string;
+  readonly serviceTier?: "flex" | "fast";
   readonly attachments?: string[];
   readonly inputItems?: DesktopAppServerInputItem[];
   readonly runContext?: DesktopRunContext | null;

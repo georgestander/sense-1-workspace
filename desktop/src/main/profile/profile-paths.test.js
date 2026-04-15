@@ -46,6 +46,44 @@ test("ensureProfileDirectories syncs missing shared system skills into the profi
   }
 });
 
+test("ensureProfileDirectories tolerates a shared system skill entry disappearing mid-sync", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const sharedCodexHome = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-shared-codex-home-"));
+  const env = {
+    ...process.env,
+    CODEX_HOME: sharedCodexHome,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const sharedSystemSkillsDir = path.join(sharedCodexHome, "skills", ".system");
+  const sharedPluginCreatorDir = path.join(sharedSystemSkillsDir, "plugin-creator");
+  const originalCopyFile = fs.copyFile;
+
+  try {
+    await fs.mkdir(sharedPluginCreatorDir, { recursive: true });
+    await fs.writeFile(path.join(sharedSystemSkillsDir, ".codex-system-skills.marker"), "", "utf8");
+    await fs.writeFile(path.join(sharedPluginCreatorDir, "SKILL.md"), "# Plugin Creator\n", "utf8");
+    fs.copyFile = async (sourcePath, targetPath, ...rest) => {
+      if (String(sourcePath).endsWith(".codex-system-skills.marker")) {
+        const error = new Error("marker disappeared during sync");
+        error.code = "ENOENT";
+        throw error;
+      }
+      return await originalCopyFile.call(fs, sourcePath, targetPath, ...rest);
+    };
+
+    const { codexHome } = await ensureProfileDirectories("default", env);
+
+    assert.equal(
+      await fs.readFile(path.join(codexHome, "skills", ".system", "plugin-creator", "SKILL.md"), "utf8"),
+      "# Plugin Creator\n",
+    );
+  } finally {
+    fs.copyFile = originalCopyFile;
+    await fs.rm(runtimeStateRoot, { recursive: true, force: true });
+    await fs.rm(sharedCodexHome, { recursive: true, force: true });
+  }
+});
+
 test("ensureProfileDirectories repairs an invalid profile auth file from the legacy desktop auth store", async () => {
   const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
   const sharedCodexHome = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-shared-codex-home-"));

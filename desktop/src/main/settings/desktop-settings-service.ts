@@ -39,6 +39,7 @@ import type {
 export const DESKTOP_DEFAULT_SETTINGS: DesktopSettings = {
   model: DEFAULT_DESKTOP_SETTINGS.model,
   reasoningEffort: DEFAULT_DESKTOP_SETTINGS.reasoningEffort,
+  serviceTier: DEFAULT_DESKTOP_SETTINGS.serviceTier,
   personality: DEFAULT_DESKTOP_SETTINGS.personality,
   defaultOperatingMode: DEFAULT_DESKTOP_SETTINGS.defaultOperatingMode,
   runtimeInstructions: DEFAULT_DESKTOP_SETTINGS.runtimeInstructions,

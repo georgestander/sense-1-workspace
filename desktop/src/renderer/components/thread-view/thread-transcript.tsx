@@ -8,10 +8,11 @@ import { ThreadClarificationPanel } from "./thread-clarification-panel.js";
 import { shouldShowReviewArtifacts } from "./thread-transcript-visibility.js";
 import { summarizeCommand } from "./thread-view-utils.js";
 import { perfCount } from "../../lib/perf-debug.ts";
-import { type DesktopApprovalDecision, type DesktopApprovalEvent, type DesktopInputQuestion, type DesktopInputRequestState, type DesktopThreadChangeGroup, type DesktopThreadEntry, type DesktopThreadSnapshot } from "../../../main/contracts";
+import { type DesktopApprovalDecision, type DesktopApprovalEvent, type DesktopExtensionOverviewResult, type DesktopInputQuestion, type DesktopInputRequestState, type DesktopThreadChangeGroup, type DesktopThreadEntry, type DesktopThreadSnapshot } from "../../../main/contracts";
 
 type ThreadTranscriptProps = {
   selectedThread: DesktopThreadSnapshot;
+  extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
   threadInteractionState: string | null;
   selectedThreadApprovals: DesktopApprovalEvent[];
   respondToApproval: (approval: DesktopApprovalEvent, decision: DesktopApprovalDecision) => Promise<void>;
@@ -177,6 +178,7 @@ function StatusFooter({
 
 export function ThreadTranscript({
   selectedThread,
+  extensionOverview,
   threadInteractionState,
   selectedThreadApprovals,
   respondToApproval,
@@ -236,6 +238,7 @@ export function ThreadTranscript({
           {selectedThread.entries.length > 0 ? (
             <ThreadEntryList
               entries={selectedThread.entries}
+              extensionOverview={extensionOverview}
               suppressFileChanges={hasReviewArtifacts}
               threadId={selectedThread.id}
               workspaceRoot={threadFolderRoot}
