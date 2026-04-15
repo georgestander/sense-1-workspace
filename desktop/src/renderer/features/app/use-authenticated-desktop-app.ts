@@ -28,11 +28,13 @@ type UseAuthenticatedDesktopAppArgs = {
     model: string;
     reasoning: string;
     searchQuery: string;
+    serviceTier: "flex" | "fast";
     setAccountMenuOpen: Dispatch<SetStateAction<boolean>>;
     setFolderMenuOpen: Dispatch<SetStateAction<boolean>>;
     setModel: Dispatch<SetStateAction<string>>;
     setReasoning: Dispatch<SetStateAction<string>>;
     setSearchQuery: Dispatch<SetStateAction<string>>;
+    setServiceTier: Dispatch<SetStateAction<"flex" | "fast">>;
     setWorkInFolder: Dispatch<SetStateAction<boolean>>;
     setWorkspaceFolder: Dispatch<SetStateAction<string | null>>;
     workInFolder: boolean;
@@ -56,9 +58,11 @@ export function useAuthenticatedDesktopApp({
       model: ui.model,
       reasoning: ui.reasoning,
       searchQuery: ui.searchQuery,
+      serviceTier: ui.serviceTier,
       setFolderMenuOpen: ui.setFolderMenuOpen,
       setModel: ui.setModel,
       setReasoning: ui.setReasoning,
+      setServiceTier: ui.setServiceTier,
       setWorkInFolder: ui.setWorkInFolder,
       setWorkspaceFolder: ui.setWorkspaceFolder,
       workInFolder: ui.workInFolder,
@@ -103,6 +107,7 @@ export function useAuthenticatedDesktopApp({
       settingsOpen: settingsController.settingsOpen,
       settingsReasoning: content.modelSettings.settingsReasoning,
       settingsReasoningOptions: content.modelSettings.settingsReasoningOptions,
+      settingsServiceTier: content.modelSettings.settingsServiceTier,
       settingsSaving: settingsController.settingsSaving,
       settingsSection: settingsController.settingsSection,
       teamSetup: sessionState.teamSetup,
@@ -155,8 +160,6 @@ export function useAuthenticatedDesktopApp({
     extensionOverview,
     sessionState,
     ui: {
-      model: ui.model,
-      reasoning: ui.reasoning,
       setReasoning: ui.setReasoning,
     },
     composer: {
@@ -178,8 +181,10 @@ export function useAuthenticatedDesktopApp({
     },
     modelState: {
       handleModelSelection: content.modelSettings.handleModelSelection,
+      handleServiceTierSelection: content.modelSettings.handleServiceTierSelection,
       selectedModel: content.modelSettings.selectedModel,
       selectedReasoning: content.modelSettings.selectedReasoning,
+      selectedServiceTier: content.modelSettings.selectedServiceTier,
       modelOptions: content.modelSettings.modelOptions,
       reasoningOptions: content.modelSettings.reasoningOptions,
     },
@@ -220,7 +225,9 @@ export function useAuthenticatedDesktopApp({
     },
     modelState: {
       selectedModel: content.modelSettings.selectedModel,
+      selectedServiceTier: content.modelSettings.selectedServiceTier,
       handleModelSelection: content.modelSettings.handleModelSelection,
+      handleServiceTierSelection: content.modelSettings.handleServiceTierSelection,
       modelOptions: content.modelSettings.modelOptions,
     },
     workspace: {

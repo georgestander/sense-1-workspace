@@ -592,7 +592,7 @@ async function rankPrimaryProfileMergeCandidates(profileIds, {
 
   return ranked
     .filter((entry) => entry.id && entry.id !== targetProfileId)
-    .filter((entry) => !entry.mergedIntoPrimary || entry.isCurrent || entry.isStored || entry.hasAuth)
+    .filter((entry) => !entry.mergedIntoPrimary || entry.isCurrent || entry.isStored)
     .sort((left, right) => {
       if (left.isCurrent !== right.isCurrent) {
         return left.isCurrent ? -1 : 1;

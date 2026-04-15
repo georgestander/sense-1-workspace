@@ -35,14 +35,14 @@ export interface ThreadViewProps {
   queueSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
   queuedMessageCount: number;
   submitSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
-  model: string;
-  reasoning: string;
   selectedModel: string;
   selectedReasoning: string;
+  selectedServiceTier: "flex" | "fast";
   setReasoning: Dispatch<SetStateAction<string>>;
   modelOptions: string[];
   reasoningOptions: string[];
   handleModelSelection: (nextModel: string) => void;
+  handleServiceTierSelection: (nextServiceTier: "flex" | "fast") => void;
   REASONING_LABELS: Record<string, string>;
   availableModels: DesktopModelEntry[];
   taskPending: boolean;
@@ -97,9 +97,11 @@ export function ThreadView(props: ThreadViewProps) {
     selectedModel,
     selectedReasoning,
     setReasoning,
+    selectedServiceTier,
     modelOptions,
     reasoningOptions,
     handleModelSelection,
+    handleServiceTierSelection,
     REASONING_LABELS,
     availableModels,
     taskError,
@@ -164,6 +166,7 @@ export function ThreadView(props: ThreadViewProps) {
         selectedThreadId={selectedThreadId}
         selectedModel={selectedModel}
         selectedReasoning={selectedReasoning}
+        selectedServiceTier={selectedServiceTier}
         setAttachedFiles={setAttachedFiles}
         setReasoning={setReasoning}
         submitSelectedThreadPrompt={submitSelectedThreadPrompt}
@@ -171,6 +174,7 @@ export function ThreadView(props: ThreadViewProps) {
         tenant={tenant}
         teamSetup={teamSetup}
         threadPromptOverride={threadPromptOverride}
+        handleServiceTierSelection={handleServiceTierSelection}
         attachedFiles={attachedFiles}
       />
     </>

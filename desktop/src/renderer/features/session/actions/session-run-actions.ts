@@ -84,6 +84,7 @@ export function createSessionRunActions(
         workspaceRoot: request.workspaceRoot ?? undefined,
         model: deps.model || undefined,
         reasoningEffort: deps.reasoningEffort || undefined,
+        serviceTier: deps.serviceTier,
         attachments: request.attachments?.length ? request.attachments : undefined,
         runContext: deps.getRunContext() ?? undefined,
       });
