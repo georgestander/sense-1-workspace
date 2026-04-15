@@ -1,8 +1,12 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Blocks, Cable, ChevronDown, EllipsisVertical, Filter, Plus, PlugZap, RefreshCw, Search, Sparkles, Trash2 } from "lucide-react";
 
 import { Button } from "./ui/button";
-import type { DesktopAppRecord, DesktopExtensionOverviewResult, DesktopPluginRecord, DesktopSkillRecord } from "../../main/contracts";
+import type { DesktopAppRecord, DesktopExtensionOverviewResult, DesktopManagedExtensionKind, DesktopPluginRecord, DesktopSkillRecord } from "../../main/contracts";
+import { PluginDetailView } from "./extensions/PluginDetailView";
+import { SkillDetailModal } from "./extensions/SkillDetailModal";
+import { AppDetailView } from "./extensions/AppDetailView";
+import { McpDetailView } from "./extensions/McpDetailView";
 
 type ExtensionIconKind = "plugin" | "app" | "mcp" | "skill";
 
@@ -360,7 +364,6 @@ export function PluginsPage({
   uninstallPlugin,
   uninstallSkill,
 }: PluginsPageProps) {
-  void removeApp;
   const [activeTab, setActiveTab] = useState<PluginsTabId>("plugins");
   const [inventoryFilter, setInventoryFilter] = useState<InventoryFilter>("all");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
@@ -368,6 +371,28 @@ export function PluginsPage({
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [pendingActionKey, setPendingActionKey] = useState<string | null>(null);
+
+  // Entity detail navigation state
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+  const [selectedEntityKind, setSelectedEntityKind] = useState<DesktopManagedExtensionKind | null>(null);
+
+  const selectEntity = useCallback((id: string, kind: DesktopManagedExtensionKind) => {
+    setSelectedEntityId(id);
+    setSelectedEntityKind(kind);
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedEntityId(null);
+    setSelectedEntityKind(null);
+  }, []);
+
+  // Look up the managed record for the selected entity
+  const selectedManagedRecord = useMemo(() => {
+    if (!selectedEntityId || !selectedEntityKind || !overview) return null;
+    return overview.managedExtensions.find(
+      (e) => e.id === selectedEntityId && e.kind === selectedEntityKind,
+    ) ?? null;
+  }, [overview, selectedEntityId, selectedEntityKind]);
 
   const pluginAppsByDisplayName = useMemo(() => {
     const byDisplayName = new Map<string, DesktopAppRecord[]>();
@@ -462,7 +487,7 @@ export function PluginsPage({
             <button
               className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${tab.id === activeTab ? "bg-ink text-white" : "text-ink-muted hover:bg-surface-soft hover:text-ink"}`}
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => { setActiveTab(tab.id); clearSelection(); }}
               type="button"
             >
               {tab.label}
@@ -516,193 +541,273 @@ export function PluginsPage({
       ) : null}
 
       {/* ---- Content ---- */}
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-        {loading && !overview ? <EmptyState message="Loading..." /> : null}
+      {/* Show detail view for plugin/app/mcp (replaces card grid) */}
+      {selectedManagedRecord && selectedEntityKind === "plugin" && overview ? (
+        <PluginDetailView
+          managedRecord={selectedManagedRecord}
+          overview={overview}
+          onBack={clearSelection}
+          onToggleEnabled={(next) => void runAction(`plugin-enable:${selectedManagedRecord.id}`, async () => await setPluginEnabled({ pluginId: selectedManagedRecord.id, enabled: next }))}
+          onUninstall={() => void runAction(`plugin-uninstall:${selectedManagedRecord.id}`, async () => { await uninstallPlugin({ pluginId: selectedManagedRecord.id }); clearSelection(); }, `Removed ${selectedManagedRecord.displayName}.`)}
+          onNavigateToEntity={(id, kind) => {
+            const tabMap = { skill: "skills", app: "apps", mcp: "mcps" } as const;
+            setActiveTab(tabMap[kind]);
+            selectEntity(id, kind);
+          }}
+          pendingActionKey={pendingActionKey}
+          Toggle={Toggle}
+        />
+      ) : selectedManagedRecord && selectedEntityKind === "app" && overview ? (
+        <AppDetailView
+          managedRecord={selectedManagedRecord}
+          legacyApp={overview.apps.find((a) => a.id === selectedManagedRecord.id)}
+          onBack={clearSelection}
+          onToggleEnabled={(next) => void runAction(`app-enable:${selectedManagedRecord.id}`, async () => await setAppEnabled({ appId: selectedManagedRecord.id, enabled: next }))}
+          onConnect={() => {
+            const legacyApp = overview.apps.find((a) => a.id === selectedManagedRecord.id);
+            if (legacyApp?.installUrl) {
+              void runAction(`app-connect:${selectedManagedRecord.id}`, async () => await openAppInstall({ appId: selectedManagedRecord.id, installUrl: legacyApp.installUrl ?? "" }), `Opened auth flow for ${selectedManagedRecord.displayName}.`);
+            }
+          }}
+          onRemove={() => void runAction(`app-remove:${selectedManagedRecord.id}`, async () => { await removeApp({ appId: selectedManagedRecord.id }); clearSelection(); }, `Removed ${selectedManagedRecord.displayName}.`)}
+          pendingActionKey={pendingActionKey}
+          Toggle={Toggle}
+        />
+      ) : selectedManagedRecord && selectedEntityKind === "mcp" && overview ? (
+        <McpDetailView
+          managedRecord={selectedManagedRecord}
+          legacyMcp={overview.mcpServers.find((m) => m.id === selectedManagedRecord.id)}
+          onBack={clearSelection}
+          onToggleEnabled={(next) => void runAction(`mcp-enable:${selectedManagedRecord.id}`, async () => await setMcpServerEnabled({ serverId: selectedManagedRecord.id, enabled: next }))}
+          pendingActionKey={pendingActionKey}
+          Toggle={Toggle}
+        />
+      ) : (
+        /* Default: show card grids */
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          {loading && !overview ? <EmptyState message="Loading..." /> : null}
 
-        {/* ---------- Plugins ---------- */}
-        {activeTab === "plugins" && overview ? (
-          filteredPlugins.length > 0 ? (
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              {filteredPlugins.map((plugin) => {
-                const authApp = resolvePluginAuth(plugin);
-                const canInstall = !plugin.installed && plugin.installPolicy !== "NOT_AVAILABLE" && Boolean(plugin.marketplacePath);
-                const canUninstall = pluginSource(plugin) === "profile";
-                const installKey = `plugin-install:${plugin.id}`;
-                const enableKey = `plugin-enable:${plugin.id}`;
-                const uninstallKey = `plugin-uninstall:${plugin.id}`;
-                const connectKey = authApp ? `app-connect:${authApp.id}` : null;
-                const needsConnect = plugin.installed && Boolean(authApp?.installUrl);
+          {/* ---------- Plugins ---------- */}
+          {activeTab === "plugins" && overview ? (
+            filteredPlugins.length > 0 ? (
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                {filteredPlugins.map((plugin) => {
+                  const authApp = resolvePluginAuth(plugin);
+                  const canInstall = !plugin.installed && plugin.installPolicy !== "NOT_AVAILABLE" && Boolean(plugin.marketplacePath);
+                  const canUninstall = pluginSource(plugin) === "profile";
+                  const installKey = `plugin-install:${plugin.id}`;
+                  const enableKey = `plugin-enable:${plugin.id}`;
+                  const uninstallKey = `plugin-uninstall:${plugin.id}`;
+                  const connectKey = authApp ? `app-connect:${authApp.id}` : null;
+                  const needsConnect = plugin.installed && Boolean(authApp?.installUrl);
 
-                return (
-                  <article
-                    className={`group flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors ${plugin.enabled ? "bg-surface-soft" : "bg-surface-soft/50"}`}
-                    key={plugin.id}
-                  >
-                    <ExtensionIcon kind="plugin" src={plugin.iconPath} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="truncate text-[13px] font-medium text-ink">{plugin.displayName}</h3>
-                        {!plugin.installed ? <span className="shrink-0 rounded bg-surface-strong px-1.5 py-0.5 text-[10px] text-muted">Available</span> : null}
-                        {needsConnect ? <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-600">Auth</span> : null}
+                  return (
+                    <article
+                      className={`group flex cursor-pointer items-start gap-3 rounded-xl px-3 py-2.5 transition-colors hover:ring-1 hover:ring-accent/30 ${plugin.enabled ? "bg-surface-soft" : "bg-surface-soft/50"}`}
+                      key={plugin.id}
+                      onClick={() => selectEntity(plugin.id, "plugin")}
+                    >
+                      <ExtensionIcon kind="plugin" src={plugin.iconPath} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="truncate text-[13px] font-medium text-ink">{plugin.displayName}</h3>
+                          {!plugin.installed ? <span className="shrink-0 rounded bg-surface-strong px-1.5 py-0.5 text-[10px] text-muted">Available</span> : null}
+                          {needsConnect ? <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-600">Auth</span> : null}
+                        </div>
+                        <p className="mt-0.5 truncate text-[11px] leading-4 text-muted">{plugin.description ?? "No description"}</p>
                       </div>
-                      <p className="mt-0.5 truncate text-[11px] leading-4 text-muted">{plugin.description ?? "No description"}</p>
+                      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+                      <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        {!plugin.installed && canInstall ? (
+                          <Button
+                            className="h-6 rounded-md px-2 text-[11px]"
+                            disabled={pendingActionKey === installKey}
+                            onClick={() => {
+                              const marketplacePath = plugin.marketplacePath;
+                              if (!marketplacePath) return;
+                              void runAction(installKey, async () => await installPlugin({ marketplacePath, pluginId: plugin.id, pluginName: plugin.name }), `Installed ${plugin.displayName}.`);
+                            }}
+                            variant="default"
+                          >
+                            Install
+                          </Button>
+                        ) : null}
+                        {needsConnect ? (
+                          <Button
+                            className="h-6 rounded-md px-2 text-[11px]"
+                            disabled={pendingActionKey === connectKey}
+                            onClick={() => {
+                              if (!authApp) return;
+                              void runAction(connectKey ?? `app-connect:${plugin.id}`, async () => await openAppInstall({ appId: authApp.id, installUrl: authApp.installUrl ?? "" }), `Opened auth flow for ${authApp.name}.`);
+                            }}
+                            variant="secondary"
+                          >
+                            Connect
+                          </Button>
+                        ) : null}
+                        {plugin.installed ? (
+                          <Toggle checked={plugin.enabled} disabled={pendingActionKey === enableKey} onChange={(next) => void runAction(enableKey, async () => await setPluginEnabled({ pluginId: plugin.id, enabled: next }))} />
+                        ) : null}
+                        {(canUninstall || plugin.category) ? (
+                          <OverflowMenu>
+                            {plugin.category ? <OverflowItem onClick={() => {}}>{plugin.category}</OverflowItem> : null}
+                            {canUninstall ? <OverflowItem destructive disabled={pendingActionKey === uninstallKey} onClick={() => void runAction(uninstallKey, async () => await uninstallPlugin({ pluginId: plugin.id }), `Removed ${plugin.displayName}.`)}><Trash2 className="size-3" /> Uninstall</OverflowItem> : null}
+                          </OverflowMenu>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : <EmptyState message="No plugins match the current filters." />
+          ) : null}
+
+          {/* ---------- Apps ---------- */}
+          {activeTab === "apps" && overview ? (
+            filteredApps.length > 0 ? (
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                {filteredApps.map((app) => {
+                  const enableKey = `app-enable:${app.id}`;
+                  const connectKey = `app-connect:${app.id}`;
+                  const needsConnect = !app.isAccessible && Boolean(app.installUrl);
+
+                  return (
+                    <article
+                      className={`group flex cursor-pointer items-start gap-3 rounded-xl px-3 py-2.5 transition-colors hover:ring-1 hover:ring-accent/30 ${app.isEnabled ? "bg-surface-soft" : "bg-surface-soft/50"}`}
+                      key={app.id}
+                      onClick={() => selectEntity(app.id, "app")}
+                    >
+                      <ExtensionIcon kind="app" src={app.logoUrl} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="truncate text-[13px] font-medium text-ink">{app.name}</h3>
+                          {needsConnect ? <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-600">Auth</span> : null}
+                        </div>
+                        <p className="mt-0.5 truncate text-[11px] leading-4 text-muted">{app.description ?? "App connector"}</p>
+                      </div>
+                      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+                      <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        {needsConnect ? (
+                          <Button
+                            className="h-6 rounded-md px-2 text-[11px]"
+                            disabled={pendingActionKey === connectKey}
+                            onClick={() => void runAction(connectKey, async () => await openAppInstall({ appId: app.id, installUrl: app.installUrl ?? "" }), `Opened auth flow for ${app.name}.`)}
+                            variant="secondary"
+                          >
+                            Connect
+                          </Button>
+                        ) : null}
+                        {app.isAccessible ? (
+                          <Toggle checked={app.isEnabled} disabled={pendingActionKey === enableKey} onChange={(next) => void runAction(enableKey, async () => await setAppEnabled({ appId: app.id, enabled: next }))} />
+                        ) : !needsConnect ? (
+                          <Toggle checked={false} disabled />
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : <EmptyState message="No apps match the current filters." />
+          ) : null}
+
+          {/* ---------- MCPs ---------- */}
+          {activeTab === "mcps" && overview ? (
+            filteredMcps.length > 0 ? (
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                {filteredMcps.map((server) => (
+                  <article
+                    className={`group flex cursor-pointer items-start gap-3 rounded-xl px-3 py-2.5 transition-colors hover:ring-1 hover:ring-accent/30 ${server.enabled ? "bg-surface-soft" : "bg-surface-soft/50"}`}
+                    key={server.id}
+                    onClick={() => selectEntity(server.id, "mcp")}
+                  >
+                    <ExtensionIcon kind="mcp" />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-[13px] font-medium text-ink">{server.id}</h3>
+                      <p className="mt-0.5 truncate text-[11px] leading-4 text-muted">
+                        {server.transport?.toUpperCase() ?? "MCP"}
+                        {server.state ? ` · ${server.state}` : ""}
+                        {` · ${server.toolsCount} tools`}
+                        {server.resourcesCount > 0 ? ` · ${server.resourcesCount} res.` : ""}
+                      </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {!plugin.installed && canInstall ? (
-                        <Button
-                          className="h-6 rounded-md px-2 text-[11px]"
-                          disabled={pendingActionKey === installKey}
-                          onClick={() => {
-                            const marketplacePath = plugin.marketplacePath;
-                            if (!marketplacePath) return;
-                            void runAction(installKey, async () => await installPlugin({ marketplacePath, pluginId: plugin.id, pluginName: plugin.name }), `Installed ${plugin.displayName}.`);
-                          }}
-                          variant="default"
-                        >
-                          Install
-                        </Button>
-                      ) : null}
-                      {needsConnect ? (
-                        <Button
-                          className="h-6 rounded-md px-2 text-[11px]"
-                          disabled={pendingActionKey === connectKey}
-                          onClick={() => {
-                            if (!authApp) return;
-                            void runAction(connectKey ?? `app-connect:${plugin.id}`, async () => await openAppInstall({ appId: authApp.id, installUrl: authApp.installUrl ?? "" }), `Opened auth flow for ${authApp.name}.`);
-                          }}
-                          variant="secondary"
-                        >
-                          Connect
-                        </Button>
-                      ) : null}
-                      {plugin.installed ? (
-                        <Toggle checked={plugin.enabled} disabled={pendingActionKey === enableKey} onChange={(next) => void runAction(enableKey, async () => await setPluginEnabled({ pluginId: plugin.id, enabled: next }))} />
-                      ) : null}
-                      {(canUninstall || plugin.category) ? (
-                        <OverflowMenu>
-                          {plugin.category ? <OverflowItem onClick={() => {}}>{plugin.category}</OverflowItem> : null}
-                          {canUninstall ? <OverflowItem destructive disabled={pendingActionKey === uninstallKey} onClick={() => void runAction(uninstallKey, async () => await uninstallPlugin({ pluginId: plugin.id }), `Removed ${plugin.displayName}.`)}><Trash2 className="size-3" /> Uninstall</OverflowItem> : null}
-                        </OverflowMenu>
-                      ) : null}
+                    {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+                    <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      {server.authStatus ? <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-600">{server.authStatus}</span> : null}
+                      <Toggle checked={server.enabled} onChange={(next) => void setMcpServerEnabled({ serverId: server.id, enabled: next })} />
                     </div>
                   </article>
-                );
-              })}
-            </div>
-          ) : <EmptyState message="No plugins match the current filters." />
-        ) : null}
+                ))}
+              </div>
+            ) : <EmptyState message="No MCP servers configured." />
+          ) : null}
 
-        {/* ---------- Apps ---------- */}
-        {activeTab === "apps" && overview ? (
-          filteredApps.length > 0 ? (
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              {filteredApps.map((app) => {
-                const enableKey = `app-enable:${app.id}`;
-                const connectKey = `app-connect:${app.id}`;
-                const needsConnect = !app.isAccessible && Boolean(app.installUrl);
+          {/* ---------- Skills ---------- */}
+          {activeTab === "skills" && overview ? (
+            filteredSkills.length > 0 ? (
+              <div className="grid gap-px sm:grid-cols-2 xl:grid-cols-3">
+                {filteredSkills.map((skill) => {
+                  const canUninstall = skillSource(skill) === "profile";
+                  const uninstallKey = `skill-uninstall:${skill.path}`;
 
-                return (
-                  <article
-                    className={`group flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors ${app.isEnabled ? "bg-surface-soft" : "bg-surface-soft/50"}`}
-                    key={app.id}
-                  >
-                    <ExtensionIcon kind="app" src={app.logoUrl} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="truncate text-[13px] font-medium text-ink">{app.name}</h3>
-                        {needsConnect ? <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-600">Auth</span> : null}
+                  return (
+                    <article
+                      className={`group flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:ring-1 hover:ring-accent/30 ${skill.enabled ? "bg-surface-soft" : "bg-surface-soft/30 opacity-70"}`}
+                      key={skill.path}
+                      onClick={() => selectEntity(skill.path, "skill")}
+                    >
+                      <ExtensionIcon kind="skill" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="truncate text-[13px] font-medium text-ink">{skill.name}</h3>
+                          {skill.scope ? <span className="shrink-0 text-[10px] text-muted">{skill.scope}</span> : null}
+                        </div>
+                        <p className="truncate text-[11px] leading-4 text-muted">{skill.description ?? "No description"}</p>
                       </div>
-                      <p className="mt-0.5 truncate text-[11px] leading-4 text-muted">{app.description ?? "App connector"}</p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {needsConnect ? (
-                        <Button
-                          className="h-6 rounded-md px-2 text-[11px]"
-                          disabled={pendingActionKey === connectKey}
-                          onClick={() => void runAction(connectKey, async () => await openAppInstall({ appId: app.id, installUrl: app.installUrl ?? "" }), `Opened auth flow for ${app.name}.`)}
-                          variant="secondary"
-                        >
-                          Connect
-                        </Button>
-                      ) : null}
-                      {app.isAccessible ? (
-                        <Toggle checked={app.isEnabled} disabled={pendingActionKey === enableKey} onChange={(next) => void runAction(enableKey, async () => await setAppEnabled({ appId: app.id, enabled: next }))} />
-                      ) : !needsConnect ? (
-                        <Toggle checked={false} disabled />
-                      ) : null}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          ) : <EmptyState message="No apps match the current filters." />
-        ) : null}
-
-        {/* ---------- MCPs ---------- */}
-        {activeTab === "mcps" && overview ? (
-          filteredMcps.length > 0 ? (
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              {filteredMcps.map((server) => (
-                <article
-                  className={`group flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors ${server.enabled ? "bg-surface-soft" : "bg-surface-soft/50"}`}
-                  key={server.id}
-                >
-                  <ExtensionIcon kind="mcp" />
-                  <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-[13px] font-medium text-ink">{server.id}</h3>
-                    <p className="mt-0.5 truncate text-[11px] leading-4 text-muted">
-                      {server.transport?.toUpperCase() ?? "MCP"}
-                      {server.state ? ` · ${server.state}` : ""}
-                      {` · ${server.toolsCount} tools`}
-                      {server.resourcesCount > 0 ? ` · ${server.resourcesCount} res.` : ""}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    {server.authStatus ? <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-600">{server.authStatus}</span> : null}
-                    <Toggle checked={server.enabled} onChange={(next) => void setMcpServerEnabled({ serverId: server.id, enabled: next })} />
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : <EmptyState message="No MCP servers configured." />
-        ) : null}
-
-        {/* ---------- Skills ---------- */}
-        {activeTab === "skills" && overview ? (
-          filteredSkills.length > 0 ? (
-            <div className="grid gap-px sm:grid-cols-2 xl:grid-cols-3">
-              {filteredSkills.map((skill) => {
-                const canUninstall = skillSource(skill) === "profile";
-                const uninstallKey = `skill-uninstall:${skill.path}`;
-
-                return (
-                  <article
-                    className={`group flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${skill.enabled ? "bg-surface-soft" : "bg-surface-soft/30 opacity-70"}`}
-                    key={skill.path}
-                  >
-                    <ExtensionIcon kind="skill" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="truncate text-[13px] font-medium text-ink">{skill.name}</h3>
-                        {skill.scope ? <span className="shrink-0 text-[10px] text-muted">{skill.scope}</span> : null}
+                      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+                      <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <Toggle checked={skill.enabled} onChange={(next) => void setSkillEnabled({ path: skill.path, enabled: next })} />
+                        {canUninstall ? (
+                          <OverflowMenu>
+                            <OverflowItem destructive disabled={pendingActionKey === uninstallKey} onClick={() => void runAction(uninstallKey, async () => await uninstallSkill({ path: skill.path }), `Removed ${skill.name}.`)}><Trash2 className="size-3" /> Uninstall</OverflowItem>
+                          </OverflowMenu>
+                        ) : null}
                       </div>
-                      <p className="truncate text-[11px] leading-4 text-muted">{skill.description ?? "No description"}</p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <Toggle checked={skill.enabled} onChange={(next) => void setSkillEnabled({ path: skill.path, enabled: next })} />
-                      {canUninstall ? (
-                        <OverflowMenu>
-                          <OverflowItem destructive disabled={pendingActionKey === uninstallKey} onClick={() => void runAction(uninstallKey, async () => await uninstallSkill({ path: skill.path }), `Removed ${skill.name}.`)}><Trash2 className="size-3" /> Uninstall</OverflowItem>
-                        </OverflowMenu>
-                      ) : null}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          ) : <EmptyState message="No skills match the current filters." />
-        ) : null}
-      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : <EmptyState message="No skills match the current filters." />
+          ) : null}
+        </div>
+      )}
+
+      {/* ---- Skill detail modal (overlay) ---- */}
+      {selectedManagedRecord && selectedEntityKind === "skill" ? (
+        <SkillDetailModal
+          managedRecord={selectedManagedRecord}
+          legacySkill={overview?.skills.find((s) => s.path === selectedManagedRecord.id)}
+          onClose={clearSelection}
+          onToggleEnabled={(next) => {
+            const legacySkill = overview?.skills.find((s) => s.path === selectedManagedRecord.id);
+            if (legacySkill) {
+              void runAction(`skill-enable:${selectedManagedRecord.id}`, async () => await setSkillEnabled({ path: legacySkill.path, enabled: next }));
+            }
+          }}
+          onUninstall={() => {
+            const legacySkill = overview?.skills.find((s) => s.path === selectedManagedRecord.id);
+            if (legacySkill) {
+              void runAction(`skill-uninstall:${selectedManagedRecord.id}`, async () => { await uninstallSkill({ path: legacySkill.path }); clearSelection(); }, `Removed ${selectedManagedRecord.displayName}.`);
+            }
+          }}
+          onOpen={() => {
+            if (selectedManagedRecord.sourcePath) {
+              void window.sense1Desktop.workspace.openFilePath(selectedManagedRecord.sourcePath);
+            }
+          }}
+          pendingActionKey={pendingActionKey}
+          Toggle={Toggle}
+        />
+      ) : null}
     </div>
   );
 }
