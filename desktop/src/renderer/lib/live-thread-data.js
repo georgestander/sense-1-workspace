@@ -1,3 +1,5 @@
+import { resolveInputItemPromptShortcutMatches } from "../../shared/prompt-shortcuts.ts";
+
 function firstString(...values) {
   for (const value of values) {
     if (typeof value !== "string") {
@@ -125,6 +127,11 @@ function fileNameFromPath(value) {
 }
 
 function mapUserMessageContent(content) {
+  const shortcuts = resolveInputItemPromptShortcutMatches(Array.isArray(content) ? content : []).map((match) => ({
+    kind: match.kind,
+    label: match.label,
+    token: match.token,
+  }));
   const text = (Array.isArray(content) ? content : [])
     .filter((entry) => entry?.type === "text" && typeof entry.text === "string")
     .map((entry) => entry.text)
@@ -132,19 +139,24 @@ function mapUserMessageContent(content) {
     .trim();
 
   const attachmentCount = (Array.isArray(content) ? content : []).filter(
-    (entry) => entry?.type === "mention" || entry?.type === "localImage",
+    (entry) => entry?.type === "localImage",
   ).length;
 
-  if (!text && attachmentCount === 0) {
+  if (!text && attachmentCount === 0 && shortcuts.length === 0) {
     return null;
   }
 
   return {
+    promptShortcuts: shortcuts,
     body:
       text ||
-      (attachmentCount === 1
-        ? "Attached 1 file."
-        : `Attached ${attachmentCount} files.`),
+      (shortcuts.length > 0 && attachmentCount === 0
+        ? shortcuts.length === 1
+          ? "Used 1 shortcut."
+          : `Used ${shortcuts.length} shortcuts.`
+        : attachmentCount === 1
+          ? "Attached 1 file."
+          : `Attached ${attachmentCount} files.`),
   };
 }
 
@@ -160,6 +172,7 @@ export function mapItemToThreadEntry(item) {
       kind: "user",
       title: "You",
       body: content.body,
+      ...(content.promptShortcuts.length > 0 ? { promptShortcuts: content.promptShortcuts } : {}),
     };
   }
 

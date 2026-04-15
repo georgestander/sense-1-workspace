@@ -139,6 +139,20 @@ function normalizeRuntimeGrant(grant, fallbackRootPath = null) {
   };
 }
 
+function resolveWritableRoots(workspaceRoot = null, cwd = null, grantRoots = []) {
+  return Array.from(
+    new Set(
+      [
+        workspaceRoot,
+        ...grantRoots,
+        cwd,
+      ]
+        .map((rootPath) => resolveRuntimePath(rootPath))
+        .filter(Boolean),
+    ),
+  );
+}
+
 export function normalizeRuntimeRunContext(runContext, { workspaceRoot = null, cwd = null } = {}) {
   const baseContext = cloneRunContext(runContext);
   if (!baseContext?.actor || !baseContext?.scope || !baseContext?.policy) {
@@ -159,9 +173,10 @@ export function normalizeRuntimeRunContext(runContext, { workspaceRoot = null, c
   };
 }
 
-export function buildTurnSandboxPolicy(sandboxPolicy, workspaceRoot = null, cwd = null) {
+export function buildTurnSandboxPolicy(sandboxPolicy, workspaceRoot = null, cwd = null, grantRoots = []) {
   const resolvedWorkspaceRoot = resolveRuntimePath(workspaceRoot);
   const resolvedCwd = resolveRuntimePath(cwd);
+  const writableRoots = resolveWritableRoots(resolvedWorkspaceRoot, resolvedCwd, grantRoots);
   if (sandboxPolicy === "danger-full-access") {
     return {
       type: "dangerFullAccess",
@@ -169,11 +184,11 @@ export function buildTurnSandboxPolicy(sandboxPolicy, workspaceRoot = null, cwd 
   }
 
   if (sandboxPolicy === "read-only" || sandboxPolicy === "readOnly") {
-    if (!resolvedWorkspaceRoot && resolvedCwd) {
+    if (!resolvedWorkspaceRoot && writableRoots.length > 0) {
       return {
         type: "workspaceWrite",
         networkAccess: true,
-        writableRoots: [resolvedCwd],
+        writableRoots,
       };
     }
 
@@ -182,9 +197,8 @@ export function buildTurnSandboxPolicy(sandboxPolicy, workspaceRoot = null, cwd 
     };
   }
 
-  const writableRoot = resolvedWorkspaceRoot || resolvedCwd;
   if (sandboxPolicy === "workspace-write" || sandboxPolicy === "workspaceWrite") {
-    if (!writableRoot) {
+    if (writableRoots.length === 0) {
       return {
         type: "readOnly",
       };
@@ -193,15 +207,15 @@ export function buildTurnSandboxPolicy(sandboxPolicy, workspaceRoot = null, cwd 
     return {
       type: "workspaceWrite",
       networkAccess: true,
-      writableRoots: [writableRoot],
+      writableRoots,
     };
   }
 
-  if (writableRoot) {
+  if (writableRoots.length > 0) {
     return {
       type: "workspaceWrite",
       networkAccess: true,
-      writableRoots: [writableRoot],
+      writableRoots,
     };
   }
 
@@ -267,17 +281,24 @@ export function buildRunContext(request, workspaceRoot = null) {
   const resolvedWorkspaceRoot = firstString(
     workspaceRoot,
     request?.workspaceRoot,
-    Array.isArray(baseContext.grants) ? firstString(baseContext.grants[0]?.rootPath) : null,
   );
+  const grantRoots = Array.isArray(baseContext.grants)
+    ? baseContext.grants
+        .map((grant) => firstString(grant?.rootPath))
+        .filter(Boolean)
+    : [];
   const executionPolicyMode = firstString(baseContext.policy?.executionPolicyMode);
   const sandboxPolicy = firstString(
     baseContext.policy?.sandboxPolicy,
     executionPolicyMode === "preview" ? "readOnly" : null,
     executionPolicyMode === "auto" || executionPolicyMode === "apply" ? "workspaceWrite" : null,
   ) || (resolvedWorkspaceRoot ? "workspaceWrite" : "readOnly");
-  const resolvedWritableRoot = sandboxPolicy === "workspaceWrite"
-    ? firstString(resolvedWorkspaceRoot, request?.cwd)
-    : null;
+  const resolvedWritableRoots =
+    sandboxPolicy === "workspaceWrite"
+      ? resolveWritableRoots(resolvedWorkspaceRoot, request?.cwd, grantRoots)
+      : !resolvedWorkspaceRoot && request?.cwd
+        ? resolveWritableRoots(null, request?.cwd, grantRoots)
+        : resolveWritableRoots(null, null, grantRoots);
   const approvalPolicy = firstString(
     baseContext.policy?.approvalPolicy,
     executionPolicyMode === "preview" || executionPolicyMode === "auto" || executionPolicyMode === "apply"
@@ -289,14 +310,12 @@ export function buildRunContext(request, workspaceRoot = null) {
   return {
     actor: baseContext.actor,
     scope: baseContext.scope,
-    grants: resolvedWritableRoot
-      ? [
-          {
-            kind: "workspaceRoot",
-            rootPath: resolvedWritableRoot,
-            access: "workspaceWrite",
-          },
-        ]
+    grants: resolvedWritableRoots.length > 0
+      ? resolvedWritableRoots.map((rootPath) => ({
+          kind: "workspaceRoot",
+          rootPath,
+          access: "workspaceWrite",
+        }))
       : [],
     policy: {
       executionPolicyMode: executionPolicyMode || "defaultProfilePrivateScope",

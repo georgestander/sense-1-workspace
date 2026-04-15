@@ -284,6 +284,10 @@ function chooseAppToken(app: DesktopAppRecord): string | null {
   return normalizeShortcutKey(app.name) ?? normalizeShortcutKey(app.id);
 }
 
+function fileBasename(filePath: string): string {
+  return filePath.split(/[\\/]/).filter(Boolean).at(-1) ?? filePath;
+}
+
 function resolveShortcutTargetKind(
   token: string,
   overview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills">,
@@ -692,4 +696,68 @@ export function resolvePromptShortcutInputItems(
   overview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills">,
 ): DesktopAppServerInputItem[] {
   return resolvePromptShortcutMatches(prompt, overview).map((match) => match.item);
+}
+
+export function resolveInputItemPromptShortcutMatches(
+  inputItems: DesktopAppServerInputItem[],
+): DesktopPromptShortcutMatch[] {
+  const matches: DesktopPromptShortcutMatch[] = [];
+  const seenKeys = new Set<string>();
+
+  for (const item of inputItems) {
+    if (item?.type !== "mention") {
+      continue;
+    }
+
+    const itemPath = firstString(item.path);
+    if (!itemPath) {
+      continue;
+    }
+
+    const itemName = firstString(item.name);
+    const normalizedName = normalizeShortcutKey(itemName);
+    const parts = normalizedName?.split(":").filter(Boolean) ?? [];
+    const namespace = parts[0] ?? null;
+    const localName = parts.at(-1) ?? null;
+    const fallbackToken = normalizeShortcutKey(
+      itemPath.startsWith("app://")
+        ? itemPath.slice("app://".length)
+        : fileBasename(itemPath).replace(/\.[^.]+$/u, ""),
+    );
+
+    const kind: DesktopPromptShortcutMatch["kind"] =
+      itemPath.startsWith("app://")
+        ? "app"
+        : parts.length >= 2 && namespace === localName
+          ? "plugin"
+          : "skill";
+    const token = localName ?? normalizedName ?? fallbackToken;
+    if (!token) {
+      continue;
+    }
+
+    const label =
+      kind === "app"
+        ? firstString(itemName, itemPath.slice("app://".length))
+        : kind === "plugin"
+          ? firstString(localName, namespace, itemName)
+          : firstString(localName, itemName, fallbackToken);
+    if (!label) {
+      continue;
+    }
+
+    const key = `${kind}:${itemPath}`;
+    if (seenKeys.has(key)) {
+      continue;
+    }
+    seenKeys.add(key);
+    matches.push({
+      item,
+      kind,
+      label,
+      token,
+    });
+  }
+
+  return matches;
 }

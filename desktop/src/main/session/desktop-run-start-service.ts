@@ -75,12 +75,6 @@ const PROFILE_CODEX_HOME_SHORTCUTS = new Set([
   "skill-installer",
 ]);
 
-const PROFILE_CODEX_HOME_CWD_SHORTCUTS = new Set([
-  "plugin-creator",
-  "skill-creator",
-  "skill-installer",
-]);
-
 function firstShortcutName(inputItems: DesktopAppServerInputItem[]): string[] {
   return inputItems
     .filter((item): item is DesktopAppServerInputItem & { type: "mention"; name?: string } => item.type === "mention")
@@ -123,6 +117,36 @@ function mergeRuntimeInstructions(baseInstructions: string, extraInstruction: st
     return trimmedExtra;
   }
   return `${trimmedBase}\n\n${trimmedExtra}`;
+}
+
+function withAdditionalWritableRoots(
+  runContext: DesktopRunContext,
+  additionalRoots: Array<string | null | undefined>,
+): DesktopRunContext {
+  const uniqueRoots = Array.from(
+    new Set(
+      [
+        ...runContext.grants.map((grant) => grant.rootPath),
+        ...additionalRoots,
+      ]
+        .map((rootPath) => typeof rootPath === "string" ? rootPath.trim() : "")
+        .filter(Boolean)
+        .map((rootPath) => path.resolve(rootPath)),
+    ),
+  );
+
+  if (uniqueRoots.length === 0) {
+    return runContext;
+  }
+
+  return {
+    ...runContext,
+    grants: uniqueRoots.map((rootPath) => ({
+      kind: "workspaceRoot",
+      rootPath,
+      access: "workspaceWrite",
+    })),
+  };
 }
 
 function buildProfileExtensionRuntimeInstruction({
@@ -455,6 +479,7 @@ export class DesktopRunStartService {
       ? resolveSessionArtifactRoot(profileArtifactRoot, attachmentSessionId)
       : effectiveCwd;
 
+    let runtimeRunContext = runContext;
     let result: DesktopStartedTaskRunResult;
     try {
       const normalizedAttachments = await normalizeAttachmentPaths({
@@ -477,11 +502,9 @@ export class DesktopRunStartService {
         }
       }
       const profileCodexHomeShortcutNames = resolveProfileCodexHomeShortcutNames(inputItems);
-      const shouldUseProfileCodexHomeCwd =
-        [...profileCodexHomeShortcutNames].some((name) => PROFILE_CODEX_HOME_CWD_SHORTCUTS.has(name));
-      if (shouldUseProfileCodexHomeCwd) {
-        effectiveCwd = resolveProfileCodexHome(profile.id, this.#env);
-        await fs.mkdir(effectiveCwd, { recursive: true });
+      const profileCodexHome = resolveProfileCodexHome(profile.id, this.#env);
+      if (profileCodexHomeShortcutNames.size > 0) {
+        runtimeRunContext = withAdditionalWritableRoots(runContext, [profileCodexHome]);
       }
       const resolvedRuntimeInstructions = mergeRuntimeInstructions(
         mergeRuntimeInstructions(
@@ -496,7 +519,7 @@ export class DesktopRunStartService {
         ),
         buildProfileExtensionRuntimeInstruction({
           inputItems,
-          profileCodexHome: resolveProfileCodexHome(profile.id, this.#env),
+          profileCodexHome,
           shortcutNames: profileCodexHomeShortcutNames,
         }),
       );
@@ -512,7 +535,7 @@ export class DesktopRunStartService {
         runtimeInstructions: resolvedRuntimeInstructions,
         settings: resolvedSettings.settings as unknown as Record<string, unknown>,
         workspaceRoot: effectiveWorkspaceRoot,
-        runContext,
+        runContext: runtimeRunContext,
       });
     } catch (error) {
       if (pendingSessionId) {
@@ -575,21 +598,21 @@ export class DesktopRunStartService {
       }
     }
 
-    this.#setRunContextByThreadId(result.threadId, result.runContext ?? runContext ?? null);
+    this.#setRunContextByThreadId(result.threadId, result.runContext ?? runtimeRunContext ?? runContext ?? null);
     await recordDesktopPolicyOutcome({
       dbPath: substrateDbPath,
       outcome: runPolicyOutcome,
       recordAuditEvent: (event) => {
         this.#recordAuditEvent(event);
       },
-      runContext: result.runContext ?? runContext ?? null,
+      runContext: result.runContext ?? runtimeRunContext ?? runContext ?? null,
       sessionId: substrateSession?.sessionId ?? null,
       threadId: result.threadId,
       workspaceRoot: effectiveWorkspaceRoot,
     });
     this.#recordAuditEvent({
       eventType: "run.started",
-      runContext: result.runContext ?? runContext ?? null,
+      runContext: result.runContext ?? runtimeRunContext ?? runContext ?? null,
       threadId: result.threadId,
       turnId: result.turnId,
       details: {
@@ -608,7 +631,7 @@ export class DesktopRunStartService {
     }
     await this.#rememberLastSelectedThread({ threadId: result.threadId });
     if (substrateSession?.sessionId) {
-      this.#setRunContextByThreadId(result.threadId, result.runContext ?? runContext ?? null);
+      this.#setRunContextByThreadId(result.threadId, result.runContext ?? runtimeRunContext ?? runContext ?? null);
     }
     await this.#substrateSync.flushDeferredMessages(result.threadId, substrateDbPath);
     await this.#workspaceService.rememberThreadInteractionState(

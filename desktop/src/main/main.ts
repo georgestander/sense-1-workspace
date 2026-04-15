@@ -524,7 +524,12 @@ appServerManager.on("notification", (message) => {
   runtimeFileChangeTracker.observe(message);
   if (threadId) {
     const folderRoot = currentThreadState?.workspaceRoot ?? currentThreadState?.cwd ?? null;
-    const outsideWorkspacePaths = collectOutOfWorkspacePathsFromRuntimeMessage(message, folderRoot);
+    const runContext = desktopSessionController.getThreadRunContext(threadId);
+    const outsideWorkspacePaths = collectOutOfWorkspacePathsFromRuntimeMessage(
+      message,
+      folderRoot,
+      runContext?.grants.map((grant) => grant.rootPath) ?? [],
+    );
     if (outsideWorkspacePaths.length > 0) {
       const blockedPath = outsideWorkspacePaths[0];
       const entryDelta = threadAccumulator.appendSyntheticEntry(threadId, {

@@ -6244,7 +6244,7 @@ test("runDesktopTask resolves native shortcut mentions before starting the turn"
   ]);
 });
 
-test("runDesktopTask routes profile-global creator shortcuts through profile codex home even when folder-bound", async () => {
+test("runDesktopTask keeps folder-bound creator shortcuts inside the selected workspace while granting profile codex home writes", async () => {
   const root = await makeTempRoot();
   const env = createTestEnv(root);
   const workspaceRoot = path.join(root, "workspace-profile-global-shortcuts");
@@ -6374,7 +6374,19 @@ test("runDesktopTask routes profile-global creator shortcuts through profile cod
     threadStart?.params.developerInstructions
     ?? threadStart?.params.config?.developer_instructions
     ?? "";
-  assert.equal(await fs.realpath(turnStart?.params.cwd), await fs.realpath(profileCodexHome));
+  assert.equal(await fs.realpath(turnStart?.params.cwd), await fs.realpath(workspaceRoot));
+  assert.deepEqual(
+    await Promise.all(
+      (turnStart?.params?.settings?.sense1?.runContext?.grants ?? []).map(async (grant) => await fs.realpath(grant.rootPath)),
+    ),
+    await Promise.all([fs.realpath(workspaceRoot), fs.realpath(profileCodexHome)]),
+  );
+  assert.deepEqual(
+    await Promise.all(
+      (turnStart?.params?.sandboxPolicy?.writableRoots ?? []).map(async (rootPath) => await fs.realpath(rootPath)),
+    ),
+    await Promise.all([fs.realpath(workspaceRoot), fs.realpath(profileCodexHome)]),
+  );
   assert.match(
     developerInstructions,
     new RegExp(profileCodexHome.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
