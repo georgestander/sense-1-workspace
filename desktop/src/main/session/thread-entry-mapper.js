@@ -56,7 +56,9 @@ export function mapItemToEntry(item) {
 
   if (item.type === "userMessage") {
     const content = Array.isArray(item.content) ? item.content : [];
-    const promptShortcuts = resolveInputItemPromptShortcutMatches(content).map((match) => ({
+    const shortcutMatches = resolveInputItemPromptShortcutMatches(content);
+    const shortcutItems = new Set(shortcutMatches.map((match) => match.item));
+    const promptShortcuts = shortcutMatches.map((match) => ({
       kind: match.kind,
       label: match.label,
       token: match.token,
@@ -67,7 +69,7 @@ export function mapItemToEntry(item) {
       .join("\n")
       .trim();
     const attachmentCount = content.filter(
-      (entry) => entry?.type === "localImage",
+      (entry) => entry?.type === "localImage" || (entry?.type === "mention" && !shortcutItems.has(entry)),
     ).length;
 
     if (!text && attachmentCount === 0 && promptShortcuts.length === 0) {

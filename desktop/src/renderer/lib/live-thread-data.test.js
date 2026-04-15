@@ -98,6 +98,27 @@ test("buildThreadEntries keeps shortcut mentions so the transcript can render pi
   ]);
 });
 
+test("buildThreadEntries counts non-shortcut mention attachments as files", () => {
+  const entries = buildThreadEntries([
+    {
+      id: "user-file-1",
+      type: "userMessage",
+      content: [
+        { type: "mention", name: "brief.md", path: "/tmp/session/brief.md" },
+      ],
+    },
+  ]);
+
+  assert.deepEqual(entries, [
+    {
+      id: "user-file-1",
+      kind: "user",
+      title: "You",
+      body: "Attached 1 file.",
+    },
+  ]);
+});
+
 test("buildChangeGroups and progress summary reflect live file changes", () => {
   const entries = buildThreadEntries([
     {

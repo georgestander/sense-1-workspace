@@ -55,6 +55,23 @@ function normalizeShortcutKey(value: unknown): string | null {
   return normalized || null;
 }
 
+function normalizeInputItemPath(value: unknown): string | null {
+  const resolved = firstString(value);
+  if (!resolved) {
+    return null;
+  }
+
+  return resolved.replaceAll("\\", "/");
+}
+
+function isPromptShortcutMentionPath(value: unknown): boolean {
+  const normalizedPath = normalizeInputItemPath(value);
+  return Boolean(
+    normalizedPath
+      && (normalizedPath.startsWith("app://") || normalizedPath.endsWith("/SKILL.md")),
+  );
+}
+
 function dedupeKeys(values: Array<string | null | undefined>): string[] {
   const seen = new Set<string>();
   const keys: string[] = [];
@@ -755,7 +772,7 @@ export function resolveInputItemPromptShortcutMatches(
     }
 
     const itemPath = firstString(item.path);
-    if (!itemPath) {
+    if (!itemPath || !isPromptShortcutMentionPath(itemPath)) {
       continue;
     }
 

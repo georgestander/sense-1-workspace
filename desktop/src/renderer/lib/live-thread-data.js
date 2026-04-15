@@ -127,19 +127,22 @@ function fileNameFromPath(value) {
 }
 
 function mapUserMessageContent(content) {
-  const shortcuts = resolveInputItemPromptShortcutMatches(Array.isArray(content) ? content : []).map((match) => ({
+  const normalizedContent = Array.isArray(content) ? content : [];
+  const shortcutMatches = resolveInputItemPromptShortcutMatches(normalizedContent);
+  const shortcutItems = new Set(shortcutMatches.map((match) => match.item));
+  const shortcuts = shortcutMatches.map((match) => ({
     kind: match.kind,
     label: match.label,
     token: match.token,
   }));
-  const text = (Array.isArray(content) ? content : [])
+  const text = normalizedContent
     .filter((entry) => entry?.type === "text" && typeof entry.text === "string")
     .map((entry) => entry.text)
     .join("\n")
     .trim();
 
-  const attachmentCount = (Array.isArray(content) ? content : []).filter(
-    (entry) => entry?.type === "localImage",
+  const attachmentCount = normalizedContent.filter(
+    (entry) => entry?.type === "localImage" || (entry?.type === "mention" && !shortcutItems.has(entry)),
   ).length;
 
   if (!text && attachmentCount === 0 && shortcuts.length === 0) {

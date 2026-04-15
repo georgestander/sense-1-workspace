@@ -2,6 +2,7 @@ export {
   extractPromptShortcutTokens,
   replaceActivePromptShortcut,
   resolveActivePromptShortcutQuery,
+  resolveInputItemPromptShortcutMatches,
   resolvePromptShortcutInputItems,
   resolvePromptShortcutMatches,
   resolvePromptShortcutSuggestions,
