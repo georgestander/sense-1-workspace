@@ -57,6 +57,7 @@ export interface SettingsModalProps {
   settingsModel: string;
   settingsReasoning: string;
   settingsReasoningOptions: string[];
+  settingsServiceTier: "flex" | "fast";
   saveSettingsModelSelection: (nextModel: string) => void;
   availableModels: DesktopModelEntry[];
   currentVersion: string | null;
@@ -82,6 +83,7 @@ export function SettingsModal({
   settingsModel,
   settingsReasoning,
   settingsReasoningOptions,
+  settingsServiceTier,
   saveSettingsModelSelection,
   availableModels,
   currentVersion,
@@ -144,6 +146,7 @@ export function SettingsModal({
                 settingsModel={settingsModel}
                 settingsReasoning={settingsReasoning}
                 settingsReasoningOptions={settingsReasoningOptions}
+                settingsServiceTier={settingsServiceTier}
                 updateState={updateState}
               />
             ) : settingsSection === "team" ? (

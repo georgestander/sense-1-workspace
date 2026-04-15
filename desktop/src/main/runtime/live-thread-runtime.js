@@ -194,6 +194,7 @@ export async function runDesktopTask(
     personality,
     prompt,
     reasoningEffort,
+    serviceTier,
     runContext,
     runtimeInstructions = null,
     settings = null,
@@ -270,6 +271,7 @@ export async function runDesktopTask(
     mode: "default",
     model,
     reasoningEffort,
+    serviceTier,
   });
 
   let turnResult;
@@ -288,6 +290,7 @@ export async function runDesktopTask(
         sense1: {
           executionIntent,
           runContext: productRunContext,
+          serviceTier: firstString(serviceTier) ?? "flex",
         },
       },
     });
@@ -324,6 +327,7 @@ export async function runDesktopTask(
           sense1: {
             executionIntent,
             runContext: productRunContext,
+            serviceTier: firstString(serviceTier) ?? "flex",
           },
         },
       });

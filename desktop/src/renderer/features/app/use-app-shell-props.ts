@@ -47,6 +47,7 @@ type BuildAppShellPropsArgs = {
     settingsOpen: SettingsModalProps["settingsOpen"];
     settingsReasoning: SettingsModalProps["settingsReasoning"];
     settingsReasoningOptions: SettingsModalProps["settingsReasoningOptions"];
+    settingsServiceTier: SettingsModalProps["settingsServiceTier"];
     settingsSaving: SettingsModalProps["settingsSaving"];
     settingsSection: SettingsModalProps["settingsSection"];
     teamSetup: SettingsModalProps["teamSetup"];
@@ -185,6 +186,7 @@ export function useAppShellProps({
     settingsModel: settings.settingsModel,
     settingsReasoning: settings.settingsReasoning,
     settingsReasoningOptions: settings.settingsReasoningOptions,
+    settingsServiceTier: settings.settingsServiceTier,
     saveSettingsModelSelection: settings.saveSettingsModelSelection,
     availableModels: settings.availableModels,
     currentVersion: settings.currentVersion,

@@ -4,6 +4,7 @@ import type { DesktopSettings } from "../../../main/contracts";
 
 const DEFAULT_MODEL = "";
 const DEFAULT_REASONING_EFFORT = "";
+const DEFAULT_SERVICE_TIER = "flex";
 
 function sanitizeSettingsErrorMessage(message: string): string {
   return message
@@ -17,11 +18,13 @@ export function useSettingsController({
   selectedProfileId,
   setModel,
   setReasoning,
+  setServiceTier,
 }: {
   isSignedIn: boolean;
   selectedProfileId: string;
   setModel: (value: string) => void;
   setReasoning: (value: string) => void;
+  setServiceTier: (value: "flex" | "fast") => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsData, setSettingsData] = useState<DesktopSettings | null>(null);
@@ -45,6 +48,7 @@ export function useSettingsController({
       setSettingsData(result.settings);
       setModel(result.settings.model);
       setReasoning(result.settings.reasoningEffort);
+      setServiceTier(result.settings.serviceTier);
     } catch {
       // Use the current visible state as a fallback.
     }
@@ -59,11 +63,12 @@ export function useSettingsController({
       setSettingsSection("general");
       setModel(DEFAULT_MODEL);
       setReasoning(DEFAULT_REASONING_EFFORT);
+      setServiceTier(DEFAULT_SERVICE_TIER);
       return;
     }
 
     void loadSettings();
-  }, [isSignedIn, selectedProfileId, setModel, setReasoning]);
+  }, [isSignedIn, selectedProfileId, setModel, setReasoning, setServiceTier]);
 
   useEffect(() => {
     if (!settingsError) {
@@ -95,6 +100,7 @@ export function useSettingsController({
         setSettingsData(result.settings);
         setModel(result.settings.model);
         setReasoning(result.settings.reasoningEffort);
+        setServiceTier(result.settings.serviceTier);
       }
     } catch (error) {
       const message = sanitizeSettingsErrorMessage(
@@ -108,6 +114,7 @@ export function useSettingsController({
           setSettingsData(result.settings);
           setModel(result.settings.model);
           setReasoning(result.settings.reasoningEffort);
+          setServiceTier(result.settings.serviceTier);
         }
       } catch {
         // Leave the current values visible if reload also fails.

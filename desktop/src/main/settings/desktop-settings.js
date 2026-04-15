@@ -3,6 +3,7 @@ import { DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS } from "../runtime/live-thread-run
 export const DEFAULT_DESKTOP_SETTINGS = Object.freeze({
   model: "gpt-5.4-mini",
   reasoningEffort: "xhigh",
+  serviceTier: "flex",
   personality: "friendly",
   defaultOperatingMode: "auto",
   runtimeInstructions: DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS,
@@ -47,6 +48,15 @@ function normalizePersonality(value) {
 
   if (resolved === "concise" || resolved === "formal" || resolved === "detailed") {
     return "pragmatic";
+  }
+
+  return undefined;
+}
+
+function normalizeServiceTier(value) {
+  const resolved = firstString(value);
+  if (resolved === "flex" || resolved === "fast") {
+    return resolved;
   }
 
   return undefined;
@@ -172,6 +182,7 @@ function normalizeWorkspaceDefaults(value) {
   const workspaceDefaults = {};
   const model = firstString(record.model);
   const reasoningEffort = firstString(record.reasoningEffort);
+  const serviceTier = normalizeServiceTier(record.serviceTier);
   const personality = normalizePersonality(record.personality);
 
   if (model) {
@@ -179,6 +190,9 @@ function normalizeWorkspaceDefaults(value) {
   }
   if (reasoningEffort) {
     workspaceDefaults.reasoningEffort = reasoningEffort;
+  }
+  if (serviceTier) {
+    workspaceDefaults.serviceTier = serviceTier;
   }
   if (personality) {
     workspaceDefaults.personality = personality;
@@ -342,6 +356,7 @@ function buildPatchLayer(patch = {}) {
     workspaceDefaults: {
       ...(patch.model !== undefined ? { model: patch.model } : {}),
       ...(patch.reasoningEffort !== undefined ? { reasoningEffort: patch.reasoningEffort } : {}),
+      ...(patch.serviceTier !== undefined ? { serviceTier: patch.serviceTier } : {}),
       ...(patch.personality !== undefined ? { personality: normalizePersonality(patch.personality) } : {}),
       ...(patch.workspaceDefaults ?? {}),
     },

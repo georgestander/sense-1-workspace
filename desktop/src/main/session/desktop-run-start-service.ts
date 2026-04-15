@@ -316,6 +316,7 @@ export class DesktopRunStartService {
       model: request.model,
       personality: request.personality,
       reasoningEffort: request.reasoningEffort,
+      serviceTier: request.serviceTier,
     });
     const resolvedSettings = resolveDesktopSettings({
       orgPolicy,
@@ -509,6 +510,7 @@ export class DesktopRunStartService {
         model: resolvedModel,
         personality: resolvedPersonality,
         reasoningEffort: resolvedEffort ?? undefined,
+        serviceTier: resolvedSettings.settings.serviceTier === "fast" ? "fast" : "flex",
         runtimeInstructions: resolvedRuntimeInstructions,
         settings: resolvedSettings.settings as unknown as Record<string, unknown>,
         workspaceRoot: effectiveWorkspaceRoot,
