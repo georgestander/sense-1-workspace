@@ -51,6 +51,7 @@ export const DESKTOP_DEFAULT_SETTINGS: DesktopSettings = {
   workspaceFolderBinding: DEFAULT_DESKTOP_SETTINGS.workspaceFolderBinding,
   approvalOperationPosture: DEFAULT_DESKTOP_SETTINGS.approvalOperationPosture,
   approvalTrustedWorkspaces: DEFAULT_DESKTOP_SETTINGS.approvalTrustedWorkspaces,
+  trustedSkillApprovals: DEFAULT_DESKTOP_SETTINGS.trustedSkillApprovals,
 };
 
 type RecordAuditEvent = (input: {

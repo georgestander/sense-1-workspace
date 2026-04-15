@@ -11,6 +11,7 @@ export const DEFAULT_DESKTOP_SETTINGS = Object.freeze({
   sandboxPosture: "workspaceWrite",
   approvalOperationPosture: "askAll",
   approvalTrustedWorkspaces: "",
+  trustedSkillApprovals: [],
   adminApprovalPosture: "requireRisky",
   roleApprovalLevel: "ownerOnly",
   workspaceReadonly: "allow",
@@ -141,6 +142,25 @@ function normalizeApprovalTrustedWorkspaces(value) {
   return value.trim();
 }
 
+function normalizeTrustedSkillApprovals(value) {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const seen = new Set();
+  const approvals = [];
+  for (const entry of value) {
+    const resolved = firstString(entry)?.replaceAll("\\", "/");
+    if (!resolved || seen.has(resolved)) {
+      continue;
+    }
+    seen.add(resolved);
+    approvals.push(resolved);
+  }
+
+  return approvals;
+}
+
 function normalizeRoleApprovalLevel(value) {
   const resolved = firstString(value);
   if (resolved === "ownerOnly" || resolved === "anyAuthenticated") {
@@ -212,6 +232,7 @@ function normalizeApprovalDefaults(value) {
   const sandboxPosture = normalizeSandboxPosture(record.sandboxPosture);
   const approvalOperationPosture = normalizeApprovalOperationPosture(record.approvalOperationPosture);
   const approvalTrustedWorkspaces = normalizeApprovalTrustedWorkspaces(record.approvalTrustedWorkspaces);
+  const trustedSkillApprovals = normalizeTrustedSkillApprovals(record.trustedSkillApprovals);
 
   if (approvalPosture) {
     approvalDefaults.approvalPosture = approvalPosture;
@@ -224,6 +245,9 @@ function normalizeApprovalDefaults(value) {
   }
   if (approvalTrustedWorkspaces !== undefined) {
     approvalDefaults.approvalTrustedWorkspaces = approvalTrustedWorkspaces;
+  }
+  if (trustedSkillApprovals !== undefined) {
+    approvalDefaults.trustedSkillApprovals = trustedSkillApprovals;
   }
 
   return Object.keys(approvalDefaults).length > 0 ? approvalDefaults : undefined;
@@ -310,6 +334,7 @@ function buildLegacyProfileLayer(raw) {
     sandboxPosture: raw.sandboxPosture,
     approvalOperationPosture: raw.approvalOperationPosture,
     approvalTrustedWorkspaces: raw.approvalTrustedWorkspaces,
+    trustedSkillApprovals: raw.trustedSkillApprovals,
   });
   const generalDefaults = normalizeGeneralDefaults(raw);
   const modelRestrictions = normalizeModelRestrictions(raw.modelRestrictions);
@@ -366,6 +391,9 @@ function buildPatchLayer(patch = {}) {
       ...(patch.approvalOperationPosture !== undefined ? { approvalOperationPosture: patch.approvalOperationPosture } : {}),
       ...(patch.approvalTrustedWorkspaces !== undefined
         ? { approvalTrustedWorkspaces: patch.approvalTrustedWorkspaces }
+        : {}),
+      ...(patch.trustedSkillApprovals !== undefined
+        ? { trustedSkillApprovals: patch.trustedSkillApprovals }
         : {}),
       ...(patch.approvalDefaults ?? {}),
     },

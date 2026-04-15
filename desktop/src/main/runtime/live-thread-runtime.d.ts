@@ -108,6 +108,7 @@ export function describePolicyRules(settings?: Record<string, unknown> | null): 
 export function runDesktopTask(
   manager: AppServerProcessManager,
   request: DesktopTaskRunRequest & {
+    readonly onThreadReady?: ((threadId: string) => void | Promise<void>) | null;
     readonly personality?: string | null;
     readonly runtimeInstructions?: string | null;
     readonly settings?: Record<string, unknown> | null;

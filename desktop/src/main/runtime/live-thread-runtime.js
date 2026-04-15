@@ -191,6 +191,7 @@ export async function runDesktopTask(
     cwd,
     inputItems,
     model,
+    onThreadReady = null,
     personality,
     prompt,
     reasoningEffort,
@@ -255,6 +256,9 @@ export async function runDesktopTask(
   });
   thread = ensuredThread.thread;
   resolvedThreadId = ensuredThread.threadId;
+  if (typeof onThreadReady === "function") {
+    await onThreadReady(resolvedThreadId);
+  }
   const turnAttachments = (Array.isArray(attachments) ? attachments : [])
     .map((path) => firstString(path))
     .filter(Boolean);

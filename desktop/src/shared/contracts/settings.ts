@@ -13,6 +13,7 @@ export interface DesktopSettings {
   readonly workspaceFolderBinding: "inherit" | "none";
   readonly approvalOperationPosture: "askAll" | "askRisky" | "autoAll";
   readonly approvalTrustedWorkspaces: string;
+  readonly trustedSkillApprovals: string[];
 }
 
 export interface DesktopSettingsUpdateRequest {

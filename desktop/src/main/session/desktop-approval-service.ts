@@ -9,6 +9,7 @@ import type {
   DesktopTaskRunResult,
 } from "../contracts.ts";
 import { DesktopApprovalResolutionCache } from "./approval-resolution-cache.ts";
+import { commandMatchesSkillApprovalPath } from "../../shared/skill-approval-key.js";
 
 type RecordAuditEventInput = {
   details?: Record<string, unknown>;
@@ -34,7 +35,9 @@ type SyntheticApprovalState = {
 type DesktopApprovalServiceOptions = {
   appendApprovalEvent: (input: ApprovalEventRecord) => Promise<void>;
   loadPersistedApprovals: () => Promise<unknown[]>;
+  loadTrustedSkillApprovals: () => Promise<string[]>;
   persistPendingApprovals: (approvals: DesktopApprovalEvent[]) => Promise<void>;
+  persistTrustedSkillApprovals: (approvals: string[]) => Promise<void>;
   queueApprovalEvent: (input: ApprovalEventRecord) => void;
   recordAuditEvent: (input: RecordAuditEventInput) => void;
   rememberThreadInteractionState: (
@@ -87,7 +90,9 @@ function interactionStateForResolvedApproval(
 export class DesktopApprovalService {
   readonly #appendApprovalEvent: (input: ApprovalEventRecord) => Promise<void>;
   readonly #loadPersistedApprovals: () => Promise<unknown[]>;
+  readonly #loadTrustedSkillApprovals: () => Promise<string[]>;
   readonly #persistPendingApprovals: (approvals: DesktopApprovalEvent[]) => Promise<void>;
+  readonly #persistTrustedSkillApprovals: (approvals: string[]) => Promise<void>;
   readonly #queueApprovalEvent: (input: ApprovalEventRecord) => void;
   readonly #recordAuditEvent: (input: RecordAuditEventInput) => void;
   readonly #rememberThreadInteractionState: (
@@ -101,6 +106,8 @@ export class DesktopApprovalService {
   ) => void;
   readonly #pendingApprovalsById = new Map<number, DesktopApprovalEvent>();
   readonly #syntheticApprovalsById = new Map<number, SyntheticApprovalState>();
+  readonly #threadSkillApprovalsByThreadId = new Map<string, string[]>();
+  readonly #trustedSkillApprovals = new Set<string>();
   readonly #approvalResolutionCache = new DesktopApprovalResolutionCache();
   readonly #locallyResolvedRuntimeApprovalIds = new Set<number>();
   #approvalRestoreReady: Promise<void> = Promise.resolve();
@@ -109,7 +116,9 @@ export class DesktopApprovalService {
   constructor({
     appendApprovalEvent,
     loadPersistedApprovals,
+    loadTrustedSkillApprovals,
     persistPendingApprovals,
+    persistTrustedSkillApprovals,
     queueApprovalEvent,
     recordAuditEvent,
     rememberThreadInteractionState,
@@ -117,7 +126,9 @@ export class DesktopApprovalService {
   }: DesktopApprovalServiceOptions) {
     this.#appendApprovalEvent = appendApprovalEvent;
     this.#loadPersistedApprovals = loadPersistedApprovals;
+    this.#loadTrustedSkillApprovals = loadTrustedSkillApprovals;
     this.#persistPendingApprovals = persistPendingApprovals;
+    this.#persistTrustedSkillApprovals = persistTrustedSkillApprovals;
     this.#queueApprovalEvent = queueApprovalEvent;
     this.#recordAuditEvent = recordAuditEvent;
     this.#rememberThreadInteractionState = rememberThreadInteractionState;
@@ -138,8 +149,27 @@ export class DesktopApprovalService {
     return this.#approvalRestoreReady;
   }
 
+  async reloadTrustedSkillApprovals(): Promise<void> {
+    await this.#reloadTrustedSkillApprovals();
+  }
+
   listPendingApprovals(): DesktopApprovalEvent[] {
     return Array.from(this.#pendingApprovalsById.values());
+  }
+
+  rememberThreadSkillApprovals(threadId: string, approvals: string[]): void {
+    const resolvedThreadId = typeof threadId === "string" ? threadId.trim() : "";
+    const resolvedApprovals = Array.isArray(approvals)
+      ? [...new Set(approvals.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0))]
+      : [];
+    if (!resolvedThreadId) {
+      return;
+    }
+    if (resolvedApprovals.length === 0) {
+      this.#threadSkillApprovalsByThreadId.delete(resolvedThreadId);
+      return;
+    }
+    this.#threadSkillApprovalsByThreadId.set(resolvedThreadId, resolvedApprovals);
   }
 
   allocateSyntheticApprovalId(): number {
@@ -163,6 +193,10 @@ export class DesktopApprovalService {
     if (event.kind === "approvalRequested") {
       const approval = normalizeDesktopApprovalEvent(event.approval, fallbackRunContext);
       if (approval) {
+        if (this.#shouldAutoAcceptTrustedSkillApproval(approval)) {
+          void this.#autoAcceptTrustedSkillApproval(approval);
+          return true;
+        }
         this.#rememberPendingApproval(approval);
       }
       return true;
@@ -233,6 +267,9 @@ export class DesktopApprovalService {
       this.#respondRuntimeApproval(requestId, approval, decision);
 
       if (approval) {
+        if (decision === "acceptForSession") {
+          await this.#rememberTrustedSkillApprovalsForApproval(approval);
+        }
         this.#recordAuditEvent({
           eventType: "run.approval.resolved",
           runContext: approval.runContext,
@@ -274,6 +311,8 @@ export class DesktopApprovalService {
   resetForProfileChange(): void {
     this.#pendingApprovalsById.clear();
     this.#syntheticApprovalsById.clear();
+    this.#threadSkillApprovalsByThreadId.clear();
+    this.#trustedSkillApprovals.clear();
     this.#approvalResolutionCache.clear();
     this.#locallyResolvedRuntimeApprovalIds.clear();
     this.#nextSyntheticApprovalId = -1;
@@ -282,6 +321,7 @@ export class DesktopApprovalService {
 
   async #restorePersistedApprovals(): Promise<void> {
     try {
+      await this.#reloadTrustedSkillApprovals();
       const saved = await this.#loadPersistedApprovals();
       for (const raw of saved) {
         const approval = raw as DesktopApprovalEvent;
@@ -299,6 +339,26 @@ export class DesktopApprovalService {
       await this.#persistPendingApprovals(Array.from(this.#pendingApprovalsById.values()));
     } catch {
       // Non-fatal — best-effort durability.
+    }
+  }
+
+  async #persistTrustedApprovals(): Promise<void> {
+    try {
+      await this.#persistTrustedSkillApprovals(
+        [...this.#trustedSkillApprovals].sort((left, right) => left.localeCompare(right)),
+      );
+    } catch {
+      // Non-fatal — best-effort durability.
+    }
+  }
+
+  async #reloadTrustedSkillApprovals(): Promise<void> {
+    this.#trustedSkillApprovals.clear();
+    const trustedApprovals = await this.#loadTrustedSkillApprovals();
+    for (const approval of trustedApprovals) {
+      if (typeof approval === "string" && approval.trim()) {
+        this.#trustedSkillApprovals.add(approval.trim());
+      }
     }
   }
 
@@ -372,5 +432,58 @@ export class DesktopApprovalService {
       requestId: approval.id,
       verb: approvalEventVerbForDecision(decision),
     });
+  }
+
+  #shouldAutoAcceptTrustedSkillApproval(approval: DesktopApprovalEvent): boolean {
+    if (approval.kind !== "command") {
+      return false;
+    }
+
+    const threadApprovals = this.#threadSkillApprovalsByThreadId.get(approval.threadId) ?? [];
+    return threadApprovals.length > 0
+      && threadApprovals.every((entry) => this.#trustedSkillApprovals.has(entry))
+      && threadApprovals.some((entry) => commandMatchesSkillApprovalPath(approval.command, entry));
+  }
+
+  async #rememberTrustedSkillApprovalsForApproval(approval: DesktopApprovalEvent): Promise<void> {
+    const matchingApprovals = this.#matchingThreadSkillApprovalsForCommand(approval);
+    if (matchingApprovals.length === 0) {
+      return;
+    }
+
+    let changed = false;
+    for (const matchingApproval of matchingApprovals) {
+      if (this.#trustedSkillApprovals.has(matchingApproval)) {
+        continue;
+      }
+      this.#trustedSkillApprovals.add(matchingApproval);
+      changed = true;
+    }
+
+    if (changed) {
+      await this.#persistTrustedApprovals();
+    }
+  }
+
+  #matchingThreadSkillApprovalsForCommand(approval: DesktopApprovalEvent): string[] {
+    if (approval.kind !== "command") {
+      return [];
+    }
+
+    const threadApprovals = this.#threadSkillApprovalsByThreadId.get(approval.threadId) ?? [];
+    return threadApprovals.filter((entry) => commandMatchesSkillApprovalPath(approval.command, entry));
+  }
+
+  async #autoAcceptTrustedSkillApproval(approval: DesktopApprovalEvent): Promise<void> {
+    this.#approvalResolutionCache.rememberResponse(approval, "acceptForSession");
+    this.#locallyResolvedRuntimeApprovalIds.add(approval.id);
+    try {
+      this.#respondRuntimeApproval(approval.id, approval, "acceptForSession");
+      await this.#resolveLocalApproval(approval, "acceptForSession", { persist: false });
+    } catch {
+      this.#locallyResolvedRuntimeApprovalIds.delete(approval.id);
+      this.#approvalResolutionCache.forget(approval.id);
+      this.#rememberPendingApproval(approval);
+    }
   }
 }
