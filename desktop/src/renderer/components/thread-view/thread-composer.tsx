@@ -1,5 +1,5 @@
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from "react";
-import { BrainCircuit, Mic, Paperclip, Send, Square } from "lucide-react";
+import { BrainCircuit, Mic, Paperclip, Send, Square, Zap } from "lucide-react";
 
 import { Button } from "../ui/button";
 import { FastModeSuggestionMenu } from "../composer/fast-mode-suggestion-menu.js";
@@ -274,15 +274,6 @@ function ThreadComposerInner({
           />
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
-          {selectedServiceTier === "fast" ? (
-            <button
-              className="inline-flex items-center gap-1.5 rounded-full bg-[oklch(18%_0.03_55)] px-3 py-1 text-xs font-semibold text-white shadow-[0_8px_20px_rgba(10,15,20,0.12)]"
-              onClick={() => handleServiceTierSelection("flex")}
-              type="button"
-            >
-              Fast mode
-            </button>
-          ) : null}
           <ShortcutPillRow overview={extensionOverview} prompt={deferredThreadPrompt} />
         </div>
         <textarea
@@ -377,6 +368,7 @@ function ThreadComposerInner({
               onClick={() => handleServiceTierSelection(selectedServiceTier === "fast" ? "flex" : "fast")}
               type="button"
             >
+              <Zap className="size-3" />
               Fast
             </button>
           </div>

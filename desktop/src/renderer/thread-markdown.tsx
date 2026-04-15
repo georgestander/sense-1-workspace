@@ -194,6 +194,12 @@ function ThreadMarkdownInner({ children, className, workspaceRoot = null }: Thre
           pre({ children: preChildren, ...rest }) {
             const codeText = extractCodeText(preChildren);
             const language = extractLanguage(preChildren);
+            if (!language && codeText) {
+              const artifactTarget = extractStandaloneArtifactTarget(codeText.trim());
+              if (artifactTarget && resolveArtifactPath(artifactTarget, workspaceRoot)) {
+                return <ArtifactLinkCard href={artifactTarget} workspaceRoot={workspaceRoot}>{getFileName(artifactTarget)}</ArtifactLinkCard>;
+              }
+            }
             return (
               <div className="group relative overflow-hidden rounded bg-canvas">
                 <pre className="px-3 py-2.5 text-[0.75rem] leading-[1.5]" {...(rest as ComponentProps<"pre">)}>{preChildren}</pre>
