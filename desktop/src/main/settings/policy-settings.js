@@ -21,6 +21,7 @@ const ADMIN_APPROVAL_POSTURE_RANK = Object.freeze({
 const DESKTOP_SETTING_KEYS = Object.freeze([
   "model",
   "reasoningEffort",
+  "serviceTier",
   "personality",
   "runtimeInstructions",
   "approvalPosture",
@@ -133,6 +134,10 @@ export function normalizeDesktopSettingsLayer(settings = {}) {
   const reasoningEffort = firstString(record.reasoningEffort);
   if (reasoningEffort) {
     normalized.reasoningEffort = reasoningEffort;
+  }
+  const serviceTier = firstString(record.serviceTier);
+  if (serviceTier === "flex" || serviceTier === "fast") {
+    normalized.serviceTier = serviceTier;
   }
   const personality = normalizePersonality(record.personality, null);
   if (personality) {

@@ -21,6 +21,7 @@ import { shouldShowHomeRightRail } from "./features/app/app-view-visibility.js";
 
 const DEFAULT_MODEL = "";
 const DEFAULT_REASONING_EFFORT = "";
+const DEFAULT_SERVICE_TIER = "flex";
 
 // ---------------------------------------------------------------------------
 // App (orchestrator)
@@ -35,17 +36,19 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [model, setModel] = useState(DEFAULT_MODEL);
   const [reasoning, setReasoning] = useState(DEFAULT_REASONING_EFFORT);
+  const [serviceTier, setServiceTier] = useState<"flex" | "fast">(DEFAULT_SERVICE_TIER);
   const [workInFolder, setWorkInFolder] = useState(false);
   const [folderMenuOpen, setFolderMenuOpen] = useState(false);
   const [workspaceFolder, setWorkspaceFolder] = useState<string | null>(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
-  const sessionState = useDesktopSessionState({ model, reasoningEffort: reasoning });
+  const sessionState = useDesktopSessionState({ model, reasoningEffort: reasoning, serviceTier });
   const settingsController = useSettingsController({
     isSignedIn: sessionState.isSignedIn,
     selectedProfileId: sessionState.selectedProfileId,
     setModel,
     setReasoning,
+    setServiceTier,
   });
   const management = useDesktopManagement({
     enabled: !sessionState.bootstrapLoading && !sessionState.runtimeSetup?.blocked,
@@ -81,11 +84,13 @@ export default function App() {
       model,
       reasoning,
       searchQuery,
+      serviceTier,
       setAccountMenuOpen,
       setFolderMenuOpen,
       setModel,
       setReasoning,
       setSearchQuery,
+      setServiceTier,
       setWorkInFolder,
       setWorkspaceFolder,
       workInFolder,

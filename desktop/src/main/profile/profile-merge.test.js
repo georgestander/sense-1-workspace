@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { canonicalizeSignedInProfile } from "./profile-merge.js";
+import { canonicalizeSignedInProfile, ensurePrimaryDesktopProfile } from "./profile-merge.js";
 import {
   ensureProfileDirectories,
   loadActiveProfileId,
@@ -215,4 +215,76 @@ test("canonicalizeSignedInProfile merges only the selected and explicitly linked
   const sessionIndex = await fs.readFile(path.join(resolveProfileCodexHome(canonicalProfileId, env), "session_index.jsonl"), "utf8");
   assert.equal(sessionIndex.trim().split("\n").length, 2);
   await fs.access(path.join(resolveProfileCodexHome(canonicalProfileId, env), "auth.json"));
+});
+
+test("ensurePrimaryDesktopProfile skips profiles already marked as merged into default", async () => {
+  const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-primary-profile-"));
+  const env = createTestEnv(runtimeRoot);
+  const artifactRoot = path.join(runtimeRoot, "Sense-1");
+
+  try {
+    await fs.mkdir(artifactRoot, { recursive: true });
+    await persistProfileArtifactRoot("default", artifactRoot, env);
+    await persistProfileArtifactRoot("legacy-profile", artifactRoot, env);
+    await persistProfileIdentity("legacy-profile", {
+      mergedIntoProfileId: "default",
+    }, env);
+    await seedCodexHomeProfile("default", env, {
+      threads: [{ id: "thread-default", title: "Default thread" }],
+      withAuth: false,
+    });
+    await seedCodexHomeProfile("legacy-profile", env, {
+      threads: [{ id: "thread-legacy", title: "Legacy thread" }],
+      withAuth: true,
+    });
+    await seedSubstrateSession("default", env, {
+      sessionId: "sess-default",
+      threadId: "thread-default",
+      title: "Default thread",
+    });
+    await seedSubstrateSession("legacy-profile", env, {
+      sessionId: "sess-legacy",
+      threadId: "thread-legacy",
+      title: "Legacy thread",
+    });
+    await fs.writeFile(
+      path.join(runtimeRoot, "profiles", "_active.json"),
+      JSON.stringify({ profile_id: "default", updated_at: "2026-04-15T06:00:00.000Z" }, null, 2),
+      "utf8",
+    );
+
+    const profile = await ensurePrimaryDesktopProfile({ env });
+
+    assert.equal(profile.id, "default");
+
+    const substrateDb = openDatabase(resolveProfileSubstrateDbPath("default", env));
+    try {
+      assert.equal(
+        substrateDb.prepare("SELECT COUNT(*) AS count FROM sessions WHERE profile_id = 'default'").get().count,
+        1,
+      );
+      assert.equal(
+        substrateDb.prepare("SELECT COUNT(*) AS count FROM sessions WHERE codex_thread_id = 'thread-legacy'").get().count,
+        0,
+      );
+    } finally {
+      substrateDb.close();
+    }
+
+    const codexDb = openDatabase(path.join(resolveProfileCodexHome("default", env), "state_5.sqlite"));
+    try {
+      assert.equal(codexDb.prepare("SELECT COUNT(*) AS count FROM threads").get().count, 1);
+      assert.equal(codexDb.prepare("SELECT COUNT(*) AS count FROM threads WHERE id = 'thread-legacy'").get().count, 0);
+    } finally {
+      codexDb.close();
+    }
+
+    const sessionIndex = await fs.readFile(
+      path.join(resolveProfileCodexHome("default", env), "session_index.jsonl"),
+      "utf8",
+    );
+    assert.equal(sessionIndex.trim().split("\n").length, 1);
+  } finally {
+    await fs.rm(runtimeRoot, { recursive: true, force: true });
+  }
 });

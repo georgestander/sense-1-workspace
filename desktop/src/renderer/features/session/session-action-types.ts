@@ -56,6 +56,7 @@ export type DesktopSessionActionDependencies = {
   rememberKnownThreadIds: (threadIds: Iterable<string>, options?: { replace?: boolean }) => void;
   requireDesktopBridge: () => DesktopBridge;
   reasoningEffort: string;
+  serviceTier: "flex" | "fast";
   removeThreadFromLocalState: (threadId: string) => Promise<void>;
   removeWorkspaceFromLocalState: (workspaceRoot: string) => Promise<void>;
   selectedThreadIdRef: MutableRefObject<string | null>;
