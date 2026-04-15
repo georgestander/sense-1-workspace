@@ -15,8 +15,13 @@ import type {
   DesktopManagedExtensionHealthState,
   DesktopManagedExtensionOwnership,
   DesktopManagedExtensionRecord,
+  DesktopMcpServerAuthRequest,
+  DesktopMcpServerAuthResult,
   DesktopMcpServerEnabledRequest,
   DesktopMcpServerRecord,
+  DesktopPluginDetailRequest,
+  DesktopPluginDetailResult,
+  DesktopPluginDetailSkillRecord,
   DesktopPluginInstallRequest,
   DesktopPluginUninstallRequest,
   DesktopPluginEnabledRequest,
@@ -25,6 +30,8 @@ import type {
   DesktopProviderOption,
   DesktopProviderState,
   DesktopSkillEnabledRequest,
+  DesktopSkillDetailRequest,
+  DesktopSkillDetailResult,
   DesktopSkillUninstallRequest,
   DesktopSkillRecord,
 } from "../contracts";
@@ -61,6 +68,15 @@ type PluginInstallResult = {
     id?: string | null;
     installUrl?: string | null;
   }> | null;
+};
+
+type PluginReadResult = {
+  plugin?: Record<string, unknown> | null;
+};
+
+type MpcOAuthLoginResult = {
+  authorizationUrl?: string | null;
+  url?: string | null;
 };
 
 type LocalPluginMetadata = {
@@ -119,6 +135,19 @@ function uniqueStrings(values: Array<string | null | undefined>): string[] {
     unique.push(resolved);
   }
   return unique;
+}
+
+function firstNamedString(value: unknown): string | null {
+  const record = asRecord(value);
+  return firstString(record.id, record.name, record.displayName, typeof value === "string" ? value : null);
+}
+
+function quoteTomlKeyIfNeeded(key: string): string {
+  return /^[A-Za-z0-9_-]+$/u.test(key) ? key : JSON.stringify(key);
+}
+
+function configSectionKeyPath(section: "plugins" | "apps" | "mcp_servers", id: string): string {
+  return `${section}.${quoteTomlKeyIfNeeded(id)}`;
 }
 
 async function fileExists(targetPath: string): Promise<boolean> {
@@ -616,6 +645,41 @@ async function readPluginLocalMetadata(
   };
 }
 
+async function readLocalPluginDetail(
+  plugin: DesktopPluginRecord,
+  profileCodexHome: string,
+): Promise<DesktopPluginDetailResult> {
+  const metadata = await readPluginLocalMetadata(plugin, profileCodexHome);
+  let manifestInterface: Record<string, unknown> = {};
+  try {
+    manifestInterface = asRecord(
+      asRecord(JSON.parse(await fs.readFile(path.join(metadata.sourcePath ?? "", ".codex-plugin", "plugin.json"), "utf8"))).interface,
+    );
+  } catch {}
+
+  return {
+    pluginId: plugin.id,
+    name: plugin.name,
+    displayName: firstString(manifestInterface.displayName, plugin.displayName, plugin.name, plugin.id) ?? plugin.id,
+    description: firstString(manifestInterface.shortDescription, plugin.description),
+    marketplaceName: plugin.marketplaceName,
+    marketplacePath: plugin.marketplacePath,
+    sourcePath: metadata.sourcePath ?? plugin.sourcePath,
+    websiteUrl: firstString(manifestInterface.websiteUrl, plugin.websiteUrl),
+    capabilities: uniqueStrings([
+      ...asStringArray(manifestInterface.capabilities),
+      ...plugin.capabilities,
+    ]),
+    skills: metadata.skills.map((skill) => ({
+      name: skill.name,
+      description: skill.description,
+      path: skill.path,
+    })),
+    apps: metadata.appIds,
+    mcpServers: metadata.mcpServerIds,
+  };
+}
+
 async function enrichPluginsWithLocalMetadata(
   plugins: DesktopPluginRecord[],
   profileCodexHome: string,
@@ -849,6 +913,95 @@ function mcpHealthState(server: DesktopMcpServerRecord, authState: DesktopManage
   return "healthy";
 }
 
+function authActionAvailable(authState: DesktopManagedExtensionAuthState): boolean {
+  return authState === "required" || authState === "failed" || authState === "connected";
+}
+
+function findManagedExtension(
+  overview: DesktopExtensionOverviewResult,
+  kind: DesktopManagedExtensionRecord["kind"],
+  id: string,
+): DesktopManagedExtensionRecord | null {
+  return overview.managedExtensions.find((entry) => entry.kind === kind && entry.id === id) ?? null;
+}
+
+function claimedPluginCompositions(
+  overview: DesktopExtensionOverviewResult,
+  excludedPluginId: string,
+): { appIds: Set<string>; mcpServerIds: Set<string> } {
+  const appIds = new Set<string>();
+  const mcpServerIds = new Set<string>();
+
+  for (const entry of overview.managedExtensions) {
+    if (entry.kind !== "plugin" || entry.id === excludedPluginId || entry.enablementState !== "enabled") {
+      continue;
+    }
+    for (const appId of entry.includedAppIds) {
+      appIds.add(appId);
+    }
+    for (const mcpServerId of entry.includedMcpServerIds) {
+      mcpServerIds.add(mcpServerId);
+    }
+  }
+
+  return { appIds, mcpServerIds };
+}
+
+function pluginCascadeDisableEdits(
+  overview: DesktopExtensionOverviewResult,
+  pluginId: string,
+  appIds: string[],
+  mcpServerIds: string[],
+): Array<{ keyPath: string; mergeStrategy: "upsert"; value: boolean }> {
+  const edits: Array<{ keyPath: string; mergeStrategy: "upsert"; value: boolean }> = [];
+  const claimed = claimedPluginCompositions(overview, pluginId);
+
+  for (const appId of appIds) {
+    if (claimed.appIds.has(appId)) {
+      continue;
+    }
+    edits.push({
+      keyPath: `${configSectionKeyPath("apps", appId)}.enabled`,
+      mergeStrategy: "upsert",
+      value: false,
+    });
+  }
+
+  for (const serverId of mcpServerIds) {
+    if (claimed.mcpServerIds.has(serverId)) {
+      continue;
+    }
+    edits.push({
+      keyPath: `${configSectionKeyPath("mcp_servers", serverId)}.enabled`,
+      mergeStrategy: "upsert",
+      value: false,
+    });
+  }
+
+  return edits;
+}
+
+function pluginDetailSkillsFromRaw(rawSkills: unknown): DesktopPluginDetailSkillRecord[] {
+  if (!Array.isArray(rawSkills)) {
+    return [];
+  }
+
+  return rawSkills
+    .map((skill) => {
+      const name = firstNamedString(skill);
+      if (!name) {
+        return null;
+      }
+      const record = asRecord(skill);
+      return {
+        name,
+        description: firstString(record.description),
+        path: firstString(record.path),
+      } satisfies DesktopPluginDetailSkillRecord;
+    })
+    .filter((skill): skill is DesktopPluginDetailSkillRecord => skill !== null);
+}
+
 function buildManagedExtensions({
   plugins,
   apps,
@@ -922,6 +1075,8 @@ function buildManagedExtensions({
       canOpen: Boolean(plugin.sourcePath),
       canUninstall: pluginOwnership(plugin) === "profile-owned",
       canDisable: plugin.installed,
+      canConnect: authActionAvailable(authState),
+      canReload: false,
     });
   }
 
@@ -950,6 +1105,8 @@ function buildManagedExtensions({
       canOpen: false,
       canUninstall: false,
       canDisable: app.isAccessible,
+      canConnect: authActionAvailable(authState),
+      canReload: false,
     });
   }
 
@@ -978,6 +1135,8 @@ function buildManagedExtensions({
       canOpen: true,
       canUninstall: ownership === "profile-owned",
       canDisable: true,
+      canConnect: false,
+      canReload: false,
     });
   }
 
@@ -1007,6 +1166,8 @@ function buildManagedExtensions({
       canOpen: false,
       canUninstall: false,
       canDisable: true,
+      canConnect: authActionAvailable(authState),
+      canReload: true,
     });
   }
 
@@ -1143,6 +1304,70 @@ export class DesktopExtensionService {
     };
   }
 
+  async readPluginDetail(request: DesktopPluginDetailRequest): Promise<DesktopPluginDetailResult> {
+    const profile = await this.#resolveProfile();
+    const profileCodexHome = resolveProfileCodexHome(profile.id, this.#env);
+    const overview = await this.getOverview({ forceRefetch: true });
+    const plugin = overview.plugins.find((entry) => entry.id === request.pluginId) ?? null;
+    if (!plugin) {
+      throw new Error("Sense-1 could not find that plugin in the current profile.");
+    }
+
+    if (!plugin.marketplacePath) {
+      return await readLocalPluginDetail(plugin, profileCodexHome);
+    }
+
+    const readResult = await this.#requestOrFallback<PluginReadResult | null>(
+      "plugin/read",
+      {
+        marketplacePath: plugin.marketplacePath,
+        pluginId: plugin.id,
+        pluginName: plugin.name,
+      },
+      null,
+    );
+    const readPlugin = asRecord(readResult?.plugin);
+    if (Object.keys(readPlugin).length === 0) {
+      return await readLocalPluginDetail(plugin, profileCodexHome);
+    }
+
+    const interfaceRecord = asRecord(readPlugin.interface);
+    const metadata = await readPluginLocalMetadata(plugin, profileCodexHome);
+    const skills = pluginDetailSkillsFromRaw(readPlugin.skills);
+    const apps = uniqueStrings([
+      ...asStringArray(readPlugin.apps).map((entry) => firstString(entry)),
+      ...((Array.isArray(readPlugin.apps) ? readPlugin.apps : []).map((entry) => firstNamedString(entry))),
+      ...metadata.appIds,
+    ]);
+    const mcpServers = uniqueStrings([
+      ...asStringArray(readPlugin.mcpServers).map((entry) => firstString(entry)),
+      ...((Array.isArray(readPlugin.mcpServers) ? readPlugin.mcpServers : []).map((entry) => firstNamedString(entry))),
+      ...metadata.mcpServerIds,
+    ]);
+
+    return {
+      pluginId: plugin.id,
+      name: plugin.name,
+      displayName: firstString(interfaceRecord.displayName, plugin.displayName, plugin.name, plugin.id) ?? plugin.id,
+      description: firstString(interfaceRecord.shortDescription, plugin.description),
+      marketplaceName: plugin.marketplaceName,
+      marketplacePath: plugin.marketplacePath,
+      sourcePath: firstString(asRecord(readPlugin.source).path, metadata.sourcePath, plugin.sourcePath),
+      websiteUrl: firstString(interfaceRecord.websiteUrl, plugin.websiteUrl),
+      capabilities: uniqueStrings([
+        ...asStringArray(interfaceRecord.capabilities),
+        ...plugin.capabilities,
+      ]),
+      skills: skills.length > 0 ? skills : metadata.skills.map((skill) => ({
+        name: skill.name,
+        description: skill.description,
+        path: skill.path,
+      })),
+      apps,
+      mcpServers,
+    };
+  }
+
   async installPlugin(request: DesktopPluginInstallRequest): Promise<DesktopExtensionOverviewResult> {
     const result = await this.#manager.request("plugin/install", {
       marketplacePath: request.marketplacePath,
@@ -1154,8 +1379,11 @@ export class DesktopExtensionService {
       postInstallOverview.plugins.find((plugin) => plugin.id === request.pluginId)
       ?? postInstallOverview.plugins.find((plugin) => plugin.name === request.pluginName)
       ?? null;
-    const installedPluginId = firstString(installedPlugin?.id, request.pluginId);
+    const installedManagedPlugin =
+      installedPlugin ? findManagedExtension(postInstallOverview, "plugin", installedPlugin.id) : null;
+    const installedPluginId = firstString(installedPlugin?.id, request.pluginId) ?? request.pluginId;
     const appIdsToEnable = new Set<string>(installedPlugin?.appIds ?? []);
+    const mcpServerIdsToEnable = new Set<string>(installedManagedPlugin?.includedMcpServerIds ?? []);
     const batchEdits: Array<{ keyPath: string; mergeStrategy: "upsert"; value: unknown }> = [];
     const authUrls = new Set<string>();
 
@@ -1180,14 +1408,22 @@ export class DesktopExtensionService {
     }
 
     batchEdits.push({
-      keyPath: `plugins.${installedPluginId}.enabled`,
+      keyPath: `${configSectionKeyPath("plugins", installedPluginId)}.enabled`,
       mergeStrategy: "upsert",
       value: true,
     });
 
     for (const appId of appIdsToEnable) {
       batchEdits.push({
-        keyPath: `apps.${appId}.enabled`,
+        keyPath: `${configSectionKeyPath("apps", appId)}.enabled`,
+        mergeStrategy: "upsert",
+        value: true,
+      });
+    }
+
+    for (const serverId of mcpServerIdsToEnable) {
+      batchEdits.push({
+        keyPath: `${configSectionKeyPath("mcp_servers", serverId)}.enabled`,
         mergeStrategy: "upsert",
         value: true,
       });
@@ -1197,6 +1433,9 @@ export class DesktopExtensionService {
       edits: batchEdits,
     });
     await this.#restartRuntimeIfSupported("plugin-install");
+    if (mcpServerIdsToEnable.size > 0) {
+      await this.#manager.request("config/mcpServer/reload", {});
+    }
 
     const finalOverview = await this.getOverview({ forceRefetch: true });
     if (authUrls.size === 0 && appIdsToEnable.size > 0) {
@@ -1223,34 +1462,58 @@ export class DesktopExtensionService {
     const profileCodexHome = resolveProfileCodexHome(profile.id, this.#env);
     const currentOverview = await this.getOverview({ forceRefetch: true });
     const plugin = currentOverview.plugins.find((entry) => entry.id === request.pluginId) ?? null;
+    const managedPlugin = findManagedExtension(currentOverview, "plugin", request.pluginId);
     if (!plugin) {
       throw new Error("Sense-1 could not find that plugin in the current profile.");
     }
 
     const removablePluginRoot = firstString(plugin.sourcePath);
-    if (!removablePluginRoot || !isSubpath(profileCodexHome, removablePluginRoot)) {
-      throw new Error("This plugin is not profile-owned, so Sense-1 can only disable it right now.");
+    const profileOwnedPlugin = Boolean(removablePluginRoot && isSubpath(profileCodexHome, removablePluginRoot));
+    let uninstalledViaRuntime = false;
+
+    if (plugin.marketplacePath) {
+      try {
+        await this.#manager.request("plugin/uninstall", {
+          marketplacePath: plugin.marketplacePath,
+          pluginId: plugin.id,
+          pluginName: plugin.name,
+        });
+        uninstalledViaRuntime = true;
+      } catch (error) {
+        if (!profileOwnedPlugin) {
+          throw error;
+        }
+      }
     }
 
-    await fs.rm(removablePluginRoot, { force: true, recursive: true });
-    const marketplacePath = firstString(plugin.marketplacePath);
-    if (marketplacePath && isSubpath(profileCodexHome, marketplacePath)) {
-      await removeProfileMarketplacePluginEntry(marketplacePath, plugin);
+    if (!uninstalledViaRuntime) {
+      if (!profileOwnedPlugin || !removablePluginRoot) {
+        throw new Error("This plugin is not profile-owned, so Sense-1 could not remove it locally.");
+      }
+      await fs.rm(removablePluginRoot, { force: true, recursive: true });
+      const marketplacePath = firstString(plugin.marketplacePath);
+      if (marketplacePath && isSubpath(profileCodexHome, marketplacePath)) {
+        await removeProfileMarketplacePluginEntry(marketplacePath, plugin);
+      }
     }
     await this.#manager.request("config/batchWrite", {
       edits: [
         {
-          keyPath: `plugins.${request.pluginId}.enabled`,
+          keyPath: `${configSectionKeyPath("plugins", request.pluginId)}.enabled`,
           mergeStrategy: "upsert",
           value: false,
         },
-        ...plugin.appIds.map((appId) => ({
-          keyPath: `apps.${appId}.enabled`,
-          mergeStrategy: "upsert" as const,
-          value: false,
-        })),
+        ...pluginCascadeDisableEdits(
+          currentOverview,
+          request.pluginId,
+          plugin.appIds,
+          managedPlugin?.includedMcpServerIds ?? [],
+        ),
       ],
     });
+    if ((managedPlugin?.includedMcpServerIds.length ?? 0) > 0) {
+      await this.#manager.request("config/mcpServer/reload", {});
+    }
     await this.#restartRuntimeIfSupported("plugin-uninstall");
     return await this.getOverview({ forceRefetch: true });
   }
@@ -1258,10 +1521,12 @@ export class DesktopExtensionService {
   async setPluginEnabled(request: DesktopPluginEnabledRequest): Promise<DesktopExtensionOverviewResult> {
     const currentOverview = await this.getOverview();
     const plugin = currentOverview.plugins.find((entry) => entry.id === request.pluginId) ?? null;
+    const managedPlugin = findManagedExtension(currentOverview, "plugin", request.pluginId);
+    const includedMcpServerIds = managedPlugin?.includedMcpServerIds ?? [];
 
     const edits: Array<{ keyPath: string; mergeStrategy: "upsert"; value: unknown }> = [
       {
-        keyPath: `plugins.${request.pluginId}.enabled`,
+        keyPath: `${configSectionKeyPath("plugins", request.pluginId)}.enabled`,
         mergeStrategy: "upsert",
         value: request.enabled,
       },
@@ -1275,34 +1540,40 @@ export class DesktopExtensionService {
       });
       for (const appId of plugin.appIds) {
         edits.push({
-          keyPath: `apps.${appId}.enabled`,
+          keyPath: `${configSectionKeyPath("apps", appId)}.enabled`,
           mergeStrategy: "upsert",
           value: true,
         });
       }
     }
 
-    if (!request.enabled && plugin?.appIds.length) {
-      const claimedAppIds = new Set(
-        currentOverview.plugins
-          .filter((entry) => entry.id !== request.pluginId && entry.enabled)
-          .flatMap((entry) => entry.appIds),
-      );
-      for (const appId of plugin.appIds) {
-        if (claimedAppIds.has(appId)) {
-          continue;
-        }
+    if (request.enabled) {
+      for (const serverId of includedMcpServerIds) {
         edits.push({
-          keyPath: `apps.${appId}.enabled`,
+          keyPath: `${configSectionKeyPath("mcp_servers", serverId)}.enabled`,
           mergeStrategy: "upsert",
-          value: false,
+          value: true,
         });
       }
+    }
+
+    if (!request.enabled) {
+      edits.push(
+        ...pluginCascadeDisableEdits(
+          currentOverview,
+          request.pluginId,
+          plugin?.appIds ?? [],
+          includedMcpServerIds,
+        ),
+      );
     }
 
     await this.#manager.request("config/batchWrite", {
       edits,
     });
+    if (includedMcpServerIds.length > 0) {
+      await this.#manager.request("config/mcpServer/reload", {});
+    }
     await this.#restartRuntimeIfSupported("plugin-enabled");
     return await this.getOverview({ forceRefetch: true });
   }
@@ -1316,7 +1587,7 @@ export class DesktopExtensionService {
           value: true,
         },
         {
-          keyPath: `apps.${request.appId}.enabled`,
+          keyPath: `${configSectionKeyPath("apps", request.appId)}.enabled`,
           mergeStrategy: "upsert",
           value: true,
         },
@@ -1331,7 +1602,7 @@ export class DesktopExtensionService {
     await this.#manager.request("config/batchWrite", {
       edits: [
         {
-          keyPath: `apps.${request.appId}.enabled`,
+          keyPath: `${configSectionKeyPath("apps", request.appId)}.enabled`,
           mergeStrategy: "upsert",
           value: false,
         },
@@ -1350,7 +1621,7 @@ export class DesktopExtensionService {
           value: true,
         },
         {
-          keyPath: `apps.${request.appId}.enabled`,
+          keyPath: `${configSectionKeyPath("apps", request.appId)}.enabled`,
           mergeStrategy: "upsert",
           value: request.enabled,
         },
@@ -1360,14 +1631,48 @@ export class DesktopExtensionService {
     return await this.getOverview({ forceRefetch: true });
   }
 
+  async startMcpServerAuth(request: DesktopMcpServerAuthRequest): Promise<DesktopMcpServerAuthResult> {
+    const result = await this.#manager.request("mcpServer/oauth/login", {
+      id: request.serverId,
+      serverId: request.serverId,
+    }) as MpcOAuthLoginResult;
+    const authorizationUrl = firstString(result.authorizationUrl, result.url);
+    if (!authorizationUrl) {
+      throw new Error("Sense-1 could not start MCP authentication for that server.");
+    }
+
+    await this.#openExternal(authorizationUrl);
+    return {
+      authorizationUrl,
+      overview: await this.getOverview({ forceRefetch: true }),
+    };
+  }
+
   async setMcpServerEnabled(request: DesktopMcpServerEnabledRequest): Promise<DesktopExtensionOverviewResult> {
     await this.#manager.request("config/value/write", {
-      keyPath: `mcp_servers.${request.serverId}.enabled`,
+      keyPath: `${configSectionKeyPath("mcp_servers", request.serverId)}.enabled`,
       mergeStrategy: "upsert",
       value: request.enabled,
     });
     await this.#manager.request("config/mcpServer/reload", {});
     return await this.getOverview({ forceRefetch: true });
+  }
+
+  async readSkillDetail(request: DesktopSkillDetailRequest): Promise<DesktopSkillDetailResult> {
+    const overview = await this.getOverview();
+    const skill = overview.skills.find((entry) => path.resolve(entry.path) === path.resolve(request.path)) ?? null;
+    if (!skill) {
+      throw new Error("Sense-1 could not find that skill in the current profile.");
+    }
+
+    return {
+      path: skill.path,
+      name: skill.name,
+      description: skill.description,
+      scope: skill.scope,
+      cwd: skill.cwd,
+      content: await fs.readFile(skill.path, "utf8"),
+    };
   }
 
   async setSkillEnabled(request: DesktopSkillEnabledRequest): Promise<DesktopExtensionOverviewResult> {

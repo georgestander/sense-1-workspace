@@ -6,6 +6,8 @@ import {
   type DesktopAppRemoveRequest,
   type DesktopAppInstallRequest,
   type DesktopAppEnabledRequest,
+  type DesktopMcpServerAuthRequest,
+  type DesktopMcpServerAuthResult,
   type DesktopAutomationDeleteRequest,
   type DesktopAutomationDetailResult,
   type DesktopAutomationListResult,
@@ -17,12 +19,16 @@ import {
   type DesktopInputResponseRequest,
   type DesktopInterruptTurnRequest,
   type DesktopMcpServerEnabledRequest,
+  type DesktopPluginDetailRequest,
+  type DesktopPluginDetailResult,
   type DesktopPolicyRulesResult,
   type DesktopPluginEnabledRequest,
   type DesktopPluginInstallRequest,
   type DesktopPluginUninstallRequest,
   type DesktopQueueTurnInputRequest,
   type DesktopSkillUninstallRequest,
+  type DesktopSkillDetailRequest,
+  type DesktopSkillDetailResult,
   type DesktopSkillEnabledRequest,
   type DesktopSteerTurnRequest,
   type DesktopSteerTurnResult,
@@ -128,13 +134,16 @@ type DesktopIpcServices = {
   getDesktopPolicyRules(): Promise<DesktopPolicyRulesResult>;
   updateDesktopSettings(request: DesktopSettingsUpdateRequest): Promise<DesktopSettingsResult>;
   getDesktopExtensionOverview(request?: DesktopExtensionOverviewRequest): Promise<DesktopExtensionOverviewResult>;
+  readDesktopPluginDetail(request: DesktopPluginDetailRequest): Promise<DesktopPluginDetailResult>;
   installDesktopPlugin(request: DesktopPluginInstallRequest): Promise<DesktopExtensionOverviewResult>;
   uninstallDesktopPlugin(request: DesktopPluginUninstallRequest): Promise<DesktopExtensionOverviewResult>;
   setDesktopPluginEnabled(request: DesktopPluginEnabledRequest): Promise<DesktopExtensionOverviewResult>;
   openDesktopAppInstall(request: DesktopAppInstallRequest): Promise<DesktopExtensionOverviewResult>;
   removeDesktopApp(request: DesktopAppRemoveRequest): Promise<DesktopExtensionOverviewResult>;
   setDesktopAppEnabled(request: DesktopAppEnabledRequest): Promise<DesktopExtensionOverviewResult>;
+  startDesktopMcpServerAuth(request: DesktopMcpServerAuthRequest): Promise<DesktopMcpServerAuthResult>;
   setDesktopMcpServerEnabled(request: DesktopMcpServerEnabledRequest): Promise<DesktopExtensionOverviewResult>;
+  readDesktopSkillDetail(request: DesktopSkillDetailRequest): Promise<DesktopSkillDetailResult>;
   setDesktopSkillEnabled(request: DesktopSkillEnabledRequest): Promise<DesktopExtensionOverviewResult>;
   uninstallDesktopSkill(request: DesktopSkillUninstallRequest): Promise<DesktopExtensionOverviewResult>;
   getDesktopTeamState(): Promise<DesktopTeamStateResult>;
@@ -362,6 +371,13 @@ export function registerDesktopIpcHandlers(services: DesktopIpcServices): void {
   );
 
   ipcMain.handle(
+    IPC_CHANNELS.readDesktopPluginDetail,
+    async (_event, request: DesktopPluginDetailRequest): Promise<DesktopPluginDetailResult> => {
+      return await services.readDesktopPluginDetail(request);
+    },
+  );
+
+  ipcMain.handle(
     IPC_CHANNELS.installDesktopPlugin,
     async (_event, request: DesktopPluginInstallRequest): Promise<DesktopExtensionOverviewResult> => {
       return await services.installDesktopPlugin(request);
@@ -404,9 +420,23 @@ export function registerDesktopIpcHandlers(services: DesktopIpcServices): void {
   );
 
   ipcMain.handle(
+    IPC_CHANNELS.startDesktopMcpServerAuth,
+    async (_event, request: DesktopMcpServerAuthRequest): Promise<DesktopMcpServerAuthResult> => {
+      return await services.startDesktopMcpServerAuth(request);
+    },
+  );
+
+  ipcMain.handle(
     IPC_CHANNELS.setDesktopMcpServerEnabled,
     async (_event, request: DesktopMcpServerEnabledRequest): Promise<DesktopExtensionOverviewResult> => {
       return await services.setDesktopMcpServerEnabled(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.readDesktopSkillDetail,
+    async (_event, request: DesktopSkillDetailRequest): Promise<DesktopSkillDetailResult> => {
+      return await services.readDesktopSkillDetail(request);
     },
   );
 

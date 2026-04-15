@@ -31,16 +31,22 @@ import type {
   DesktopInputResponseRequest,
   DesktopInterruptTurnRequest,
   DesktopLastSelectedThreadRequest,
+  DesktopMcpServerAuthRequest,
+  DesktopMcpServerAuthResult,
   DesktopMcpServerEnabledRequest,
   DesktopRuntimeEvent,
   DesktopRunContext,
   DesktopPolicyRulesResult,
   DesktopPluginEnabledRequest,
+  DesktopPluginDetailRequest,
+  DesktopPluginDetailResult,
   DesktopPluginInstallRequest,
   DesktopPluginUninstallRequest,
   DesktopTaskRunRequest,
   DesktopTaskRunResult,
   DesktopSkillEnabledRequest,
+  DesktopSkillDetailRequest,
+  DesktopSkillDetailResult,
   DesktopSkillUninstallRequest,
   DesktopThreadArchiveRequest,
   DesktopThreadDeleteRequest,
@@ -837,6 +843,12 @@ export class DesktopSessionController {
     return await this.#desktopExtensions.getOverview(request);
   }
 
+  async readDesktopPluginDetail(
+    request: DesktopPluginDetailRequest,
+  ): Promise<DesktopPluginDetailResult> {
+    return await this.#desktopExtensions.readPluginDetail(request);
+  }
+
   async installDesktopPlugin(
     request: DesktopPluginInstallRequest,
   ): Promise<DesktopExtensionOverviewResult> {
@@ -873,10 +885,22 @@ export class DesktopSessionController {
     return await this.#desktopExtensions.setAppEnabled(request);
   }
 
+  async startDesktopMcpServerAuth(
+    request: DesktopMcpServerAuthRequest,
+  ): Promise<DesktopMcpServerAuthResult> {
+    return await this.#desktopExtensions.startMcpServerAuth(request);
+  }
+
   async setDesktopMcpServerEnabled(
     request: DesktopMcpServerEnabledRequest,
   ): Promise<DesktopExtensionOverviewResult> {
     return await this.#desktopExtensions.setMcpServerEnabled(request);
+  }
+
+  async readDesktopSkillDetail(
+    request: DesktopSkillDetailRequest,
+  ): Promise<DesktopSkillDetailResult> {
+    return await this.#desktopExtensions.readSkillDetail(request);
   }
 
   async setDesktopSkillEnabled(
