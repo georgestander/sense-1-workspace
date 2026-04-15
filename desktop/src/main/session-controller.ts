@@ -824,7 +824,11 @@ export class DesktopSessionController {
   }
 
   async updateDesktopSettings(partial: DesktopSettingsPatch): Promise<DesktopSettingsResult> {
-    return await this.#desktopSettings.updateDesktopSettings(partial);
+    const result = await this.#desktopSettings.updateDesktopSettings(partial);
+    if (Object.hasOwn(partial, "trustedSkillApprovals")) {
+      await this.#approvals.reloadTrustedSkillApprovals();
+    }
+    return result;
   }
 
   async getDesktopExtensionOverview(

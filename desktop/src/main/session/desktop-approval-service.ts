@@ -149,6 +149,10 @@ export class DesktopApprovalService {
     return this.#approvalRestoreReady;
   }
 
+  async reloadTrustedSkillApprovals(): Promise<void> {
+    await this.#reloadTrustedSkillApprovals();
+  }
+
   listPendingApprovals(): DesktopApprovalEvent[] {
     return Array.from(this.#pendingApprovalsById.values());
   }
@@ -264,7 +268,7 @@ export class DesktopApprovalService {
 
       if (approval) {
         if (decision === "acceptForSession") {
-          await this.#rememberTrustedSkillApprovals(approval.threadId);
+          await this.#rememberTrustedSkillApprovalsForApproval(approval);
         }
         this.#recordAuditEvent({
           eventType: "run.approval.resolved",
@@ -317,12 +321,7 @@ export class DesktopApprovalService {
 
   async #restorePersistedApprovals(): Promise<void> {
     try {
-      const trustedApprovals = await this.#loadTrustedSkillApprovals();
-      for (const approval of trustedApprovals) {
-        if (typeof approval === "string" && approval.trim()) {
-          this.#trustedSkillApprovals.add(approval.trim());
-        }
-      }
+      await this.#reloadTrustedSkillApprovals();
       const saved = await this.#loadPersistedApprovals();
       for (const raw of saved) {
         const approval = raw as DesktopApprovalEvent;
@@ -350,6 +349,16 @@ export class DesktopApprovalService {
       );
     } catch {
       // Non-fatal — best-effort durability.
+    }
+  }
+
+  async #reloadTrustedSkillApprovals(): Promise<void> {
+    this.#trustedSkillApprovals.clear();
+    const trustedApprovals = await this.#loadTrustedSkillApprovals();
+    for (const approval of trustedApprovals) {
+      if (typeof approval === "string" && approval.trim()) {
+        this.#trustedSkillApprovals.add(approval.trim());
+      }
     }
   }
 
@@ -436,24 +445,33 @@ export class DesktopApprovalService {
       && threadApprovals.some((entry) => commandMatchesSkillApprovalPath(approval.command, entry));
   }
 
-  async #rememberTrustedSkillApprovals(threadId: string): Promise<void> {
-    const threadApprovals = this.#threadSkillApprovalsByThreadId.get(threadId) ?? [];
-    if (threadApprovals.length === 0) {
+  async #rememberTrustedSkillApprovalsForApproval(approval: DesktopApprovalEvent): Promise<void> {
+    const matchingApprovals = this.#matchingThreadSkillApprovalsForCommand(approval);
+    if (matchingApprovals.length === 0) {
       return;
     }
 
     let changed = false;
-    for (const approval of threadApprovals) {
-      if (this.#trustedSkillApprovals.has(approval)) {
+    for (const matchingApproval of matchingApprovals) {
+      if (this.#trustedSkillApprovals.has(matchingApproval)) {
         continue;
       }
-      this.#trustedSkillApprovals.add(approval);
+      this.#trustedSkillApprovals.add(matchingApproval);
       changed = true;
     }
 
     if (changed) {
       await this.#persistTrustedApprovals();
     }
+  }
+
+  #matchingThreadSkillApprovalsForCommand(approval: DesktopApprovalEvent): string[] {
+    if (approval.kind !== "command") {
+      return [];
+    }
+
+    const threadApprovals = this.#threadSkillApprovalsByThreadId.get(approval.threadId) ?? [];
+    return threadApprovals.filter((entry) => commandMatchesSkillApprovalPath(approval.command, entry));
   }
 
   async #autoAcceptTrustedSkillApproval(approval: DesktopApprovalEvent): Promise<void> {

@@ -7579,6 +7579,344 @@ test("trusted skill approvals persist across controller sessions until the skill
   assert.equal(thirdBootstrap.pendingApprovals[0]?.id, 603);
 });
 
+test("acceptForSession only trusts the skill that matched the approved command", async () => {
+  const root = await makeTempRoot();
+  const env = createTestEnv(root);
+  const workspaceRoot = path.join(root, "workspace-skill-trust-multi");
+  await fs.mkdir(workspaceRoot, { recursive: true });
+  await grantWorkspaceReadPermission(env, workspaceRoot);
+
+  const profileCodexHome = resolveProfileCodexHome(CANONICAL_PROFILE_ID, env);
+  const autopilotDir = path.join(profileCodexHome, "skills", "autopilot");
+  const autopilotPath = path.join(autopilotDir, "SKILL.md");
+  const virwordDir = path.join(profileCodexHome, "skills", "virword");
+  const virwordPath = path.join(virwordDir, "SKILL.md");
+  await fs.mkdir(autopilotDir, { recursive: true });
+  await fs.mkdir(virwordDir, { recursive: true });
+  await fs.writeFile(autopilotPath, "# Autopilot\n", "utf8");
+  await fs.writeFile(virwordPath, "# Virword\n", "utf8");
+
+  const manager = {
+    handleProfileChange: async () => {},
+    off: () => {},
+    on: () => {},
+    request: async (method) => {
+      if (method === "account/read") {
+        return {
+          account: {
+            email: "george@example.com",
+            type: "chatgpt",
+          },
+          authMode: "chatgpt",
+          requiresOpenaiAuth: false,
+        };
+      }
+
+      if (method === "model/list") {
+        return {
+          data: [
+            {
+              id: "gpt-5.4-mini",
+              supportedReasoningEfforts: ["minimal", "low", "medium", "high", "xhigh"],
+            },
+          ],
+        };
+      }
+
+      if (method === "config/read") {
+        return { config: {} };
+      }
+
+      if (method === "plugin/list") {
+        return { marketplaces: [] };
+      }
+
+      if (method === "app/list") {
+        return { data: [] };
+      }
+
+      if (method === "mcpServerStatus/list") {
+        return { data: [] };
+      }
+
+      if (method === "skills/list") {
+        return {
+          data: [
+            {
+              cwd: profileCodexHome,
+              skills: [
+                { name: "autopilot", path: autopilotPath, enabled: true },
+                { name: "virword", path: virwordPath, enabled: true },
+              ],
+            },
+          ],
+        };
+      }
+
+      if (method === "thread/start") {
+        return {
+          thread: {
+            id: "thread-skill-trust-multi",
+            name: "Multi skill trust thread",
+            preview: "Multi skill trust thread",
+            updatedAt: Math.floor(Date.now() / 1000),
+            status: {
+              type: "active",
+              activeFlags: [],
+            },
+          },
+        };
+      }
+
+      if (method === "turn/start") {
+        return {
+          turn: {
+            id: "turn-skill-trust-multi",
+          },
+        };
+      }
+
+      throw new Error(`Unexpected method: ${method}`);
+    },
+    respondCalls: [],
+    respond(requestId, payload) {
+      this.respondCalls.push({ requestId, payload });
+    },
+    start: async () => {},
+  };
+
+  const controller = new DesktopSessionController(manager, {
+    appStartedAt: "2026-03-24T10:00:00.000Z",
+    env,
+    openExternal: async () => {},
+    runtimeInfo: {
+      appVersion: "0.1.0",
+      electronVersion: "35.2.1",
+      platform: "darwin",
+      startedAt: "2026-03-24T10:00:00.000Z",
+    },
+  });
+
+  const run = await controller.runDesktopTask({
+    prompt: "Use $autopilot and $virword in this thread.",
+    workspaceRoot,
+  });
+  assert.equal(run.status, "started");
+
+  controller.ingestRuntimeEvent({
+    kind: "approvalRequested",
+    approval: makeApproval(701, run.threadId, {
+      command: ["codex", "run", autopilotPath],
+      reason: "Autopilot skill approval required.",
+    }),
+  });
+  await controller.respondToDesktopApproval({
+    decision: "acceptForSession",
+    requestId: 701,
+  });
+
+  await waitFor(async () => {
+    const settings = await controller.getDesktopSettings();
+    assert.equal(settings.settings.trustedSkillApprovals.length, 1);
+    assert.match(settings.settings.trustedSkillApprovals[0] ?? "", /autopilot\/SKILL\.md/);
+  });
+
+  controller.ingestRuntimeEvent({
+    kind: "approvalRequested",
+    approval: makeApproval(702, run.threadId, {
+      command: ["codex", "run", virwordPath],
+      reason: "Virword skill approval required.",
+    }),
+  });
+  await flushSubstrateWrites();
+
+  const bootstrap = await controller.getBootstrap();
+  assert.deepEqual(manager.respondCalls, [
+    {
+      requestId: 701,
+      payload: "acceptForSession",
+    },
+  ]);
+  assert.equal(bootstrap.pendingApprovals.length, 1);
+  assert.equal(bootstrap.pendingApprovals[0]?.id, 702);
+});
+
+test("trusted skill revocations take effect without restarting the controller", async () => {
+  const root = await makeTempRoot();
+  const env = createTestEnv(root);
+  const workspaceRootA = path.join(root, "workspace-skill-trust-revoke-a");
+  const workspaceRootB = path.join(root, "workspace-skill-trust-revoke-b");
+  await fs.mkdir(workspaceRootA, { recursive: true });
+  await fs.mkdir(workspaceRootB, { recursive: true });
+  await grantWorkspaceReadPermission(env, workspaceRootA);
+  await grantWorkspaceReadPermission(env, workspaceRootB);
+
+  const profileCodexHome = resolveProfileCodexHome(CANONICAL_PROFILE_ID, env);
+  const skillDir = path.join(profileCodexHome, "skills", "autopilot");
+  const skillPath = path.join(skillDir, "SKILL.md");
+  await fs.mkdir(skillDir, { recursive: true });
+  await fs.writeFile(skillPath, "# Autopilot\n", "utf8");
+
+  let threadCounter = 0;
+  const manager = {
+    handleProfileChange: async () => {},
+    off: () => {},
+    on: () => {},
+    request: async (method) => {
+      if (method === "account/read") {
+        return {
+          account: {
+            email: "george@example.com",
+            type: "chatgpt",
+          },
+          authMode: "chatgpt",
+          requiresOpenaiAuth: false,
+        };
+      }
+
+      if (method === "model/list") {
+        return {
+          data: [
+            {
+              id: "gpt-5.4-mini",
+              supportedReasoningEfforts: ["minimal", "low", "medium", "high", "xhigh"],
+            },
+          ],
+        };
+      }
+
+      if (method === "config/read") {
+        return { config: {} };
+      }
+
+      if (method === "plugin/list") {
+        return { marketplaces: [] };
+      }
+
+      if (method === "app/list") {
+        return { data: [] };
+      }
+
+      if (method === "mcpServerStatus/list") {
+        return { data: [] };
+      }
+
+      if (method === "skills/list") {
+        return {
+          data: [
+            {
+              cwd: profileCodexHome,
+              skills: [
+                {
+                  name: "autopilot",
+                  path: skillPath,
+                  enabled: true,
+                },
+              ],
+            },
+          ],
+        };
+      }
+
+      if (method === "thread/start") {
+        threadCounter += 1;
+        return {
+          thread: {
+            id: `thread-skill-trust-revoke-${threadCounter}`,
+            name: "Skill trust revoke thread",
+            preview: "Skill trust revoke thread",
+            updatedAt: Math.floor(Date.now() / 1000),
+            status: {
+              type: "active",
+              activeFlags: [],
+            },
+          },
+        };
+      }
+
+      if (method === "turn/start") {
+        return {
+          turn: {
+            id: `turn-skill-trust-revoke-${threadCounter}`,
+          },
+        };
+      }
+
+      throw new Error(`Unexpected method: ${method}`);
+    },
+    respondCalls: [],
+    respond(requestId, payload) {
+      this.respondCalls.push({ requestId, payload });
+    },
+    start: async () => {},
+  };
+
+  const controller = new DesktopSessionController(manager, {
+    appStartedAt: "2026-03-24T10:00:00.000Z",
+    env,
+    openExternal: async () => {},
+    runtimeInfo: {
+      appVersion: "0.1.0",
+      electronVersion: "35.2.1",
+      platform: "darwin",
+      startedAt: "2026-03-24T10:00:00.000Z",
+    },
+  });
+
+  const firstRun = await controller.runDesktopTask({
+    prompt: "Use $autopilot once.",
+    workspaceRoot: workspaceRootA,
+  });
+  assert.equal(firstRun.status, "started");
+
+  controller.ingestRuntimeEvent({
+    kind: "approvalRequested",
+    approval: makeApproval(711, firstRun.threadId, {
+      command: ["codex", "run", skillPath],
+      reason: "Skill approval required.",
+    }),
+  });
+  await controller.respondToDesktopApproval({
+    decision: "acceptForSession",
+    requestId: 711,
+  });
+
+  await waitFor(async () => {
+    const settings = await controller.getDesktopSettings();
+    assert.equal(settings.settings.trustedSkillApprovals.length, 1);
+  });
+
+  const updatedSettings = await controller.updateDesktopSettings({
+    trustedSkillApprovals: [],
+  });
+  assert.deepEqual(updatedSettings.settings.trustedSkillApprovals, []);
+
+  const secondRun = await controller.runDesktopTask({
+    prompt: "Use $autopilot after trust is revoked.",
+    workspaceRoot: workspaceRootB,
+  });
+  assert.equal(secondRun.status, "started");
+
+  controller.ingestRuntimeEvent({
+    kind: "approvalRequested",
+    approval: makeApproval(712, secondRun.threadId, {
+      command: ["codex", "run", skillPath],
+      reason: "Skill approval required again.",
+    }),
+  });
+  await flushSubstrateWrites();
+
+  const bootstrap = await controller.getBootstrap();
+  assert.deepEqual(manager.respondCalls, [
+    {
+      requestId: 711,
+      payload: "acceptForSession",
+    },
+  ]);
+  assert.equal(bootstrap.pendingApprovals.length, 1);
+  assert.equal(bootstrap.pendingApprovals[0]?.id, 712);
+});
+
 test("acceptForSession resolutions log approval.trusted for the linked session", async () => {
   const root = await makeTempRoot();
   const env = createTestEnv(root);
