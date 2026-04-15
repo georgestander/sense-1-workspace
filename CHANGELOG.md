@@ -2,6 +2,25 @@
 
 All notable changes to Sense-1 Workspace are recorded here.
 
+## [0.10.0] - 2026-04-15
+
+### Added
+
+- In-app fast mode controls so desktop users can opt into the faster service tier without leaving Sense-1.
+- Clickable file-path artifact cards in transcript code blocks, making workspace outputs easier to reopen from the conversation.
+
+### Changed
+
+- Redesigned the management experience with denser extension cards, search, icons, and clearer toggles across plugins, apps, skills, and automations.
+- Kept creator shortcuts rooted in the selected workspace while still allowing profile-level installs, so new extensions created from a thread show up in management without a manual refresh.
+- Replaced raw Codex-home wording in user-facing skill prompts with product language that points people to the Skills library and Skills page.
+
+### Fixed
+
+- Scoped trusted skill approvals to the approved command so desktop approvals stay safer and more predictable.
+- Tightened workspace reconstruction to ignore stale artifact roots and preserve the correct workspace for live-thread actions.
+- Fixed right-rail visibility and scrolling so home and thread layouts keep the side panels usable.
+
 ## [0.9.0] - 2026-04-14
 
 ### Added
