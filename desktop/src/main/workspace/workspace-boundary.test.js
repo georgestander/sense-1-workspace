@@ -5,6 +5,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 
 import {
+  collectOutOfWorkspacePathsFromRuntimeMessage,
   deriveWorkspaceGrantRoot,
   findPromptPathsOutsideWorkspace,
   isPathWithinRoot,
@@ -38,5 +39,30 @@ test("deriveWorkspaceGrantRoot requests the parent folder for outside file targe
   assert.equal(
     deriveWorkspaceGrantRoot(["/tmp/outside/report.md"]),
     path.resolve("/tmp/outside"),
+  );
+});
+
+test("collectOutOfWorkspacePathsFromRuntimeMessage allows extra granted roots", () => {
+  const workspaceRoot = "/tmp/project";
+  const profileCodexHome = "/tmp/profile/codex-home";
+
+  assert.deepEqual(
+    collectOutOfWorkspacePathsFromRuntimeMessage(
+      {
+        method: "item/completed",
+        params: {
+          item: {
+            type: "fileChange",
+            changes: [
+              { path: "/tmp/project/notes.txt" },
+              { path: "/tmp/profile/codex-home/skills/new-skill/SKILL.md" },
+            ],
+          },
+        },
+      },
+      workspaceRoot,
+      [profileCodexHome],
+    ),
+    [],
   );
 });

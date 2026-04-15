@@ -1,5 +1,5 @@
 import { memo, useRef, useState } from "react";
-import { Check, ChevronRight, Copy } from "lucide-react";
+import { Blocks, Check, ChevronRight, Copy, PlugZap, Sparkles } from "lucide-react";
 
 import { ThreadMarkdown } from "../../thread-markdown.js";
 import { ShortcutPillRow } from "../composer/shortcut-pill-row.js";
@@ -71,6 +71,38 @@ function EntryCopyButton({ text }: { text: string }) {
     >
       {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
     </button>
+  );
+}
+
+function ThreadEntryShortcutPills({
+  matches,
+}: {
+  matches: Array<{
+    kind: "app" | "plugin" | "skill";
+    label: string;
+    token: string;
+  }>;
+}) {
+  if (matches.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mb-2 flex flex-wrap items-center gap-2">
+      {matches.map((match) => {
+        const Icon = match.kind === "app" ? Blocks : match.kind === "plugin" ? PlugZap : Sparkles;
+        return (
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[0.6875rem] font-semibold text-white shadow-[0_8px_20px_rgba(10,15,20,0.12)]"
+            key={`${match.kind}:${match.token}:${match.label}`}
+            title={`$${match.token} -> ${match.label}`}
+          >
+            <Icon className="size-3.5 text-white/80" />
+            <span className="font-bold">{match.label}</span>
+          </span>
+        );
+      })}
+    </div>
   );
 }
 
@@ -158,6 +190,9 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
   if (entry.kind === "user") {
     return (
       <article className="ml-auto w-full max-w-[78%] rounded-xl bg-[color-mix(in_oklch,var(--color-ink)_5%,white)] px-3 py-2 text-[0.8125rem]">
+        {"promptShortcuts" in entry && Array.isArray(entry.promptShortcuts) && entry.promptShortcuts.length > 0 ? (
+          <ThreadEntryShortcutPills matches={entry.promptShortcuts} />
+        ) : null}
         <ShortcutPillRow className="mb-2" overview={extensionOverview} prompt={entryBody} />
         <ThreadMarkdown className="thread-markdown-user" workspaceRoot={workspaceRoot}>
           {visibleUserBody}

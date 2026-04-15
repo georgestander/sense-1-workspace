@@ -10,6 +10,11 @@ export type DesktopThreadEntry =
       kind: "user" | "assistant" | "tool" | "review" | "activity";
       title: string;
       body: string;
+      promptShortcuts?: Array<{
+        kind: "app" | "plugin" | "skill";
+        label: string;
+        token: string;
+      }>;
       status?: string;
     }
   | {

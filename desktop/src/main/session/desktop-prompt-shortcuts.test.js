@@ -5,6 +5,7 @@ import {
   extractPromptShortcutTokens,
   replaceActivePromptShortcut,
   resolveActivePromptShortcutQuery,
+  resolveInputItemPromptShortcutMatches,
   resolvePromptShortcutInputItems,
   resolvePromptShortcutSuggestions,
 } from "./desktop-prompt-shortcuts.ts";
@@ -177,6 +178,35 @@ test("resolvePromptShortcutInputItems ignores unresolved or disabled shortcuts",
   assert.deepEqual(
     resolvePromptShortcutInputItems("Try $autopilot and $gmail and $missing", overview),
     [],
+  );
+});
+
+test("resolveInputItemPromptShortcutMatches ignores plain file mention attachments", () => {
+  assert.deepEqual(
+    resolveInputItemPromptShortcutMatches([
+      { type: "mention", name: "brief.md", path: "/tmp/session/brief.md" },
+      { type: "mention", name: "autopilot", path: "/Users/george/.codex/skills/autopilot/SKILL.md" },
+      { type: "mention", name: "Linear", path: "app://linear" },
+    ]).map((match) => ({
+      kind: match.kind,
+      label: match.label,
+      token: match.token,
+      path: match.item.path,
+    })),
+    [
+      {
+        kind: "skill",
+        label: "autopilot",
+        token: "autopilot",
+        path: "/Users/george/.codex/skills/autopilot/SKILL.md",
+      },
+      {
+        kind: "app",
+        label: "Linear",
+        token: "linear",
+        path: "app://linear",
+      },
+    ],
   );
 });
 

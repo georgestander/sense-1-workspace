@@ -71,6 +71,54 @@ test("buildThreadEntries coerces non-string command output into safe text", () =
   assert.equal(entries[0].body, JSON.stringify({ changed: ["App.tsx"] }));
 });
 
+test("buildThreadEntries keeps shortcut mentions so the transcript can render pills", () => {
+  const entries = buildThreadEntries([
+    {
+      id: "user-shortcuts-1",
+      type: "userMessage",
+      content: [
+        { type: "mention", name: "skill-creator", path: "/Users/george/.codex/skills/.system/skill-creator/SKILL.md" },
+        { type: "mention", name: "plugin-creator", path: "/Users/george/.codex/skills/.system/plugin-creator/SKILL.md" },
+        { type: "text", text: "Create a reusable skill and plugin." },
+      ],
+    },
+  ]);
+
+  assert.deepEqual(entries, [
+    {
+      id: "user-shortcuts-1",
+      kind: "user",
+      title: "You",
+      body: "Create a reusable skill and plugin.",
+      promptShortcuts: [
+        { kind: "skill", label: "skill-creator", token: "skill-creator" },
+        { kind: "skill", label: "plugin-creator", token: "plugin-creator" },
+      ],
+    },
+  ]);
+});
+
+test("buildThreadEntries counts non-shortcut mention attachments as files", () => {
+  const entries = buildThreadEntries([
+    {
+      id: "user-file-1",
+      type: "userMessage",
+      content: [
+        { type: "mention", name: "brief.md", path: "/tmp/session/brief.md" },
+      ],
+    },
+  ]);
+
+  assert.deepEqual(entries, [
+    {
+      id: "user-file-1",
+      kind: "user",
+      title: "You",
+      body: "Attached 1 file.",
+    },
+  ]);
+});
+
 test("buildChangeGroups and progress summary reflect live file changes", () => {
   const entries = buildThreadEntries([
     {

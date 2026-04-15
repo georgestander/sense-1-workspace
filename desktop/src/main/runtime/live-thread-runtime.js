@@ -240,6 +240,7 @@ export async function runDesktopTask(
     executionOverrides.sandboxPolicy,
     resolvedWorkspaceRoot,
     resolvedCwd,
+    executionContext.grants.map((grant) => grant.rootPath),
   );
   const runtimeCwd = resolveRuntimePath(resolvedCwd);
   const ensuredThread = await ensureDesktopThread(manager, {

@@ -1,4 +1,5 @@
 import { buildPlanState } from "./plan-state.ts";
+import { resolveInputItemPromptShortcutMatches } from "../../shared/prompt-shortcuts.ts";
 
 function firstString(...values) {
   for (const value of values) {
@@ -55,16 +56,23 @@ export function mapItemToEntry(item) {
 
   if (item.type === "userMessage") {
     const content = Array.isArray(item.content) ? item.content : [];
+    const shortcutMatches = resolveInputItemPromptShortcutMatches(content);
+    const shortcutItems = new Set(shortcutMatches.map((match) => match.item));
+    const promptShortcuts = shortcutMatches.map((match) => ({
+      kind: match.kind,
+      label: match.label,
+      token: match.token,
+    }));
     const text = content
       .filter((entry) => entry?.type === "text" && typeof entry.text === "string")
       .map((entry) => entry.text)
       .join("\n")
       .trim();
     const attachmentCount = content.filter(
-      (entry) => entry?.type === "mention" || entry?.type === "localImage",
+      (entry) => entry?.type === "localImage" || (entry?.type === "mention" && !shortcutItems.has(entry)),
     ).length;
 
-    if (!text && attachmentCount === 0) {
+    if (!text && attachmentCount === 0 && promptShortcuts.length === 0) {
       return null;
     }
 
@@ -74,9 +82,14 @@ export function mapItemToEntry(item) {
       title: "You",
       body:
         text ||
-        (attachmentCount === 1
-          ? "Attached 1 file."
-          : `Attached ${attachmentCount} files.`),
+        (promptShortcuts.length > 0 && attachmentCount === 0
+          ? promptShortcuts.length === 1
+            ? "Used 1 shortcut."
+            : `Used ${promptShortcuts.length} shortcuts.`
+          : attachmentCount === 1
+            ? "Attached 1 file."
+            : `Attached ${attachmentCount} files.`),
+      ...(promptShortcuts.length > 0 ? { promptShortcuts } : {}),
     };
   }
 

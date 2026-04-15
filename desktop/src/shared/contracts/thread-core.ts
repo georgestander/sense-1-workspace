@@ -96,6 +96,11 @@ export type DesktopThreadEntry =
       readonly kind: "user" | "assistant" | "tool" | "review" | "activity";
       readonly title: string;
       readonly body: string;
+      readonly promptShortcuts?: Array<{
+        readonly kind: "app" | "plugin" | "skill";
+        readonly label: string;
+        readonly token: string;
+      }>;
       readonly status?: string;
     }
   | {

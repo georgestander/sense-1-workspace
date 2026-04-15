@@ -100,6 +100,13 @@ export function isPathWithinRoot(
   return Boolean(relativePath) && !relativePath.startsWith("..") && !path.isAbsolute(relativePath);
 }
 
+export function isPathWithinAnyRoot(
+  targetPath: string | null | undefined,
+  rootPaths: Array<string | null | undefined> | null | undefined,
+): boolean {
+  return (Array.isArray(rootPaths) ? rootPaths : []).some((rootPath) => isPathWithinRoot(targetPath, rootPath));
+}
+
 export function extractAbsolutePathsFromText(text: string | null | undefined): string[] {
   const source = firstString(text);
   if (!source) {
@@ -168,9 +175,14 @@ function collectItemPaths(item: unknown): string[] {
 export function collectOutOfWorkspacePathsFromRuntimeMessage(
   message: AppServerNotification | Record<string, unknown> | null | undefined,
   workspaceRoot: string | null | undefined,
+  allowedRoots: Array<string | null | undefined> = [],
 ): string[] {
   const resolvedRoot = firstString(workspaceRoot);
-  if (!resolvedRoot) {
+  const effectiveRoots = [
+    resolvedRoot,
+    ...allowedRoots,
+  ].filter(Boolean);
+  if (effectiveRoots.length === 0) {
     return [];
   }
 
@@ -180,7 +192,7 @@ export function collectOutOfWorkspacePathsFromRuntimeMessage(
 
   if (method === "item/started" || method === "item/completed") {
     for (const candidate of collectItemPaths(params?.item)) {
-      if (!isPathWithinRoot(candidate, resolvedRoot)) {
+      if (!isPathWithinAnyRoot(candidate, effectiveRoots)) {
         outside.add(path.resolve(candidate));
       }
     }
@@ -190,7 +202,7 @@ export function collectOutOfWorkspacePathsFromRuntimeMessage(
     const diffs = Array.isArray(params?.diffs) ? params.diffs : [];
     for (const diff of diffs) {
       const candidate = firstString(asRecord(diff)?.path);
-      if (candidate && !isPathWithinRoot(candidate, resolvedRoot)) {
+      if (candidate && !isPathWithinAnyRoot(candidate, effectiveRoots)) {
         outside.add(path.resolve(candidate));
       }
     }

@@ -41,6 +41,21 @@ test("mapItemToEntry maps a userMessage item into a user entry", () => {
   });
 });
 
+test("mapItemToEntry counts non-shortcut mention attachments as files", () => {
+  const entry = mapItemToEntry({
+    id: "user-file-1",
+    type: "userMessage",
+    content: [{ type: "mention", name: "brief.md", path: "/tmp/session/brief.md" }],
+  });
+
+  assert.deepEqual(entry, {
+    id: "user-file-1",
+    kind: "user",
+    title: "You",
+    body: "Attached 1 file.",
+  });
+});
+
 test("mapItemToEntry maps an agentMessage item into an assistant entry", () => {
   const entry = mapItemToEntry({
     id: "agent-1",
