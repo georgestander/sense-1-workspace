@@ -10,6 +10,8 @@ import {
 import { resolveSignedInDesktopProfile } from "./bootstrap/bootstrap-profile.js";
 import {
   DEFAULT_DESKTOP_SETTINGS,
+  applyDesktopSettingsPatch,
+  resolveDesktopSettings as resolveStoredDesktopSettings,
   type DesktopSettingsPatch,
 } from "./settings/desktop-settings.js";
 import type {
@@ -100,7 +102,12 @@ import { DesktopQueryService } from "./substrate/desktop-query-service.ts";
 import { DesktopAutomationService } from "./automation/desktop-automation-service.ts";
 import { DesktopTenantService } from "./tenant/desktop-tenant-service.ts";
 import { updateSubstrateSessionThreadTitle } from "./substrate/substrate.js";
-import { resolveProfileCodexHome, resolveProfileSubstrateDbPath } from "./profile/profile-state.js";
+import {
+  loadDesktopSettings,
+  persistDesktopSettings,
+  resolveProfileCodexHome,
+  resolveProfileSubstrateDbPath,
+} from "./profile/profile-state.js";
 import {
   type DesktopVoiceClient,
   DesktopRealtimeTranscriptionClient,
@@ -143,6 +150,7 @@ export class DesktopSessionController {
   static readonly DEFAULT_SETTINGS: DesktopSettings = {
     model: DEFAULT_DESKTOP_SETTINGS.model,
     reasoningEffort: DEFAULT_DESKTOP_SETTINGS.reasoningEffort,
+    serviceTier: DEFAULT_DESKTOP_SETTINGS.serviceTier,
     personality: DEFAULT_DESKTOP_SETTINGS.personality,
     defaultOperatingMode: DEFAULT_DESKTOP_SETTINGS.defaultOperatingMode,
     runtimeInstructions: DEFAULT_DESKTOP_SETTINGS.runtimeInstructions,
@@ -154,6 +162,7 @@ export class DesktopSessionController {
     workspaceFolderBinding: DEFAULT_DESKTOP_SETTINGS.workspaceFolderBinding,
     approvalOperationPosture: DEFAULT_DESKTOP_SETTINGS.approvalOperationPosture,
     approvalTrustedWorkspaces: DEFAULT_DESKTOP_SETTINGS.approvalTrustedWorkspaces,
+    trustedSkillApprovals: DEFAULT_DESKTOP_SETTINGS.trustedSkillApprovals,
   };
 
   readonly #manager: AppServerProcessManager;
@@ -263,8 +272,30 @@ export class DesktopSessionController {
         });
       },
       loadPersistedApprovals: async () => await this.#workspaceState.loadPendingApprovals(),
+      loadTrustedSkillApprovals: async () => {
+        const profile = await this.#resolveProfile();
+        const settings = resolveStoredDesktopSettings(
+          await loadDesktopSettings(profile.id, this.#env) as unknown as Record<string, unknown>,
+        );
+        return settings.trustedSkillApprovals;
+      },
       persistPendingApprovals: async (approvals) =>
         await this.#workspaceState.persistPendingApprovals(approvals),
+      persistTrustedSkillApprovals: async (approvals) => {
+        const profile = await this.#resolveProfile();
+        const saved = await loadDesktopSettings(profile.id, this.#env);
+        const nextTrustedSettings = applyDesktopSettingsPatch(
+          saved as unknown as Record<string, unknown>,
+          {
+            trustedSkillApprovals: approvals,
+          },
+        ) as unknown as Parameters<typeof persistDesktopSettings>[1];
+        await persistDesktopSettings(
+          profile.id,
+          nextTrustedSettings,
+          this.#env,
+        );
+      },
       queueApprovalEvent: (input) => {
         this.#substrateSync.enqueueWrite(async () => {
           await appendApprovalEventRecord({
@@ -793,7 +824,11 @@ export class DesktopSessionController {
   }
 
   async updateDesktopSettings(partial: DesktopSettingsPatch): Promise<DesktopSettingsResult> {
-    return await this.#desktopSettings.updateDesktopSettings(partial);
+    const result = await this.#desktopSettings.updateDesktopSettings(partial);
+    if (Object.hasOwn(partial, "trustedSkillApprovals")) {
+      await this.#approvals.reloadTrustedSkillApprovals();
+    }
+    return result;
   }
 
   async getDesktopExtensionOverview(

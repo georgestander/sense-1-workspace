@@ -1,6 +1,7 @@
 export interface DesktopSettings {
   readonly model: string;
   readonly reasoningEffort: string;
+  readonly serviceTier: "flex" | "fast";
   readonly personality: "none" | "friendly" | "pragmatic";
   readonly defaultOperatingMode: "preview" | "auto" | "apply";
   readonly runtimeInstructions: string;
@@ -12,6 +13,7 @@ export interface DesktopSettings {
   readonly workspaceFolderBinding: "inherit" | "none";
   readonly approvalOperationPosture: "askAll" | "askRisky" | "autoAll";
   readonly approvalTrustedWorkspaces: string;
+  readonly trustedSkillApprovals: string[];
 }
 
 export interface DesktopSettingsUpdateRequest {

@@ -352,6 +352,29 @@ test("resolvePromptShortcutSuggestions prefers fully qualified names when local 
   );
 });
 
+test("resolvePromptShortcutSuggestions prefers human app aliases over connector ids when they stay unique", () => {
+  const overview = {
+    apps: [
+      {
+        id: "connector_outlook_email",
+        name: "Outlook Email",
+        description: "Mailbox access",
+        installUrl: null,
+        isAccessible: true,
+        isEnabled: true,
+        pluginDisplayNames: [],
+      },
+    ],
+    plugins: [],
+    skills: [],
+  };
+
+  assert.deepEqual(
+    resolvePromptShortcutSuggestions("$out", overview).map((entry) => `${entry.kind}:${entry.token}`),
+    ["app:outlook-email"],
+  );
+});
+
 test("replaceActivePromptShortcut inserts the chosen token at the active cursor position", () => {
   assert.deepEqual(
     resolveActivePromptShortcutQuery("Use $exc for this", 8),

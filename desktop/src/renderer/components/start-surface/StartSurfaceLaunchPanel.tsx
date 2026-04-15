@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateActio
 import { ChevronDown, ChevronRight, Clock3, Folder, FolderOpen, Mic, Paperclip, Send } from "lucide-react";
 
 import { Button } from "../ui/button";
+import { FastModeSuggestionMenu } from "../composer/fast-mode-suggestion-menu.js";
 import { ShortcutPillRow } from "../composer/shortcut-pill-row.js";
 import { ShortcutSuggestionMenu } from "../composer/shortcut-suggestion-menu.js";
 import { VoiceRecordingPill } from "../composer/voice-recording-pill.js";
@@ -11,6 +12,7 @@ import type { DesktopBootstrapTeamSetup, DesktopBootstrapTenant, DesktopExtensio
 import type { FolderOption } from "../../state/session/session-types.js";
 import { folderDisplayName } from "../../state/session/session-selectors.js";
 import { buildStartSurfaceIdentity } from "../../state/session/tenant-identity.js";
+import { applyFastModeSuggestion, resolveFastModeSuggestions } from "../../features/session/fast-mode-command.js";
 import { useComposerDictation } from "../../features/session/use-composer-dictation.js";
 import { formatSessionActivity, isResumableProjectedSession, workspaceDisplayName } from "./start-surface-utils.js";
 import { replaceActivePromptShortcut, resolvePromptShortcutSuggestions } from "../../../shared/prompt-shortcuts.ts";
@@ -32,7 +34,9 @@ export type StartSurfaceLaunchPanelProps = {
   setAttachedFiles: Dispatch<SetStateAction<string[]>>;
   pickFiles: () => Promise<string[]>;
   selectedModel: string | null;
+  selectedServiceTier: "flex" | "fast";
   handleModelSelection: (nextModel: string) => void;
+  handleServiceTierSelection: (nextServiceTier: "flex" | "fast") => void;
   modelOptions: string[];
   availableModels: DesktopModelEntry[];
   submitDraftTask: () => void;
@@ -74,7 +78,9 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
     setAttachedFiles,
     pickFiles,
     selectedModel,
+    selectedServiceTier,
     handleModelSelection,
+    handleServiceTierSelection,
     modelOptions,
     availableModels,
     submitDraftTask,
@@ -122,6 +128,10 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
     [draftPrompt, extensionOverview, shortcutCursorIndex],
   );
   const visibleShortcutSuggestions = shortcutSuggestions.slice(0, 8);
+  const fastModeSuggestions = useMemo(
+    () => resolveFastModeSuggestions(draftPrompt, shortcutCursorIndex),
+    [draftPrompt, shortcutCursorIndex],
+  );
 
   useEffect(() => {
     draftPromptRef.current = draftPrompt;
@@ -137,6 +147,17 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
       token,
       promptInputRef.current?.selectionStart ?? shortcutCursorIndex,
     );
+    setDraftPrompt(nextSelection.prompt);
+    setShortcutCursorIndex(nextSelection.cursorIndex);
+    setShortcutSelectionIndex(0);
+    requestAnimationFrame(() => {
+      promptInputRef.current?.focus();
+      promptInputRef.current?.setSelectionRange(nextSelection.cursorIndex, nextSelection.cursorIndex);
+    });
+  }
+
+  function applyFastSuggestion(command: string) {
+    const nextSelection = applyFastModeSuggestion(command);
     setDraftPrompt(nextSelection.prompt);
     setShortcutCursorIndex(nextSelection.cursorIndex);
     setShortcutSelectionIndex(0);
@@ -240,7 +261,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
         </article>
       ) : null}
 
-      <section className="relative mx-auto mt-8 w-full max-w-3xl shrink-0 rounded-2xl bg-white p-3 shadow-[0_14px_32px_rgba(10,15,20,0.06)]">
+      <section className="relative z-20 isolate mx-auto mt-8 w-full max-w-3xl shrink-0 rounded-2xl bg-white p-3 shadow-[0_14px_32px_rgba(10,15,20,0.06)]">
         {taskError ? <p className="mb-3 rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft" role="alert">{taskError}</p> : null}
         {!(workInFolder && workspaceFolder) ? (
           <div className="mb-3 flex flex-wrap gap-2">
@@ -248,7 +269,16 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
             <Button disabled={!canStartWork} onClick={() => { setWorkInFolder(true); setFolderMenuOpen(true); }} variant={workInFolder ? "default" : "secondary"}>Choose folder</Button>
           </div>
         ) : null}
-        {visibleShortcutSuggestions.length > 0 ? (
+        {fastModeSuggestions.length > 0 ? (
+          <div className="mb-3">
+            <FastModeSuggestionMenu
+              activeIndex={shortcutSelectionIndex}
+              onSelect={(suggestion) => applyFastSuggestion(suggestion.command)}
+              suggestions={fastModeSuggestions}
+            />
+          </div>
+        ) : null}
+        {fastModeSuggestions.length === 0 && visibleShortcutSuggestions.length > 0 ? (
           <div className="mb-3">
             <ShortcutSuggestionMenu
               activeIndex={shortcutSelectionIndex}
@@ -269,6 +299,27 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
             onClick={(event) => setShortcutCursorIndex(event.currentTarget.selectionStart ?? event.currentTarget.value.length)}
             onKeyUp={(event) => setShortcutCursorIndex(event.currentTarget.selectionStart ?? event.currentTarget.value.length)}
             onKeyDown={(event) => {
+              if (fastModeSuggestions.length > 0) {
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  setShortcutSelectionIndex((current) => (current + 1) % fastModeSuggestions.length);
+                  return;
+                }
+                if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setShortcutSelectionIndex((current) => (current - 1 + fastModeSuggestions.length) % fastModeSuggestions.length);
+                  return;
+                }
+                if (event.key === "Enter" || event.key === "Tab") {
+                  event.preventDefault();
+                  applyFastSuggestion(fastModeSuggestions[shortcutSelectionIndex]?.command ?? fastModeSuggestions[0]?.command ?? "");
+                  return;
+                }
+                if (event.key === "Escape") {
+                  setShortcutSelectionIndex(0);
+                  return;
+                }
+              }
               if (visibleShortcutSuggestions.length > 0) {
                 if (event.key === "ArrowDown") {
                   event.preventDefault();
@@ -316,7 +367,18 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
           ) : null}
           <Button aria-label="Send prompt" disabled={!canStartWork || taskPending || !draftPrompt.trim() || (workInFolder && !workspaceFolder)} onClick={submitDraftTask} size="icon" variant="default"><Send /></Button>
         </div>
-        <ShortcutPillRow className="mt-3" overview={extensionOverview} prompt={draftPrompt} />
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {selectedServiceTier === "fast" ? (
+            <button
+              className="inline-flex items-center gap-1.5 rounded-full bg-[oklch(18%_0.03_55)] px-3 py-1 text-xs font-semibold text-white shadow-[0_8px_20px_rgba(10,15,20,0.12)]"
+              onClick={() => handleServiceTierSelection("flex")}
+              type="button"
+            >
+              Fast mode
+            </button>
+          ) : null}
+          <ShortcutPillRow className="flex-1" overview={extensionOverview} prompt={draftPrompt} />
+        </div>
         {dictation.error ? <p className="mt-2 text-[0.5rem] leading-tight text-black">{dictation.error}</p> : null}
         {dictation.hint ? <p className="mt-2 text-[0.5rem] leading-tight text-black">{dictation.hint}</p> : null}
         {dictation.statusText || dictation.liveTranscript?.assistant ? (
@@ -353,6 +415,14 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
               )) : <option value="">Loading live models...</option>}
             </select>
           </div>
+          <button
+            className={`inline-flex items-center gap-2 rounded-xl border px-2 py-1.5 text-xs ${selectedServiceTier === "fast" ? "border-[oklch(76%_0.17_75)] bg-[oklch(95%_0.04_85)] text-ink" : "border-line/40 text-muted"}`}
+            disabled={!canStartWork}
+            onClick={() => handleServiceTierSelection(selectedServiceTier === "fast" ? "flex" : "fast")}
+            type="button"
+          >
+            Fast
+          </button>
         </div>
 
         {workInFolder ? (

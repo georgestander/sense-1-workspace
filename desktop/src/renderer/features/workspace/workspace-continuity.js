@@ -1,3 +1,5 @@
+import { normalizeUserFacingWorkspaceRoot } from "../../../shared/workspace-roots.ts";
+
 function firstString(...values) {
   for (const value of values) {
     if (typeof value !== "string") {
@@ -14,12 +16,7 @@ function firstString(...values) {
 }
 
 export function normalizeWorkspaceRoot(workspaceRoot) {
-  const resolvedWorkspaceRoot = firstString(workspaceRoot);
-  if (!resolvedWorkspaceRoot) {
-    return null;
-  }
-
-  return resolvedWorkspaceRoot.replace(/\\/g, "/").replace(/\/+$/, "");
+  return normalizeUserFacingWorkspaceRoot(firstString(workspaceRoot));
 }
 
 function toTimestamp(value) {
@@ -143,13 +140,18 @@ export function synthesizeProjectedWorkspaceFromSessions({
   sessions = [],
   workspaceId = null,
 }) {
+  const normalizedRootPath = normalizeWorkspaceRoot(rootPath);
+  if (!normalizedRootPath) {
+    return null;
+  }
+
   const orderedSessions = sortProjectedSessionsByContinuity(sessions);
   const latestSession = orderedSessions[0] ?? null;
   return {
-    workspace_id: firstString(workspaceId) ?? `workspace:${normalizeWorkspaceRoot(rootPath) ?? "unknown"}`,
+    workspace_id: firstString(workspaceId) ?? `workspace:${normalizedRootPath}`,
     profile_id: firstString(profileId, latestSession?.profile_id) ?? "",
     scope_id: "",
-    root_path: firstString(rootPath) ?? "",
+    root_path: normalizedRootPath,
     display_name: null,
     status: "active",
     archived_at: null,

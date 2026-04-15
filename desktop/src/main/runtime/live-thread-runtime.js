@@ -191,9 +191,11 @@ export async function runDesktopTask(
     cwd,
     inputItems,
     model,
+    onThreadReady = null,
     personality,
     prompt,
     reasoningEffort,
+    serviceTier,
     runContext,
     runtimeInstructions = null,
     settings = null,
@@ -255,6 +257,9 @@ export async function runDesktopTask(
   });
   thread = ensuredThread.thread;
   resolvedThreadId = ensuredThread.threadId;
+  if (typeof onThreadReady === "function") {
+    await onThreadReady(resolvedThreadId);
+  }
   const turnAttachments = (Array.isArray(attachments) ? attachments : [])
     .map((path) => firstString(path))
     .filter(Boolean);
@@ -271,6 +276,7 @@ export async function runDesktopTask(
     mode: "default",
     model,
     reasoningEffort,
+    serviceTier,
   });
 
   let turnResult;
@@ -289,6 +295,7 @@ export async function runDesktopTask(
         sense1: {
           executionIntent,
           runContext: productRunContext,
+          serviceTier: firstString(serviceTier) ?? "flex",
         },
       },
     });
@@ -325,6 +332,7 @@ export async function runDesktopTask(
           sense1: {
             executionIntent,
             runContext: productRunContext,
+            serviceTier: firstString(serviceTier) ?? "flex",
           },
         },
       });

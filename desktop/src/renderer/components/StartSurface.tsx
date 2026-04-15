@@ -22,7 +22,9 @@ export type StartSurfaceProps = {
   setAttachedFiles: Dispatch<SetStateAction<string[]>>;
   pickFiles: () => Promise<string[]>;
   selectedModel: string | null;
+  selectedServiceTier: "flex" | "fast";
   handleModelSelection: (nextModel: string) => void;
+  handleServiceTierSelection: (nextServiceTier: "flex" | "fast") => void;
   modelOptions: string[];
   availableModels: DesktopModelEntry[];
   submitDraftTask: () => void;
@@ -97,7 +99,9 @@ export function StartSurface(props: StartSurfaceProps) {
     setAttachedFiles,
     pickFiles,
     selectedModel,
+    selectedServiceTier,
     handleModelSelection,
+    handleServiceTierSelection,
     modelOptions,
     availableModels,
     submitDraftTask,
@@ -166,6 +170,7 @@ export function StartSurface(props: StartSurfaceProps) {
         recentFolders={recentFolders}
         resumeWorkspaceSession={resumeWorkspaceSession}
         selectedModel={selectedModel}
+        selectedServiceTier={selectedServiceTier}
         setAttachedFiles={setAttachedFiles}
         setDraftPrompt={setDraftPrompt}
         setFolderMenuOpen={setFolderMenuOpen}
@@ -177,6 +182,7 @@ export function StartSurface(props: StartSurfaceProps) {
         tenant={tenant}
         teamSetup={teamSetup}
         threads={threads}
+        handleServiceTierSelection={handleServiceTierSelection}
         refreshBootstrap={refreshBootstrap}
         workspaceSessions={workspaceSessions}
         workspaceSessionsLoading={workspaceSessionsLoading}

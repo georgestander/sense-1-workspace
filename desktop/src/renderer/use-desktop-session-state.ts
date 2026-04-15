@@ -71,7 +71,15 @@ export {
   upsertThread,
 } from "./state/threads/thread-summary-state.js";
 
-export function useDesktopSessionState({ model, reasoningEffort }: { model: string; reasoningEffort: string }) {
+export function useDesktopSessionState({
+  model,
+  reasoningEffort,
+  serviceTier,
+}: {
+  model: string;
+  reasoningEffort: string;
+  serviceTier: "flex" | "fast";
+}) {
   const [threads, setThreads] = useState<ThreadRecord[]>([]);
   const [activeTurnIdsByThread, setActiveTurnIdsByThread] = useState<Record<string, string>>({});
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
@@ -330,6 +338,7 @@ export function useDesktopSessionState({ model, reasoningEffort }: { model: stri
     rememberKnownThreadIds,
     requireDesktopBridge,
     reasoningEffort,
+    serviceTier,
     removeThreadFromLocalState,
     removeWorkspaceFromLocalState,
     selectedThreadIdRef,

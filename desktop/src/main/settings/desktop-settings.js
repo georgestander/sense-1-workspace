@@ -3,6 +3,7 @@ import { DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS } from "../runtime/live-thread-run
 export const DEFAULT_DESKTOP_SETTINGS = Object.freeze({
   model: "gpt-5.4-mini",
   reasoningEffort: "xhigh",
+  serviceTier: "flex",
   personality: "friendly",
   defaultOperatingMode: "auto",
   runtimeInstructions: DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS,
@@ -10,6 +11,7 @@ export const DEFAULT_DESKTOP_SETTINGS = Object.freeze({
   sandboxPosture: "workspaceWrite",
   approvalOperationPosture: "askAll",
   approvalTrustedWorkspaces: "",
+  trustedSkillApprovals: [],
   adminApprovalPosture: "requireRisky",
   roleApprovalLevel: "ownerOnly",
   workspaceReadonly: "allow",
@@ -47,6 +49,15 @@ function normalizePersonality(value) {
 
   if (resolved === "concise" || resolved === "formal" || resolved === "detailed") {
     return "pragmatic";
+  }
+
+  return undefined;
+}
+
+function normalizeServiceTier(value) {
+  const resolved = firstString(value);
+  if (resolved === "flex" || resolved === "fast") {
+    return resolved;
   }
 
   return undefined;
@@ -131,6 +142,25 @@ function normalizeApprovalTrustedWorkspaces(value) {
   return value.trim();
 }
 
+function normalizeTrustedSkillApprovals(value) {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const seen = new Set();
+  const approvals = [];
+  for (const entry of value) {
+    const resolved = firstString(entry)?.replaceAll("\\", "/");
+    if (!resolved || seen.has(resolved)) {
+      continue;
+    }
+    seen.add(resolved);
+    approvals.push(resolved);
+  }
+
+  return approvals;
+}
+
 function normalizeRoleApprovalLevel(value) {
   const resolved = firstString(value);
   if (resolved === "ownerOnly" || resolved === "anyAuthenticated") {
@@ -172,6 +202,7 @@ function normalizeWorkspaceDefaults(value) {
   const workspaceDefaults = {};
   const model = firstString(record.model);
   const reasoningEffort = firstString(record.reasoningEffort);
+  const serviceTier = normalizeServiceTier(record.serviceTier);
   const personality = normalizePersonality(record.personality);
 
   if (model) {
@@ -179,6 +210,9 @@ function normalizeWorkspaceDefaults(value) {
   }
   if (reasoningEffort) {
     workspaceDefaults.reasoningEffort = reasoningEffort;
+  }
+  if (serviceTier) {
+    workspaceDefaults.serviceTier = serviceTier;
   }
   if (personality) {
     workspaceDefaults.personality = personality;
@@ -198,6 +232,7 @@ function normalizeApprovalDefaults(value) {
   const sandboxPosture = normalizeSandboxPosture(record.sandboxPosture);
   const approvalOperationPosture = normalizeApprovalOperationPosture(record.approvalOperationPosture);
   const approvalTrustedWorkspaces = normalizeApprovalTrustedWorkspaces(record.approvalTrustedWorkspaces);
+  const trustedSkillApprovals = normalizeTrustedSkillApprovals(record.trustedSkillApprovals);
 
   if (approvalPosture) {
     approvalDefaults.approvalPosture = approvalPosture;
@@ -210,6 +245,9 @@ function normalizeApprovalDefaults(value) {
   }
   if (approvalTrustedWorkspaces !== undefined) {
     approvalDefaults.approvalTrustedWorkspaces = approvalTrustedWorkspaces;
+  }
+  if (trustedSkillApprovals !== undefined) {
+    approvalDefaults.trustedSkillApprovals = trustedSkillApprovals;
   }
 
   return Object.keys(approvalDefaults).length > 0 ? approvalDefaults : undefined;
@@ -296,6 +334,7 @@ function buildLegacyProfileLayer(raw) {
     sandboxPosture: raw.sandboxPosture,
     approvalOperationPosture: raw.approvalOperationPosture,
     approvalTrustedWorkspaces: raw.approvalTrustedWorkspaces,
+    trustedSkillApprovals: raw.trustedSkillApprovals,
   });
   const generalDefaults = normalizeGeneralDefaults(raw);
   const modelRestrictions = normalizeModelRestrictions(raw.modelRestrictions);
@@ -342,6 +381,7 @@ function buildPatchLayer(patch = {}) {
     workspaceDefaults: {
       ...(patch.model !== undefined ? { model: patch.model } : {}),
       ...(patch.reasoningEffort !== undefined ? { reasoningEffort: patch.reasoningEffort } : {}),
+      ...(patch.serviceTier !== undefined ? { serviceTier: patch.serviceTier } : {}),
       ...(patch.personality !== undefined ? { personality: normalizePersonality(patch.personality) } : {}),
       ...(patch.workspaceDefaults ?? {}),
     },
@@ -351,6 +391,9 @@ function buildPatchLayer(patch = {}) {
       ...(patch.approvalOperationPosture !== undefined ? { approvalOperationPosture: patch.approvalOperationPosture } : {}),
       ...(patch.approvalTrustedWorkspaces !== undefined
         ? { approvalTrustedWorkspaces: patch.approvalTrustedWorkspaces }
+        : {}),
+      ...(patch.trustedSkillApprovals !== undefined
+        ? { trustedSkillApprovals: patch.trustedSkillApprovals }
         : {}),
       ...(patch.approvalDefaults ?? {}),
     },

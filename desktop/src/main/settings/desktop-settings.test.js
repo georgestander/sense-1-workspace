@@ -12,6 +12,7 @@ test("resolveDesktopSettings lifts legacy flat settings into effective desktop d
   const settings = resolveDesktopSettings({
     model: "gpt-5.4",
     reasoningEffort: "high",
+    serviceTier: "fast",
     personality: "formal",
     approvalPosture: "onRequest",
     sandboxPosture: "readOnly",
@@ -21,6 +22,7 @@ test("resolveDesktopSettings lifts legacy flat settings into effective desktop d
     ...resolveDesktopSettings(),
     model: "gpt-5.4",
     reasoningEffort: "high",
+    serviceTier: "fast",
     personality: "pragmatic",
     approvalPosture: "onRequest",
     sandboxPosture: "readOnly",
@@ -43,6 +45,7 @@ test("resolveDesktopSettingsState layers workspace defaults and model restrictio
           workspaceDefaults: {
             model: "gpt-5.4",
             reasoningEffort: "medium",
+            serviceTier: "fast",
             personality: "formal",
           },
           approvalDefaults: {
@@ -67,6 +70,7 @@ test("resolveDesktopSettingsState layers workspace defaults and model restrictio
     ...resolveDesktopSettings(),
     model: "gpt-5.4-mini",
     reasoningEffort: "medium",
+    serviceTier: "fast",
     personality: "pragmatic",
     approvalPosture: "onRequest",
     sandboxPosture: "readOnly",
@@ -164,6 +168,30 @@ test("applyDesktopSettingsPatch persists runtime instructions under general defa
   assert.equal(resolveDesktopSettings(next).runtimeInstructions, "Custom runtime policy text.\nKeep it short.");
 });
 
+test("applyDesktopSettingsPatch persists the default service tier under workspace defaults", () => {
+  const next = applyDesktopSettingsPatch(
+    {
+      version: 2,
+      policy: {
+        system: null,
+        organization: null,
+        profile: null,
+        workspaces: {},
+      },
+    },
+    {
+      serviceTier: "fast",
+    },
+  );
+
+  assert.deepEqual(next.policy.profile, {
+    workspaceDefaults: {
+      serviceTier: "fast",
+    },
+  });
+  assert.equal(resolveDesktopSettings(next).serviceTier, "fast");
+});
+
 test("applyDesktopSettingsPatch persists the default operating mode under general defaults", () => {
   const next = applyDesktopSettingsPatch(
     {
@@ -209,4 +237,38 @@ test("applyDesktopSettingsPatch keeps cleared trusted workspace rules honest", (
   );
 
   assert.equal(resolveDesktopSettings(next).approvalTrustedWorkspaces, "");
+});
+
+test("applyDesktopSettingsPatch persists trusted skill approvals under approval defaults", () => {
+  const next = applyDesktopSettingsPatch(
+    {
+      version: 2,
+      policy: {
+        system: null,
+        organization: null,
+        profile: null,
+        workspaces: {},
+      },
+    },
+    {
+      trustedSkillApprovals: [
+        "/Users/george/.codex/skills/autopilot/SKILL.md::mtime:1",
+        "/Users/george/.codex/skills/autopilot/SKILL.md::mtime:1",
+        "/Users/george/.codex/plugins/gmail/skills/gmail/SKILL.md::mtime:2",
+      ],
+    },
+  );
+
+  assert.deepEqual(next.policy.profile, {
+    approvalDefaults: {
+      trustedSkillApprovals: [
+        "/Users/george/.codex/skills/autopilot/SKILL.md::mtime:1",
+        "/Users/george/.codex/plugins/gmail/skills/gmail/SKILL.md::mtime:2",
+      ],
+    },
+  });
+  assert.deepEqual(resolveDesktopSettings(next).trustedSkillApprovals, [
+    "/Users/george/.codex/skills/autopilot/SKILL.md::mtime:1",
+    "/Users/george/.codex/plugins/gmail/skills/gmail/SKILL.md::mtime:2",
+  ]);
 });

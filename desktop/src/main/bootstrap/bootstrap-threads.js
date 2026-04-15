@@ -11,6 +11,7 @@ import {
 } from "../substrate/substrate-reader.js";
 import { getSubstrateSessionByThreadId } from "../substrate/substrate.js";
 import { asRecord, firstString } from "./bootstrap-shared.js";
+import { normalizeUserFacingWorkspaceRoot } from "../../shared/workspace-roots.ts";
 
 const THREAD_READ_SUMMARY_PARAMS = {
   includeTurns: false,
@@ -125,12 +126,12 @@ async function loadThreadWorkspaceRootFromSubstrate(profileId, threadId, env = p
     });
     const workspaceRoot = firstString(workspace?.root_path);
     if (workspaceRoot) {
-      return path.resolve(workspaceRoot);
+      return normalizeUserFacingWorkspaceRoot(path.resolve(workspaceRoot));
     }
   }
 
   const metadataWorkspaceRoot = firstString(session.metadata?.workspaceRoot);
-  return metadataWorkspaceRoot ? path.resolve(metadataWorkspaceRoot) : null;
+  return metadataWorkspaceRoot ? normalizeUserFacingWorkspaceRoot(path.resolve(metadataWorkspaceRoot)) : null;
 }
 
 export async function resolveThreadWorkspaceRoot(
@@ -148,7 +149,7 @@ export async function resolveThreadWorkspaceRoot(
   if (rememberedWorkspaceRoot) {
     try {
       await fs.access(rememberedWorkspaceRoot);
-      return path.resolve(rememberedWorkspaceRoot);
+      return normalizeUserFacingWorkspaceRoot(path.resolve(rememberedWorkspaceRoot));
     } catch {
       // Fall through to substrate-backed recovery when the remembered mount path has gone stale.
     }
@@ -272,7 +273,7 @@ export function normalizeRecentThreads(
       entry?.last_updated_at,
       entry?.lastUpdatedAt,
     ) || new Date().toISOString();
-    const workspaceRoot = firstString(workspaceRootByThreadId[id]);
+    const workspaceRoot = normalizeUserFacingWorkspaceRoot(workspaceRootByThreadId[id]);
 
     return {
       id,
@@ -346,7 +347,7 @@ export function mergeRecentThreadMetadata(
         interactionState:
           firstString(selectedThread?.interactionState, nextThread.interactionState) || "conversation",
         updatedAt: firstString(selectedThread?.updatedAt, nextThread.updatedAt) || nextThread.updatedAt,
-        workspaceRoot: firstString(selectedThread?.workspaceRoot, nextThread.workspaceRoot),
+        workspaceRoot: normalizeUserFacingWorkspaceRoot(firstString(selectedThread?.workspaceRoot, nextThread.workspaceRoot)),
       };
     }
 
@@ -364,7 +365,7 @@ export function mergeRecentThreadMetadata(
       state: firstString(selectedThread.state) || "idle",
       interactionState: firstString(selectedThread.interactionState) || "conversation",
       updatedAt: firstString(selectedThread.updatedAt) || new Date().toISOString(),
-      workspaceRoot: firstString(selectedThread.workspaceRoot),
+      workspaceRoot: normalizeUserFacingWorkspaceRoot(selectedThread.workspaceRoot),
     });
   }
 
@@ -497,7 +498,7 @@ export async function loadRecentThreads(
         if (!threadId || session.status === "archived") {
           return null;
         }
-        const workspaceRoot = firstString(workspaceRootByThreadId[threadId]);
+        const workspaceRoot = normalizeUserFacingWorkspaceRoot(workspaceRootByThreadId[threadId]);
         return {
           id: threadId,
           title: firstString(session.title) || "Untitled thread",
@@ -535,7 +536,7 @@ export function buildSelectedThreadFallback(summary) {
   return {
     ...summary,
     updatedLabel: formatUpdatedLabel(summary.updatedAt),
-    workspaceRoot: firstString(summary.workspaceRoot),
+    workspaceRoot: normalizeUserFacingWorkspaceRoot(summary.workspaceRoot),
     entries: [],
     changeGroups: [],
     progressSummary: [],

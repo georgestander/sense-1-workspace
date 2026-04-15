@@ -2,6 +2,7 @@ import { memo, useRef, useState } from "react";
 import { Blocks, Check, ChevronRight, Copy, PlugZap, Sparkles } from "lucide-react";
 
 import { ThreadMarkdown } from "../../thread-markdown.js";
+import { ShortcutPillRow } from "../composer/shortcut-pill-row.js";
 import {
   coerceDisplayText,
   firstLinePreview,
@@ -14,9 +15,12 @@ import { type DesktopThreadEntry } from "../../lib/live-thread-data.js";
 import { getFileIcon, getFileLabel } from "../../lib/file-icons";
 import { resolveWorkspaceFilePath } from "../right-rail/RightRailSection";
 import { useStreamingEntryBody } from "../../state/session/session-stream-live-bodies.ts";
+import type { DesktopExtensionOverviewResult } from "../../../main/contracts";
+import { stripResolvedPromptShortcutText } from "../../../shared/prompt-shortcuts.ts";
 
 type ThreadEntryListProps = {
   entries: DesktopThreadEntry[];
+  extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
   suppressFileChanges?: boolean;
   threadId: string;
   workspaceRoot: string | null;
@@ -103,11 +107,13 @@ function ThreadEntryShortcutPills({
 }
 
 function ActivityGroupCard({
+  extensionOverview,
   group,
   suppressFileChanges = false,
   threadId,
   workspaceRoot,
 }: {
+  extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
   group: Extract<ThreadGroupedEntry, { kind: "activity-group" }>;
   suppressFileChanges?: boolean;
   threadId: string;
@@ -145,7 +151,13 @@ function ActivityGroupCard({
         </summary>
         <div className="mt-1.5 space-y-0.5 pl-5">
           {visibleEntries.map((entry) => (
-            <ThreadEntryCard entry={entry} key={entry.id} threadId={threadId} workspaceRoot={workspaceRoot} />
+            <ThreadEntryCard
+              entry={entry}
+              extensionOverview={extensionOverview}
+              key={entry.id}
+              threadId={threadId}
+              workspaceRoot={workspaceRoot}
+            />
           ))}
         </div>
       </details>
@@ -155,10 +167,12 @@ function ActivityGroupCard({
 
 const ThreadEntryCard = memo(function ThreadEntryCard({
   entry,
+  extensionOverview,
   threadId,
   workspaceRoot,
 }: {
   entry: DesktopThreadEntry;
+  extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
   threadId: string;
   workspaceRoot: string | null;
 }) {
@@ -169,6 +183,9 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
       : "body" in entry
         ? coerceDisplayText(entry.body)
         : "";
+  const visibleUserBody = entry.kind === "user" && extensionOverview
+    ? stripResolvedPromptShortcutText(entryBody, extensionOverview)
+    : entryBody;
 
   if (entry.kind === "user") {
     return (
@@ -176,8 +193,9 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
         {"promptShortcuts" in entry && Array.isArray(entry.promptShortcuts) && entry.promptShortcuts.length > 0 ? (
           <ThreadEntryShortcutPills matches={entry.promptShortcuts} />
         ) : null}
+        <ShortcutPillRow className="mb-2" overview={extensionOverview} prompt={entryBody} />
         <ThreadMarkdown className="thread-markdown-user" workspaceRoot={workspaceRoot}>
-          {entryBody}
+          {visibleUserBody}
         </ThreadMarkdown>
       </article>
     );
@@ -353,6 +371,7 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
 
 function ThreadEntryListInner({
   entries,
+  extensionOverview,
   suppressFileChanges = false,
   threadId,
   workspaceRoot,
@@ -371,9 +390,18 @@ function ThreadEntryListInner({
     <>
       {groupedEntries.map((grouped) =>
         grouped.kind === "passthrough" ? (
-          grouped.entry.kind === "fileChange" && suppressFileChanges ? null : <ThreadEntryCard entry={grouped.entry} key={grouped.entry.id} threadId={threadId} workspaceRoot={workspaceRoot} />
+          grouped.entry.kind === "fileChange" && suppressFileChanges
+            ? null
+            : <ThreadEntryCard entry={grouped.entry} extensionOverview={extensionOverview} key={grouped.entry.id} threadId={threadId} workspaceRoot={workspaceRoot} />
         ) : (
-          <ActivityGroupCard key={grouped.id} group={grouped} suppressFileChanges={suppressFileChanges} threadId={threadId} workspaceRoot={workspaceRoot} />
+          <ActivityGroupCard
+            extensionOverview={extensionOverview}
+            group={grouped}
+            key={grouped.id}
+            suppressFileChanges={suppressFileChanges}
+            threadId={threadId}
+            workspaceRoot={workspaceRoot}
+          />
         ),
       )}
     </>
