@@ -261,7 +261,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
         </article>
       ) : null}
 
-      <section className="relative mx-auto mt-8 w-full max-w-3xl shrink-0 rounded-2xl bg-white p-3 shadow-[0_14px_32px_rgba(10,15,20,0.06)]">
+      <section className="relative z-20 isolate mx-auto mt-8 w-full max-w-3xl shrink-0 rounded-2xl bg-white p-3 shadow-[0_14px_32px_rgba(10,15,20,0.06)]">
         {taskError ? <p className="mb-3 rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft" role="alert">{taskError}</p> : null}
         {!(workInFolder && workspaceFolder) ? (
           <div className="mb-3 flex flex-wrap gap-2">

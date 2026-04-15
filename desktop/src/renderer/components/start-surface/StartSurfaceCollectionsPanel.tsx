@@ -83,7 +83,7 @@ export function StartSurfaceCollectionsPanel(props: StartSurfaceCollectionsPanel
   } = props;
 
   return (
-    <div className="mx-auto mt-6 min-h-0 w-full max-w-3xl flex-1 space-y-5 overflow-y-auto pb-4">
+    <div className="relative z-0 mx-auto mt-6 min-h-0 w-full max-w-3xl flex-1 space-y-5 overflow-y-auto pb-4">
       {workInFolder && workspaceFolder ? null : workspaceThreadGroups.workspaces.length > 0 ? (
         <section>
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.11em] text-muted">Workspaces</p>
