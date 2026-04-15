@@ -243,10 +243,11 @@ function resolveAppShortcut(token: string, apps: DesktopAppRecord[]): DesktopApp
     return null;
   }
 
-  return apps.find((app) =>
+  const matches = apps.filter((app) =>
     app.isEnabled
     && app.isAccessible
-    && buildAppAliasKeys(app).includes(normalizedToken)) ?? null;
+    && buildAppAliasKeys(app).includes(normalizedToken));
+  return matches.length === 1 ? matches[0] : null;
 }
 
 function buildSkillLabel(skill: DesktopSkillRecord): string {
@@ -317,12 +318,19 @@ function chooseSuggestionAppToken(
   overview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills">,
 ): string | null {
   const preferredToken = chooseAppToken(app);
-  if (preferredToken && resolveShortcutTargetKind(preferredToken, overview) === "app") {
+  if (
+    preferredToken
+    && resolveShortcutTargetKind(preferredToken, overview) === "app"
+    && resolveAppShortcut(preferredToken, overview.apps)?.id === app.id
+  ) {
     return preferredToken;
   }
 
   for (const alias of buildAppAliasKeys(app)) {
-    if (resolveShortcutTargetKind(alias, overview) === "app") {
+    if (
+      resolveShortcutTargetKind(alias, overview) === "app"
+      && resolveAppShortcut(alias, overview.apps)?.id === app.id
+    ) {
       return alias;
     }
   }
@@ -537,7 +545,7 @@ export function stripResolvedPromptShortcutText(
 
   let nextPrompt = prompt;
   for (const token of new Set(matches.map((match) => match.token))) {
-    const matcher = new RegExp(`(^|[^A-Za-z0-9_])\\$${escapeShortcutRegex(token)}(?=$|[^A-Za-z0-9:_-])`, "gu");
+    const matcher = new RegExp(`(^|[^A-Za-z0-9_])\\$${escapeShortcutRegex(token)}(?=$|[^A-Za-z0-9:_-])`, "giu");
     nextPrompt = nextPrompt.replace(matcher, "$1");
   }
 
