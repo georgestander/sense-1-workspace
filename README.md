@@ -83,6 +83,22 @@ DESIGN.md      Visual design system specification
 CONTRIBUTING.md   Contribution guidelines
 ```
 
+## Editing Agent Behavior
+
+For future edits to Sense-1's personality, runtime behavior, or system-skill wording, the main places are:
+
+- Default personality and settings defaults: `desktop/src/main/settings/desktop-settings.js`
+- Built-in runtime instruction default: `desktop/src/main/runtime/live-thread-runtime-policy.js`
+- How personality and rules are described in the product: `desktop/src/main/runtime/live-thread-runtime-policy.js`
+- Settings UI for Agent Behaviour, runtime instructions, and personality: `desktop/src/renderer/components/settings/SettingsSections.tsx`
+- Sense-1-specific prompt overrides for system skills: `desktop/src/main/profile/profile-paths.js`
+
+Rule of thumb:
+
+- Change product defaults or tone in `desktop/src/main/settings/*` and `desktop/src/main/runtime/live-thread-runtime-policy.js`
+- Change what users can edit in Settings in `desktop/src/renderer/components/settings/*`
+- Change Sense-1-specific guardrails layered onto upstream skills in `desktop/src/main/profile/profile-paths.js`
+
 ## Background
 
 Sense-1 Workspace has been in active development as a private project since early 2026. This is the first public release — the desktop workspace layer extracted and open-sourced for the community to use, fork, and build on.
