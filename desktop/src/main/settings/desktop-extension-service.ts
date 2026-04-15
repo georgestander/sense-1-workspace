@@ -11,6 +11,10 @@ import type {
   DesktopAppRecord,
   DesktopExtensionOverviewRequest,
   DesktopExtensionOverviewResult,
+  DesktopManagedExtensionAuthState,
+  DesktopManagedExtensionHealthState,
+  DesktopManagedExtensionOwnership,
+  DesktopManagedExtensionRecord,
   DesktopMcpServerEnabledRequest,
   DesktopMcpServerRecord,
   DesktopPluginInstallRequest,
@@ -61,6 +65,7 @@ type PluginInstallResult = {
 
 type LocalPluginMetadata = {
   readonly appIds: string[];
+  readonly mcpServerIds: string[];
   readonly sourcePath: string | null;
   readonly skills: DesktopSkillRecord[];
 };
@@ -96,6 +101,10 @@ function asBoolean(value: unknown, fallback = false): boolean {
 
 function asStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
+}
+
+function normalizeStoredPath(value: string | null | undefined): string {
+  return typeof value === "string" ? value.replaceAll("\\", "/") : "";
 }
 
 function uniqueStrings(values: Array<string | null | undefined>): string[] {
@@ -551,6 +560,7 @@ async function readPluginLocalMetadata(
   if (!sourcePath) {
     return {
       appIds: [],
+      mcpServerIds: [],
       sourcePath: null,
       skills: [],
     };
@@ -563,6 +573,12 @@ async function readPluginLocalMetadata(
     appIds = uniqueStrings(
       Object.values(appJson?.apps ?? {}).map((appRecord) => firstString(asRecord(appRecord).id)),
     );
+  } catch {}
+
+  let mcpServerIds: string[] = [];
+  try {
+    const mcpJson = JSON.parse(await fs.readFile(path.join(sourcePath, ".mcp.json"), "utf8")) as { mcpServers?: Record<string, unknown> };
+    mcpServerIds = uniqueStrings(Object.keys(mcpJson?.mcpServers ?? {}));
   } catch {}
 
   const skillsRoot = path.join(sourcePath, "skills");
@@ -594,6 +610,7 @@ async function readPluginLocalMetadata(
 
   return {
     appIds,
+    mcpServerIds,
     sourcePath,
     skills,
   };
@@ -741,6 +758,266 @@ function normalizeSkills(rawSkills: unknown): DesktopSkillRecord[] {
   return records.sort((left, right) => left.name.localeCompare(right.name));
 }
 
+function pluginOwnership(plugin: DesktopPluginRecord): DesktopManagedExtensionOwnership {
+  const normalizedSourcePath = normalizeStoredPath(plugin.sourcePath);
+  if (!plugin.installed) {
+    return "marketplace-installed";
+  }
+  if (normalizedSourcePath.includes("/codex-home/plugins/") && !normalizedSourcePath.includes("/codex-home/plugins/cache/")) {
+    return "profile-owned";
+  }
+  if (plugin.marketplacePath || normalizedSourcePath.includes("/codex-home/plugins/cache/")) {
+    return "marketplace-installed";
+  }
+  return "built-in";
+}
+
+function skillOwnership(skill: DesktopSkillRecord, ownerPluginIds: string[]): DesktopManagedExtensionOwnership {
+  if (ownerPluginIds.length > 0 || skill.scope === "plugin") {
+    return "plugin-owned";
+  }
+  if (normalizeStoredPath(skill.path).includes("/codex-home/skills/")) {
+    return "profile-owned";
+  }
+  return "built-in";
+}
+
+function appOwnership(ownerPluginIds: string[]): DesktopManagedExtensionOwnership {
+  return ownerPluginIds.length > 0 ? "plugin-owned" : "built-in";
+}
+
+function mcpOwnership(ownerPluginIds: string[]): DesktopManagedExtensionOwnership {
+  return ownerPluginIds.length > 0 ? "plugin-owned" : "profile-owned";
+}
+
+function appAuthState(app: DesktopAppRecord): DesktopManagedExtensionAuthState {
+  if (!app.installUrl) {
+    return "not-required";
+  }
+  return app.isAccessible ? "connected" : "required";
+}
+
+function pluginAuthState(plugin: DesktopPluginRecord, apps: DesktopAppRecord[]): DesktopManagedExtensionAuthState {
+  const relatedApps = apps.filter((app) => plugin.appIds.includes(app.id));
+  if (relatedApps.some((app) => app.installUrl && !app.isAccessible)) {
+    return "required";
+  }
+  if (relatedApps.some((app) => app.installUrl && app.isAccessible)) {
+    return "connected";
+  }
+  return "not-required";
+}
+
+function mcpAuthState(server: DesktopMcpServerRecord): DesktopManagedExtensionAuthState {
+  const normalized = firstString(server.authStatus)?.toLowerCase() ?? "";
+  if (!normalized) {
+    return "not-required";
+  }
+  if (
+    normalized.includes("connected")
+    || normalized.includes("authenticated")
+    || normalized.includes("authorized")
+    || normalized.includes("ready")
+    || normalized.includes("ok")
+  ) {
+    return "connected";
+  }
+  if (normalized.includes("failed") || normalized.includes("error")) {
+    return "failed";
+  }
+  return "required";
+}
+
+function healthStateForAuth(authState: DesktopManagedExtensionAuthState): DesktopManagedExtensionHealthState {
+  if (authState === "failed") {
+    return "error";
+  }
+  if (authState === "required") {
+    return "warning";
+  }
+  return "healthy";
+}
+
+function mcpHealthState(server: DesktopMcpServerRecord, authState: DesktopManagedExtensionAuthState): DesktopManagedExtensionHealthState {
+  const normalizedState = firstString(server.state)?.toLowerCase() ?? "";
+  if (normalizedState.includes("error") || normalizedState.includes("failed") || authState === "failed") {
+    return "error";
+  }
+  if (authState === "required") {
+    return "warning";
+  }
+  return "healthy";
+}
+
+function buildManagedExtensions({
+  plugins,
+  apps,
+  mcpServers,
+  skills,
+  metadataByPluginId,
+}: {
+  plugins: DesktopPluginRecord[];
+  apps: DesktopAppRecord[];
+  mcpServers: DesktopMcpServerRecord[];
+  skills: DesktopSkillRecord[];
+  metadataByPluginId: Map<string, LocalPluginMetadata>;
+}): DesktopManagedExtensionRecord[] {
+  const pluginById = new Map(plugins.map((plugin) => [plugin.id, plugin] as const));
+  const skillOwnersByPath = new Map<string, string[]>();
+  const appOwnersById = new Map<string, string[]>();
+  const mcpOwnersById = new Map<string, string[]>();
+
+  for (const [pluginId, metadata] of metadataByPluginId.entries()) {
+    for (const skill of metadata.skills) {
+      skillOwnersByPath.set(skill.path, uniqueStrings([...(skillOwnersByPath.get(skill.path) ?? []), pluginId]));
+    }
+    for (const appId of metadata.appIds) {
+      appOwnersById.set(appId, uniqueStrings([...(appOwnersById.get(appId) ?? []), pluginId]));
+    }
+    for (const mcpServerId of metadata.mcpServerIds) {
+      mcpOwnersById.set(mcpServerId, uniqueStrings([...(mcpOwnersById.get(mcpServerId) ?? []), pluginId]));
+    }
+  }
+
+  for (const app of apps) {
+    const matchedPluginIds = plugins
+      .filter((plugin) =>
+        plugin.installed
+        && (
+          plugin.appIds.includes(app.id)
+        || app.pluginDisplayNames.includes(plugin.displayName)
+        || app.pluginDisplayNames.includes(plugin.name)
+        || app.pluginDisplayNames.includes(plugin.id)))
+      .map((plugin) => plugin.id);
+    if (matchedPluginIds.length === 0) {
+      continue;
+    }
+    appOwnersById.set(app.id, uniqueStrings([...(appOwnersById.get(app.id) ?? []), ...matchedPluginIds]));
+  }
+
+  const managedExtensions: DesktopManagedExtensionRecord[] = [];
+
+  for (const plugin of plugins) {
+    const authState = pluginAuthState(plugin, apps);
+    const metadata = metadataByPluginId.get(plugin.id);
+    managedExtensions.push({
+      id: plugin.id,
+      kind: "plugin",
+      name: plugin.name,
+      displayName: plugin.displayName,
+      description: plugin.description,
+      installState: plugin.installed ? "installed" : "discoverable",
+      enablementState: plugin.enabled ? "enabled" : "disabled",
+      authState,
+      healthState: healthStateForAuth(authState),
+      ownership: pluginOwnership(plugin),
+      ownerPluginIds: [],
+      includedSkillIds: metadata?.skills.map((skill) => skill.path) ?? [],
+      includedAppIds: metadata?.appIds ?? [],
+      includedMcpServerIds: metadata?.mcpServerIds ?? [],
+      capabilities: plugin.capabilities,
+      sourcePath: plugin.sourcePath,
+      marketplaceName: plugin.marketplaceName,
+      marketplacePath: plugin.marketplacePath,
+      canOpen: Boolean(plugin.sourcePath),
+      canUninstall: pluginOwnership(plugin) === "profile-owned",
+      canDisable: plugin.installed,
+    });
+  }
+
+  for (const app of apps) {
+    const authState = appAuthState(app);
+    const ownerPluginIds = uniqueStrings(appOwnersById.get(app.id) ?? []);
+    managedExtensions.push({
+      id: app.id,
+      kind: "app",
+      name: app.name,
+      displayName: app.name,
+      description: app.description,
+      installState: app.isAccessible || app.isEnabled || ownerPluginIds.length > 0 ? "installed" : "discoverable",
+      enablementState: app.isEnabled ? "enabled" : "disabled",
+      authState,
+      healthState: healthStateForAuth(authState),
+      ownership: appOwnership(ownerPluginIds),
+      ownerPluginIds,
+      includedSkillIds: [],
+      includedAppIds: [],
+      includedMcpServerIds: [],
+      capabilities: [],
+      sourcePath: null,
+      marketplaceName: null,
+      marketplacePath: null,
+      canOpen: false,
+      canUninstall: false,
+      canDisable: app.isAccessible,
+    });
+  }
+
+  for (const skill of skills) {
+    const ownerPluginIds = uniqueStrings(skillOwnersByPath.get(skill.path) ?? []);
+    const ownership = skillOwnership(skill, ownerPluginIds);
+    managedExtensions.push({
+      id: skill.path,
+      kind: "skill",
+      name: skill.name,
+      displayName: skill.name,
+      description: skill.description,
+      installState: "installed",
+      enablementState: skill.enabled ? "enabled" : "disabled",
+      authState: "not-required",
+      healthState: "healthy",
+      ownership,
+      ownerPluginIds,
+      includedSkillIds: [],
+      includedAppIds: [],
+      includedMcpServerIds: [],
+      capabilities: [],
+      sourcePath: skill.path,
+      marketplaceName: ownerPluginIds.length === 1 ? pluginById.get(ownerPluginIds[0])?.marketplaceName ?? null : null,
+      marketplacePath: ownerPluginIds.length === 1 ? pluginById.get(ownerPluginIds[0])?.marketplacePath ?? null : null,
+      canOpen: true,
+      canUninstall: ownership === "profile-owned",
+      canDisable: true,
+    });
+  }
+
+  for (const server of mcpServers) {
+    const authState = mcpAuthState(server);
+    const ownerPluginIds = uniqueStrings(mcpOwnersById.get(server.id) ?? []);
+    const ownership = mcpOwnership(ownerPluginIds);
+    managedExtensions.push({
+      id: server.id,
+      kind: "mcp",
+      name: server.id,
+      displayName: server.id,
+      description: firstString(server.command, server.url),
+      installState: "installed",
+      enablementState: server.enabled ? "enabled" : "disabled",
+      authState,
+      healthState: mcpHealthState(server, authState),
+      ownership,
+      ownerPluginIds,
+      includedSkillIds: [],
+      includedAppIds: [],
+      includedMcpServerIds: [],
+      capabilities: [],
+      sourcePath: null,
+      marketplaceName: ownerPluginIds.length === 1 ? pluginById.get(ownerPluginIds[0])?.marketplaceName ?? null : null,
+      marketplacePath: ownerPluginIds.length === 1 ? pluginById.get(ownerPluginIds[0])?.marketplacePath ?? null : null,
+      canOpen: false,
+      canUninstall: false,
+      canDisable: true,
+    });
+  }
+
+  return managedExtensions.sort((left, right) => {
+    if (left.kind === right.kind) {
+      return left.displayName.localeCompare(right.displayName);
+    }
+    return left.kind.localeCompare(right.kind);
+  });
+}
+
 export class DesktopExtensionService {
   readonly #env: NodeJS.ProcessEnv;
   readonly #manager: AppServerProcessManager;
@@ -846,12 +1123,22 @@ export class DesktopExtensionService {
       plugins,
       metadataByPluginId,
     );
-
-    return {
-      provider,
+    const mcpServers = normalizeMcpServers(mcpResult, asRecord(config?.mcp_servers));
+    const managedExtensions = buildManagedExtensions({
       plugins,
       apps,
-      mcpServers: normalizeMcpServers(mcpResult, asRecord(config?.mcp_servers)),
+      mcpServers,
+      skills,
+      metadataByPluginId,
+    });
+
+    return {
+      contractVersion: 1,
+      provider,
+      managedExtensions,
+      plugins,
+      apps,
+      mcpServers,
       skills,
     };
   }

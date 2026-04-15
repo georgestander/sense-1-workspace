@@ -37,6 +37,37 @@ export interface DesktopPluginRecord {
   readonly iconPath: string | null;
 }
 
+export type DesktopManagedExtensionKind = "plugin" | "skill" | "app" | "mcp";
+export type DesktopManagedExtensionInstallState = "discoverable" | "installed";
+export type DesktopManagedExtensionEnablementState = "enabled" | "disabled";
+export type DesktopManagedExtensionAuthState = "not-required" | "required" | "connected" | "failed";
+export type DesktopManagedExtensionHealthState = "healthy" | "warning" | "error";
+export type DesktopManagedExtensionOwnership = "built-in" | "profile-owned" | "plugin-owned" | "marketplace-installed";
+
+export interface DesktopManagedExtensionRecord {
+  readonly id: string;
+  readonly kind: DesktopManagedExtensionKind;
+  readonly name: string;
+  readonly displayName: string;
+  readonly description: string | null;
+  readonly installState: DesktopManagedExtensionInstallState;
+  readonly enablementState: DesktopManagedExtensionEnablementState;
+  readonly authState: DesktopManagedExtensionAuthState;
+  readonly healthState: DesktopManagedExtensionHealthState;
+  readonly ownership: DesktopManagedExtensionOwnership;
+  readonly ownerPluginIds: string[];
+  readonly includedSkillIds: string[];
+  readonly includedAppIds: string[];
+  readonly includedMcpServerIds: string[];
+  readonly capabilities: string[];
+  readonly sourcePath: string | null;
+  readonly marketplaceName: string | null;
+  readonly marketplacePath: string | null;
+  readonly canOpen: boolean;
+  readonly canUninstall: boolean;
+  readonly canDisable: boolean;
+}
+
 export interface DesktopAppRecord {
   readonly id: string;
   readonly name: string;
@@ -75,7 +106,9 @@ export interface DesktopExtensionOverviewRequest {
 }
 
 export interface DesktopExtensionOverviewResult {
+  readonly contractVersion: 1;
   readonly provider: DesktopProviderState;
+  readonly managedExtensions: DesktopManagedExtensionRecord[];
   readonly plugins: DesktopPluginRecord[];
   readonly apps: DesktopAppRecord[];
   readonly mcpServers: DesktopMcpServerRecord[];
