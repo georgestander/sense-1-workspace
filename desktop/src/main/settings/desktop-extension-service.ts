@@ -9,8 +9,11 @@ import type {
   DesktopAppInstallRequest,
   DesktopAppEnabledRequest,
   DesktopAppRecord,
+  DesktopExtensionBackendFailure,
+  DesktopExtensionHealth,
   DesktopExtensionOverviewRequest,
   DesktopExtensionOverviewResult,
+  DesktopExtensionPluginMcpIssue,
   DesktopManagedExtensionAuthState,
   DesktopManagedExtensionHealthState,
   DesktopManagedExtensionOwnership,
@@ -85,6 +88,7 @@ type LocalPluginMetadata = {
   readonly mcpServerIds: string[];
   readonly sourcePath: string | null;
   readonly skills: DesktopSkillRecord[];
+  readonly invalidMcpEntries: DesktopExtensionPluginMcpIssue[];
 };
 
 type LocalConfigToggles = {
@@ -350,6 +354,39 @@ function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function classifyMcpServerEntry(entry: unknown): { ok: true } | { ok: false; reason: string } {
+  const record = asRecord(entry);
+  if (Object.keys(record).length === 0) {
+    return { ok: false, reason: "Plugin MCP entry is not an object." };
+  }
+  if (firstString(record.command)) {
+    return { ok: true };
+  }
+  if (firstString(record.url)) {
+    return { ok: true };
+  }
+  return {
+    ok: false,
+    reason: "Plugin MCP entry is missing both `command` (stdio) and `url` (remote); codex cannot infer a transport.",
+  };
+}
+
+const MCP_SERVER_ERROR_PATTERN = /mcp_servers[.\[]"?([A-Za-z0-9._@:-]+)"?\]?/gu;
+
+function extractSuspectedMcpServerIds(errorMessage: string | null): string[] {
+  if (!errorMessage) {
+    return [];
+  }
+  const seen = new Set<string>();
+  for (const match of errorMessage.matchAll(MCP_SERVER_ERROR_PATTERN)) {
+    const id = firstString(match[1]);
+    if (id) {
+      seen.add(id);
+    }
+  }
+  return [...seen];
+}
+
 function commandExists(command: string): boolean {
   const result = spawnSync("which", [command], { stdio: "ignore" });
   return result.status === 0;
@@ -596,6 +633,7 @@ async function readPluginLocalMetadata(
       mcpServerIds: [],
       sourcePath: null,
       skills: [],
+      invalidMcpEntries: [],
     };
   }
 
@@ -609,9 +647,22 @@ async function readPluginLocalMetadata(
   } catch {}
 
   let mcpServerIds: string[] = [];
+  const invalidMcpEntries: DesktopExtensionPluginMcpIssue[] = [];
   try {
     const mcpJson = JSON.parse(await fs.readFile(path.join(sourcePath, ".mcp.json"), "utf8")) as { mcpServers?: Record<string, unknown> };
-    mcpServerIds = uniqueStrings(Object.keys(mcpJson?.mcpServers ?? {}));
+    const serverEntries = Object.entries(asRecord(mcpJson?.mcpServers));
+    mcpServerIds = uniqueStrings(serverEntries.map(([id]) => id));
+    for (const [serverId, serverConfig] of serverEntries) {
+      const classification = classifyMcpServerEntry(serverConfig);
+      if (!classification.ok) {
+        invalidMcpEntries.push({
+          pluginName: plugin.name,
+          sourcePath,
+          serverId,
+          reason: classification.reason,
+        });
+      }
+    }
   } catch {}
 
   const skillsRoot = path.join(sourcePath, "skills");
@@ -646,6 +697,7 @@ async function readPluginLocalMetadata(
     mcpServerIds,
     sourcePath,
     skills,
+    invalidMcpEntries,
   };
 }
 
@@ -1198,11 +1250,18 @@ export class DesktopExtensionService {
     this.#resolveProfile = options.resolveProfile;
   }
 
-  async #requestOrFallback<T>(method: string, params: unknown, fallback: T): Promise<T> {
+  async #requestOrFallback<T>(
+    method: string,
+    params: unknown,
+    fallback: T,
+    failures?: DesktopExtensionBackendFailure[],
+  ): Promise<T> {
     try {
       return await this.#manager.request(method, params) as T;
     } catch (error) {
-      console.warn(`[desktop:extensions] ${method} failed; continuing with fallback. ${formatError(error)}`);
+      const message = formatError(error);
+      console.warn(`[desktop:extensions] ${method} failed; continuing with fallback. ${message}`);
+      failures?.push({ method, message });
       return fallback;
     }
   }
@@ -1226,31 +1285,62 @@ export class DesktopExtensionService {
     await manager.restart(reason);
   }
 
+  async #safeRuntimeRefresh(
+    reason: string,
+    opts: { reloadMcpServers: boolean },
+  ): Promise<string | null> {
+    try {
+      await this.#restartRuntimeIfSupported(reason);
+    } catch (error) {
+      const message = formatError(error);
+      console.warn(`[desktop:extensions] runtime refresh for "${reason}" failed. ${message}`);
+      return message;
+    }
+    if (opts.reloadMcpServers) {
+      try {
+        await this.#manager.request("config/mcpServer/reload", {});
+      } catch (error) {
+        const message = formatError(error);
+        console.warn(`[desktop:extensions] config/mcpServer/reload for "${reason}" failed. ${message}`);
+        return message;
+      }
+    }
+    return null;
+  }
+
   async getOverview(
     request: DesktopExtensionOverviewRequest = {},
   ): Promise<DesktopExtensionOverviewResult> {
+    return this.#buildOverview(request, null);
+  }
+
+  async #buildOverview(
+    request: DesktopExtensionOverviewRequest,
+    runtimeError: string | null,
+  ): Promise<DesktopExtensionOverviewResult> {
     const profile = await this.#resolveProfile();
     const profileCodexHome = resolveProfileCodexHome(profile.id, this.#env);
+    const failedReads: DesktopExtensionBackendFailure[] = [];
     const [configResult, pluginResult, appResult, mcpResult, skillResult, accountResult] = await Promise.all([
-      this.#requestOrFallback<ConfigReadResult>("config/read", { includeLayers: false }, { config: null }),
+      this.#requestOrFallback<ConfigReadResult>("config/read", { includeLayers: false }, { config: null }, failedReads),
       this.#requestOrFallback<unknown>("plugin/list", {
         cwds: [profileCodexHome],
         forceRemoteSync: Boolean(request.forceRefetch),
-      }, { marketplaces: [] }),
+      }, { marketplaces: [] }, failedReads),
       this.#requestOrFallback<unknown>("app/list", {
         cursor: null,
         forceRefetch: Boolean(request.forceRefetch),
         limit: 100,
-      }, { data: [] }),
+      }, { data: [] }, failedReads),
       this.#requestOrFallback<unknown>("mcpServerStatus/list", {
         cursor: null,
         limit: 100,
-      }, { data: [] }),
+      }, { data: [] }, failedReads),
       this.#requestOrFallback<unknown>("skills/list", {
         cwds: [profileCodexHome],
         forceReload: Boolean(request.forceRefetch),
-      }, { data: [] }),
-      this.#requestOrFallback<AccountReadResult>("account/read", { refreshToken: false }, {}),
+      }, { data: [] }, failedReads),
+      this.#requestOrFallback<AccountReadResult>("account/read", { refreshToken: false }, {}, failedReads),
     ]);
 
     const localConfigToggles = await readLocalConfigToggles(profileCodexHome);
@@ -1299,6 +1389,22 @@ export class DesktopExtensionService {
       metadataByPluginId,
     });
 
+    const invalidMcpEntries: DesktopExtensionPluginMcpIssue[] = [];
+    for (const metadata of metadataByPluginId.values()) {
+      invalidMcpEntries.push(...metadata.invalidMcpEntries);
+    }
+
+    const health: DesktopExtensionHealth = {
+      backend: {
+        failedReads,
+        lastRuntimeError: runtimeError,
+        suspectedMcpServerIds: extractSuspectedMcpServerIds(runtimeError),
+      },
+      pluginMcp: {
+        invalidEntries: invalidMcpEntries,
+      },
+    };
+
     return {
       contractVersion: 1,
       provider,
@@ -1307,6 +1413,7 @@ export class DesktopExtensionService {
       apps,
       mcpServers,
       skills,
+      health,
     };
   }
 
@@ -1438,12 +1545,11 @@ export class DesktopExtensionService {
     await this.#manager.request("config/batchWrite", {
       edits: batchEdits,
     });
-    await this.#restartRuntimeIfSupported("plugin-install");
-    if (mcpServerIdsToEnable.size > 0) {
-      await this.#manager.request("config/mcpServer/reload", {});
-    }
+    const runtimeError = await this.#safeRuntimeRefresh("plugin-install", {
+      reloadMcpServers: mcpServerIdsToEnable.size > 0,
+    });
 
-    const finalOverview = await this.getOverview({ forceRefetch: true });
+    const finalOverview = await this.#buildOverview({ forceRefetch: true }, runtimeError);
     if (authUrls.size === 0 && appIdsToEnable.size > 0) {
       for (const app of finalOverview.apps) {
         if (!appIdsToEnable.has(app.id)) {
@@ -1517,11 +1623,10 @@ export class DesktopExtensionService {
         ),
       ],
     });
-    if ((managedPlugin?.includedMcpServerIds.length ?? 0) > 0) {
-      await this.#manager.request("config/mcpServer/reload", {});
-    }
-    await this.#restartRuntimeIfSupported("plugin-uninstall");
-    return await this.getOverview({ forceRefetch: true });
+    const runtimeError = await this.#safeRuntimeRefresh("plugin-uninstall", {
+      reloadMcpServers: (managedPlugin?.includedMcpServerIds.length ?? 0) > 0,
+    });
+    return await this.#buildOverview({ forceRefetch: true }, runtimeError);
   }
 
   async setPluginEnabled(request: DesktopPluginEnabledRequest): Promise<DesktopExtensionOverviewResult> {
@@ -1577,11 +1682,10 @@ export class DesktopExtensionService {
     await this.#manager.request("config/batchWrite", {
       edits,
     });
-    if (includedMcpServerIds.length > 0) {
-      await this.#manager.request("config/mcpServer/reload", {});
-    }
-    await this.#restartRuntimeIfSupported("plugin-enabled");
-    return await this.getOverview({ forceRefetch: true });
+    const runtimeError = await this.#safeRuntimeRefresh("plugin-enabled", {
+      reloadMcpServers: includedMcpServerIds.length > 0,
+    });
+    return await this.#buildOverview({ forceRefetch: true }, runtimeError);
   }
 
   async openAppInstall(request: DesktopAppInstallRequest): Promise<DesktopExtensionOverviewResult> {
@@ -1599,9 +1703,9 @@ export class DesktopExtensionService {
         },
       ],
     });
-    await this.#restartRuntimeIfSupported("app-install");
+    const runtimeError = await this.#safeRuntimeRefresh("app-install", { reloadMcpServers: false });
     await this.#openManagedAuth(request.installUrl);
-    return await this.getOverview({ forceRefetch: true });
+    return await this.#buildOverview({ forceRefetch: true }, runtimeError);
   }
 
   async removeApp(request: DesktopAppRemoveRequest): Promise<DesktopExtensionOverviewResult> {
@@ -1614,8 +1718,8 @@ export class DesktopExtensionService {
         },
       ],
     });
-    await this.#restartRuntimeIfSupported("app-remove");
-    return await this.getOverview({ forceRefetch: true });
+    const runtimeError = await this.#safeRuntimeRefresh("app-remove", { reloadMcpServers: false });
+    return await this.#buildOverview({ forceRefetch: true }, runtimeError);
   }
 
   async setAppEnabled(request: DesktopAppEnabledRequest): Promise<DesktopExtensionOverviewResult> {
@@ -1633,8 +1737,8 @@ export class DesktopExtensionService {
         },
       ],
     });
-    await this.#restartRuntimeIfSupported("app-enabled");
-    return await this.getOverview({ forceRefetch: true });
+    const runtimeError = await this.#safeRuntimeRefresh("app-enabled", { reloadMcpServers: false });
+    return await this.#buildOverview({ forceRefetch: true }, runtimeError);
   }
 
   async startMcpServerAuth(request: DesktopMcpServerAuthRequest): Promise<DesktopMcpServerAuthResult> {
@@ -1660,8 +1764,14 @@ export class DesktopExtensionService {
       mergeStrategy: "upsert",
       value: request.enabled,
     });
-    await this.#manager.request("config/mcpServer/reload", {});
-    return await this.getOverview({ forceRefetch: true });
+    let runtimeError: string | null = null;
+    try {
+      await this.#manager.request("config/mcpServer/reload", {});
+    } catch (error) {
+      runtimeError = formatError(error);
+      console.warn(`[desktop:extensions] config/mcpServer/reload for "mcp-enabled" failed. ${runtimeError}`);
+    }
+    return await this.#buildOverview({ forceRefetch: true }, runtimeError);
   }
 
   async readSkillDetail(request: DesktopSkillDetailRequest): Promise<DesktopSkillDetailResult> {
@@ -1707,7 +1817,7 @@ export class DesktopExtensionService {
     }
 
     await fs.rm(skillDirectory, { force: true, recursive: true });
-    await this.#restartRuntimeIfSupported("skill-uninstall");
-    return await this.getOverview({ forceRefetch: true });
+    const runtimeError = await this.#safeRuntimeRefresh("skill-uninstall", { reloadMcpServers: false });
+    return await this.#buildOverview({ forceRefetch: true }, runtimeError);
   }
 }
