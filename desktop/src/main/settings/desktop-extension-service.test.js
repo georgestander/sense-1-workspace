@@ -2406,6 +2406,7 @@ async function createInstalledPluginFixtureWithInvalidMcp() {
       mcpServers: {
         "cloudflare-api": {
           type: "http",
+          url: "https://example.com/cloudflare-mcp",
         },
         "good-server": {
           url: "https://example.com/mcp",
@@ -2506,7 +2507,7 @@ test("getOverview surfaces invalid plugin MCP entries without dropping valid one
     assert.equal(invalid.length, 1);
     assert.equal(invalid[0].serverId, "cloudflare-api");
     assert.equal(invalid[0].pluginName, "cloudflare");
-    assert.match(invalid[0].reason, /missing both `command`.*`url`/);
+    assert.match(invalid[0].reason, /unsupported transport `http`/);
 
     const managedPlugin = findManagedExtension(overview, "plugin", "cloudflare");
     assert.ok(managedPlugin, "plugin record still present");

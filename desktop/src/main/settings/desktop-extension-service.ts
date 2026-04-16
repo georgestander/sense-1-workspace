@@ -354,15 +354,48 @@ function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+const MCP_STDIO_TRANSPORTS = new Set(["stdio"]);
+const MCP_REMOTE_TRANSPORTS = new Set(["sse", "streamable_http", "streamable-http"]);
+
 function classifyMcpServerEntry(entry: unknown): { ok: true } | { ok: false; reason: string } {
   const record = asRecord(entry);
   if (Object.keys(record).length === 0) {
     return { ok: false, reason: "Plugin MCP entry is not an object." };
   }
-  if (firstString(record.command)) {
+  const command = firstString(record.command);
+  const url = firstString(record.url);
+  const declaredType = firstString(record.type, record.transport);
+  const declaredTypeLower = declaredType ? declaredType.toLowerCase() : null;
+
+  if (declaredTypeLower) {
+    if (MCP_STDIO_TRANSPORTS.has(declaredTypeLower)) {
+      if (!command) {
+        return {
+          ok: false,
+          reason: `Plugin MCP entry declares transport \`${declaredType}\` but is missing \`command\`.`,
+        };
+      }
+      return { ok: true };
+    }
+    if (MCP_REMOTE_TRANSPORTS.has(declaredTypeLower)) {
+      if (!url) {
+        return {
+          ok: false,
+          reason: `Plugin MCP entry declares transport \`${declaredType}\` but is missing \`url\`.`,
+        };
+      }
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      reason: `Plugin MCP entry declares unsupported transport \`${declaredType}\`; codex accepts \`stdio\`, \`sse\`, or \`streamable_http\`.`,
+    };
+  }
+
+  if (command) {
     return { ok: true };
   }
-  if (firstString(record.url)) {
+  if (url) {
     return { ok: true };
   }
   return {
