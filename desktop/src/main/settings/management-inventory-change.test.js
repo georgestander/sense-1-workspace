@@ -5,6 +5,7 @@ import {
   collectManagementInventoryPathsFromRuntimeMessage,
   filterProfileCodexHomeRoots,
   isManagementInventoryPath,
+  latestUserEntryRequestsManagedInventoryInstall,
   ManagementInventoryChangeTracker,
 } from "./management-inventory-change.ts";
 
@@ -96,4 +97,44 @@ test("ManagementInventoryChangeTracker records runtime inventory changes once pe
 
   assert.equal(tracker.consume("thread-1"), true);
   assert.equal(tracker.consume("thread-1"), false);
+});
+
+test("latestUserEntryRequestsManagedInventoryInstall only matches the latest user turn shortcuts", () => {
+  assert.equal(
+    latestUserEntryRequestsManagedInventoryInstall({
+      entries: [
+        {
+          kind: "user",
+          promptShortcuts: [{ token: "skill-creator" }],
+        },
+        {
+          kind: "assistant",
+        },
+        {
+          kind: "user",
+          promptShortcuts: [{ token: "gmail:gmail" }],
+        },
+      ],
+    }),
+    false,
+  );
+
+  assert.equal(
+    latestUserEntryRequestsManagedInventoryInstall({
+      entries: [
+        {
+          kind: "user",
+          promptShortcuts: [{ token: "gmail:gmail" }],
+        },
+        {
+          kind: "assistant",
+        },
+        {
+          kind: "user",
+          promptShortcuts: [{ token: "plugin-creator" }, { token: "skill-installer" }],
+        },
+      ],
+    }),
+    true,
+  );
 });
