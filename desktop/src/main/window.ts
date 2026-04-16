@@ -12,6 +12,7 @@ const DESKTOP_AUTH_CALLBACK_PATH = "/auth/callback";
 let mainWindow: BrowserWindow | null = null;
 let authWindow: BrowserWindow | null = null;
 let authWindowCloseTimer: NodeJS.Timeout | null = null;
+const managedAuthWindows = new Set<BrowserWindow>();
 
 export function getMainWindow(): BrowserWindow | null {
   return mainWindow;
@@ -115,6 +116,15 @@ export async function openDesktopAuthWindow(authUrl: string): Promise<void> {
   window.focus();
 }
 
+export async function openDesktopManagedAuthWindow(authUrl: string): Promise<void> {
+  const window = createManagedAuthWindow();
+  await window.loadURL(authUrl);
+  if (!window.isVisible()) {
+    window.show();
+  }
+  window.focus();
+}
+
 export function markDesktopAuthCallbackSeen(targetUrl: string): void {
   if (!authWindow || authWindow.isDestroyed() || !isDesktopAuthCallbackUrl(targetUrl)) {
     return;
@@ -156,18 +166,7 @@ function getOrCreateAuthWindow(): BrowserWindow {
     return authWindow;
   }
 
-  const window = new BrowserWindow({
-    show: false,
-    width: 520,
-    height: 760,
-    minWidth: 420,
-    minHeight: 620,
-    title: "Sign in to sense-1",
-    autoHideMenuBar: true,
-    parent: mainWindow ?? undefined,
-    modal: false,
-    icon: resolveDesktopIconPath() ?? undefined,
-  });
+  const window = createAuthWindow("Sign in to sense-1");
 
   authWindow = window;
 
@@ -205,6 +204,30 @@ function getOrCreateAuthWindow(): BrowserWindow {
   });
 
   return window;
+}
+
+function createManagedAuthWindow(): BrowserWindow {
+  const window = createAuthWindow("Connect app in sense-1");
+  managedAuthWindows.add(window);
+  window.on("closed", () => {
+    managedAuthWindows.delete(window);
+  });
+  return window;
+}
+
+function createAuthWindow(title: string): BrowserWindow {
+  return new BrowserWindow({
+    show: false,
+    width: 520,
+    height: 760,
+    minWidth: 420,
+    minHeight: 620,
+    title,
+    autoHideMenuBar: true,
+    parent: mainWindow ?? undefined,
+    modal: false,
+    icon: resolveDesktopIconPath() ?? undefined,
+  });
 }
 
 function uniqueTargets(targets: Array<string | undefined>): string[] {

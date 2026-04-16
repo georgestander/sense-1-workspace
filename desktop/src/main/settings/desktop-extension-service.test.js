@@ -635,7 +635,8 @@ test("getOverview does not treat apps linked only to discoverable plugins as ins
 test("installPlugin enables manifest-backed apps even when plugin/install omits app ids", async () => {
   const pluginRoot = await createInstalledPluginFixture();
   const managerCalls = [];
-  const opened = [];
+  const managedAuthOpened = [];
+  const externallyOpened = [];
   let installed = false;
 
   const service = new DesktopExtensionService({
@@ -732,7 +733,10 @@ test("installPlugin enables manifest-backed apps even when plugin/install omits 
       throw new Error(`Unexpected method: ${method}`);
     }),
     openExternal: async (url) => {
-      opened.push(url);
+      externallyOpened.push(url);
+    },
+    openManagedAuth: async (url) => {
+      managedAuthOpened.push(url);
     },
     resolveProfile: async () => ({ id: "default" }),
   });
@@ -769,7 +773,8 @@ test("installPlugin enables manifest-backed apps even when plugin/install omits 
     ],
   });
   assert.ok(managerCalls.some((entry) => entry.method === "config/mcpServer/reload"));
-  assert.deepEqual(opened, ["https://chatgpt.com/gmail/install"]);
+  assert.deepEqual(managedAuthOpened, ["https://chatgpt.com/gmail/install"]);
+  assert.deepEqual(externallyOpened, []);
   assert.equal(overview.plugins[0]?.installed, true);
   assert.deepEqual(overview.apps[0]?.pluginDisplayNames, ["Gmail", "gmail"]);
 });
@@ -1156,9 +1161,10 @@ test("setPluginEnabled disables manifest-backed apps when no other plugin still 
   assert.ok(managerCalls.some((entry) => entry.method === "config/mcpServer/reload"));
 });
 
-test("openAppInstall enables the app and opens its install URL", async () => {
+test("openAppInstall enables the app and opens its install URL in the managed auth window", async () => {
   const managerCalls = [];
-  const opened = [];
+  const managedAuthOpened = [];
+  const externallyOpened = [];
 
   const service = new DesktopExtensionService({
     manager: createManager(async (method, params) => {
@@ -1214,7 +1220,10 @@ test("openAppInstall enables the app and opens its install URL", async () => {
       throw new Error(`Unexpected method: ${method}`);
     }),
     openExternal: async (url) => {
-      opened.push(url);
+      externallyOpened.push(url);
+    },
+    openManagedAuth: async (url) => {
+      managedAuthOpened.push(url);
     },
     resolveProfile: async () => ({ id: "default" }),
   });
@@ -1239,7 +1248,8 @@ test("openAppInstall enables the app and opens its install URL", async () => {
       },
     ],
   });
-  assert.deepEqual(opened, ["https://chatgpt.com/gmail/install"]);
+  assert.deepEqual(managedAuthOpened, ["https://chatgpt.com/gmail/install"]);
+  assert.deepEqual(externallyOpened, []);
 });
 
 test("uninstallPlugin removes a profile-owned plugin directory and disables its profile entries", async () => {
@@ -1791,7 +1801,8 @@ test("readPluginDetail prefers plugin/read and falls back to local metadata", as
 });
 
 test("startMcpServerAuth opens the returned authorization URL", async () => {
-  const opened = [];
+  const externallyOpened = [];
+  const managedAuthOpened = [];
 
   const service = new DesktopExtensionService({
     manager: createManager(async (method) => {
@@ -1846,14 +1857,18 @@ test("startMcpServerAuth opens the returned authorization URL", async () => {
       throw new Error(`Unexpected method: ${method}`);
     }),
     openExternal: async (url) => {
-      opened.push(url);
+      externallyOpened.push(url);
+    },
+    openManagedAuth: async (url) => {
+      managedAuthOpened.push(url);
     },
     resolveProfile: async () => ({ id: "default" }),
   });
 
   const result = await service.startMcpServerAuth({ serverId: "docs" });
   assert.equal(result.authorizationUrl, "https://example.com/oauth/start");
-  assert.deepEqual(opened, ["https://example.com/oauth/start"]);
+  assert.deepEqual(externallyOpened, ["https://example.com/oauth/start"]);
+  assert.deepEqual(managedAuthOpened, []);
 });
 
 test("readSkillDetail returns the skill markdown body", async () => {
