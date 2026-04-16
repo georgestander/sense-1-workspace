@@ -174,6 +174,12 @@ function buildProfileExtensionRuntimeInstruction({
     instructions.push(
       `This run already has write access to ${profileCodexHome}. Do not claim sandbox, workspace-boundary, or permission blocking for profile skill installation when writing under that root.`,
     );
+    instructions.push(
+      `These managed skill tasks are an explicit exception to the normal workspace deliverable rule. The finished installed skill belongs in ${profileCodexHome}/skills, not in the selected workspace or session artifact folder, unless the user explicitly asked for a workspace-local draft.`,
+    );
+    instructions.push(
+      `Do not report success until the final installed skill exists under ${profileCodexHome} and you can reference that installed location. A workspace draft or scaffold does not satisfy a managed install request.`,
+    );
     if (shortcutNames.has("skill-creator")) {
       instructions.push(
         `When the user asks for a new Sense-1 skill, finish with a callable installed profile skill in ${profileCodexHome}/skills. Do not stop at a TODO-only template, placeholder scaffold, or a draft left in the selected workspace for later move/install unless the user explicitly asked for workspace-local scaffold output.`,
@@ -192,6 +198,9 @@ function buildProfileExtensionRuntimeInstruction({
     );
     instructions.push(
       `Do not leave the finished plugin scaffold in the selected workspace for later manual move/install when ${profileCodexHome} is writable in this run.`,
+    );
+    instructions.push(
+      `This managed plugin task is also an explicit exception to the normal workspace deliverable rule. The finished plugin belongs in ${profilePluginsDir} with any required marketplace metadata under ${profileMarketplacePath}; a workspace draft does not satisfy the request unless the user explicitly asked for one.`,
     );
     if (pluginCreatorSkillPath && pluginCreatorScriptPath) {
       instructions.push(
