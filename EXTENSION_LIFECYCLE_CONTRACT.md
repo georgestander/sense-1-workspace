@@ -2,6 +2,9 @@
 
 This document defines the first normalized management contract for Sense-1 extensions. It is intentionally additive: the existing tab-specific records remain in `DesktopExtensionOverviewResult`, and the new normalized `managedExtensions` collection exists to stabilize downstream lifecycle, ownership, and management work.
 
+For the executable verification surface that sits on top of this contract, see
+`EXTENSION_ACCEPTANCE_MATRIX.md`.
+
 ## Why This Exists
 
 Sense-1 already aggregates extension data from multiple app-server and profile-local sources in `desktop/src/main/settings/desktop-extension-service.ts`, but the current public contract is only a set of tab-specific inventory arrays:

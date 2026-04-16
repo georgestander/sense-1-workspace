@@ -632,6 +632,356 @@ test("getOverview does not treat apps linked only to discoverable plugins as ins
   }
 });
 
+test("getOverview preserves local mcp enablement when runtime config is stale after restart", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const { codexHome } = await ensureProfileDirectories("default", env);
+
+  try {
+    await fs.writeFile(
+      path.join(codexHome, "config.toml"),
+      [
+        '[mcp_servers.docs]',
+        "enabled = false",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const service = new DesktopExtensionService({
+      env,
+      manager: createManager(async (method) => {
+        if (method === "config/read") {
+          return {
+            config: {
+              mcp_servers: {},
+            },
+          };
+        }
+
+        if (method === "plugin/list") {
+          return { marketplaces: [] };
+        }
+
+        if (method === "app/list") {
+          return { data: [] };
+        }
+
+        if (method === "mcpServerStatus/list") {
+          return {
+            data: [
+              {
+                id: "docs",
+                state: "ready",
+                authStatus: "connected",
+                tools: [],
+                resources: [],
+              },
+            ],
+          };
+        }
+
+        if (method === "skills/list") {
+          return { data: [] };
+        }
+
+        if (method === "account/read") {
+          return createAccountReadResult();
+        }
+
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.getOverview({ forceRefetch: true });
+    assert.equal(overview.mcpServers[0]?.enabled, false);
+    assert.equal(findManagedExtension(overview, "mcp", "docs")?.enablementState, "disabled");
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+  }
+});
+
+test("getOverview marks failed MCP auth as recoverable error state", async () => {
+  const service = new DesktopExtensionService({
+    manager: createManager(async (method) => {
+      if (method === "config/read") {
+        return {
+          config: {
+            mcp_servers: {
+              docs: {
+                enabled: true,
+              },
+            },
+          },
+        };
+      }
+
+      if (method === "plugin/list") {
+        return { marketplaces: [] };
+      }
+
+      if (method === "app/list") {
+        return { data: [] };
+      }
+
+      if (method === "mcpServerStatus/list") {
+        return {
+          data: [
+            {
+              id: "docs",
+              state: "error",
+              authStatus: "failed",
+              tools: [],
+              resources: [],
+            },
+          ],
+        };
+      }
+
+      if (method === "skills/list") {
+        return { data: [] };
+      }
+
+      if (method === "account/read") {
+        return createAccountReadResult();
+      }
+
+      throw new Error(`Unexpected method: ${method}`);
+    }),
+    openExternal: async () => {},
+    resolveProfile: async () => ({ id: "default" }),
+  });
+
+  const overview = await service.getOverview({ forceRefetch: true });
+  const managedMcp = findManagedExtension(overview, "mcp", "docs");
+  assert.equal(managedMcp?.authState, "failed");
+  assert.equal(managedMcp?.healthState, "error");
+  assert.equal(managedMcp?.canConnect, true);
+});
+
+test("getOverview marks legacy profile-owned skills as uninstallable profile inventory", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const { codexHome } = await ensureProfileDirectories("default", env);
+  const skillRoot = path.join(codexHome, "skills", "legacy-skill");
+  const skillPath = path.join(skillRoot, "SKILL.md");
+
+  try {
+    await fs.mkdir(skillRoot, { recursive: true });
+    await fs.writeFile(skillPath, "# Legacy skill\n", "utf8");
+
+    const service = new DesktopExtensionService({
+      env,
+      manager: createManager(async (method) => {
+        if (method === "config/read") {
+          return { config: {} };
+        }
+
+        if (method === "plugin/list") {
+          return { marketplaces: [] };
+        }
+
+        if (method === "app/list") {
+          return { data: [] };
+        }
+
+        if (method === "mcpServerStatus/list") {
+          return { data: [] };
+        }
+
+        if (method === "skills/list") {
+          return {
+            data: [
+              {
+                cwd: codexHome,
+                skills: [
+                  {
+                    name: "legacy-skill",
+                    path: skillPath,
+                    description: "Legacy profile skill",
+                    enabled: true,
+                  },
+                ],
+              },
+            ],
+          };
+        }
+
+        if (method === "account/read") {
+          return createAccountReadResult();
+        }
+
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.getOverview({ forceRefetch: true });
+    const managedSkill = findManagedExtension(overview, "skill", skillPath);
+    assert.equal(managedSkill?.ownership, "profile-owned");
+    assert.equal(managedSkill?.canUninstall, true);
+    assert.equal(managedSkill?.canOpen, true);
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+  }
+});
+
+test("getOverview marks manually created profile plugins as uninstallable profile inventory", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const { codexHome } = await ensureProfileDirectories("default", env);
+  const pluginRoot = path.join(codexHome, "plugins", "manual-plugin");
+
+  try {
+    await fs.mkdir(path.join(pluginRoot, ".codex-plugin"), { recursive: true });
+    await fs.writeFile(
+      path.join(pluginRoot, ".codex-plugin", "plugin.json"),
+      JSON.stringify({
+        interface: {
+          displayName: "Manual Plugin",
+          shortDescription: "Manual profile install",
+        },
+      }),
+      "utf8",
+    );
+
+    const service = new DesktopExtensionService({
+      env,
+      manager: createManager(async (method) => {
+        if (method === "config/read") {
+          return {
+            config: {
+              plugins: {
+                "manual-plugin": {
+                  enabled: true,
+                },
+              },
+            },
+          };
+        }
+
+        if (method === "plugin/list") {
+          return {
+            marketplaces: [
+              {
+                name: "Profile plugins",
+                path: path.join(codexHome, ".agents", "plugins", "marketplace.json"),
+                plugins: [
+                  {
+                    id: "manual-plugin",
+                    name: "manual-plugin",
+                    installed: true,
+                    enabled: true,
+                    source: {
+                      path: pluginRoot,
+                    },
+                    interface: {
+                      displayName: "Manual Plugin",
+                      shortDescription: "Manual profile install",
+                    },
+                  },
+                ],
+              },
+            ],
+          };
+        }
+
+        if (method === "app/list") {
+          return { data: [] };
+        }
+
+        if (method === "mcpServerStatus/list") {
+          return { data: [] };
+        }
+
+        if (method === "skills/list") {
+          return { data: [] };
+        }
+
+        if (method === "account/read") {
+          return createAccountReadResult();
+        }
+
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.getOverview({ forceRefetch: true });
+    const managedPlugin = findManagedExtension(overview, "plugin", "manual-plugin");
+    assert.equal(managedPlugin?.ownership, "profile-owned");
+    assert.equal(managedPlugin?.canUninstall, true);
+    assert.equal(overview.plugins[0]?.sourcePath, pluginRoot);
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+  }
+});
+
+test("getOverview ignores stale plugin and app config references without creating ghost inventory", async () => {
+  const service = new DesktopExtensionService({
+    manager: createManager(async (method) => {
+      if (method === "config/read") {
+        return {
+          config: {
+            apps: {
+              ghost_app: {
+                enabled: true,
+              },
+            },
+            plugins: {
+              ghost_plugin: {
+                enabled: true,
+              },
+            },
+          },
+        };
+      }
+
+      if (method === "plugin/list") {
+        return { marketplaces: [] };
+      }
+
+      if (method === "app/list") {
+        return { data: [] };
+      }
+
+      if (method === "mcpServerStatus/list") {
+        return { data: [] };
+      }
+
+      if (method === "skills/list") {
+        return { data: [] };
+      }
+
+      if (method === "account/read") {
+        return createAccountReadResult();
+      }
+
+      throw new Error(`Unexpected method: ${method}`);
+    }),
+    openExternal: async () => {},
+    resolveProfile: async () => ({ id: "default" }),
+  });
+
+  const overview = await service.getOverview({ forceRefetch: true });
+  assert.deepEqual(overview.plugins, []);
+  assert.deepEqual(overview.apps, []);
+  assert.deepEqual(overview.managedExtensions, []);
+});
+
 test("installPlugin enables manifest-backed apps even when plugin/install omits app ids", async () => {
   const pluginRoot = await createInstalledPluginFixture();
   const managerCalls = [];

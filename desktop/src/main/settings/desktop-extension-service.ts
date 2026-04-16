@@ -90,6 +90,7 @@ type LocalPluginMetadata = {
 type LocalConfigToggles = {
   readonly apps: Record<string, { enabled?: boolean }>;
   readonly features: Record<string, unknown>;
+  readonly mcp_servers: Record<string, { enabled?: boolean }>;
   readonly plugins: Record<string, { enabled?: boolean }>;
 };
 
@@ -232,10 +233,11 @@ function parseLocalConfigToggles(rawConfig: string): LocalConfigToggles {
   const toggles: LocalConfigToggles = {
     apps: {},
     features: {},
+    mcp_servers: {},
     plugins: {},
   };
 
-  let activeSection: "apps" | "features" | "plugins" | null = null;
+  let activeSection: "apps" | "features" | "mcp_servers" | "plugins" | null = null;
   let activeKey: string | null = null;
 
   for (const rawLine of rawConfig.split(/\r?\n/u)) {
@@ -244,9 +246,9 @@ function parseLocalConfigToggles(rawConfig: string): LocalConfigToggles {
       continue;
     }
 
-    const tableMatch = line.match(/^\[(plugins|apps)\.(?:"([^"]+)"|([A-Za-z0-9._@:-]+))\]$/u);
+    const tableMatch = line.match(/^\[(plugins|apps|mcp_servers)\.(?:"([^"]+)"|([A-Za-z0-9._@:-]+))\]$/u);
     if (tableMatch) {
-      activeSection = tableMatch[1] as "apps" | "plugins";
+      activeSection = tableMatch[1] as "apps" | "mcp_servers" | "plugins";
       activeKey = firstString(tableMatch[2], tableMatch[3]);
       continue;
     }
@@ -258,10 +260,10 @@ function parseLocalConfigToggles(rawConfig: string): LocalConfigToggles {
     }
 
     const dottedEnabledMatch = line.match(
-      /^(plugins|apps)\.(?:"([^"]+)"|([A-Za-z0-9._@:-]+))\.enabled\s*=\s*(true|false)$/iu,
+      /^(plugins|apps|mcp_servers)\.(?:"([^"]+)"|([A-Za-z0-9._@:-]+))\.enabled\s*=\s*(true|false)$/iu,
     );
     if (dottedEnabledMatch) {
-      const section = dottedEnabledMatch[1] as "apps" | "plugins";
+      const section = dottedEnabledMatch[1] as "apps" | "mcp_servers" | "plugins";
       const key = firstString(dottedEnabledMatch[2], dottedEnabledMatch[3]);
       const enabled = parseTomlBooleanToken(dottedEnabledMatch[4]);
       if (key && enabled !== null) {
@@ -322,6 +324,7 @@ async function readLocalConfigToggles(profileCodexHome: string): Promise<LocalCo
     return {
       apps: {},
       features: {},
+      mcp_servers: {},
       plugins: {},
     };
   }
@@ -338,7 +341,7 @@ function mergeConfigWithLocalToggles(
       ...asRecord(config?.features),
       ...localToggles.features,
     },
-    mcp_servers: asRecord(config?.mcp_servers),
+    mcp_servers: mergeToggleSections(asRecord(config?.mcp_servers), localToggles.mcp_servers),
     plugins: mergeToggleSections(asRecord(config?.plugins), localToggles.plugins),
   };
 }
