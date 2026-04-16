@@ -22,7 +22,8 @@
     "test:unit": "pnpm test:main && pnpm test:renderer",
     "qa:electron:smoke": "node ./scripts/playwright-electron-runner.mjs --module ./scripts/playwright-electron-smoke.mjs",
     "test:e2e": "pnpm build && npx playwright test",
-    "test:e2e:headed": "pnpm build && npx playwright test --headed"
+    "test:e2e:headed": "pnpm build && npx playwright test --headed",
+    "test:smoke:lifecycle": "pnpm build && npx playwright test e2e/extensions-lifecycle.spec.ts"
   },
   "dependencies": {
     "@openai/codex": "0.120.0",
