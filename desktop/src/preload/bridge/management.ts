@@ -16,6 +16,7 @@ import {
   type DesktopExtensionOverviewRequest,
   type DesktopExtensionOverviewResult,
   type DesktopMcpServerEnabledRequest,
+  type DesktopMcpServerReloadRequest,
   type DesktopPluginDetailRequest,
   type DesktopPluginDetailResult,
   type DesktopPluginInstallRequest,
@@ -61,6 +62,9 @@ export function createManagementBridge(ipcRenderer: IpcRenderer): ManagementBrid
       },
       setMcpServerEnabled: async (request: DesktopMcpServerEnabledRequest): Promise<DesktopExtensionOverviewResult> => {
         return ipcRenderer.invoke(IPC_CHANNELS.setDesktopMcpServerEnabled, request) as Promise<DesktopExtensionOverviewResult>;
+      },
+      reloadMcpServer: async (request: DesktopMcpServerReloadRequest): Promise<DesktopExtensionOverviewResult> => {
+        return ipcRenderer.invoke(IPC_CHANNELS.reloadDesktopMcpServer, request) as Promise<DesktopExtensionOverviewResult>;
       },
       readSkillDetail: async (request: DesktopSkillDetailRequest): Promise<DesktopSkillDetailResult> => {
         return ipcRenderer.invoke(IPC_CHANNELS.readDesktopSkillDetail, request) as Promise<DesktopSkillDetailResult>;

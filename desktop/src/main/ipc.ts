@@ -19,6 +19,7 @@ import {
   type DesktopInputResponseRequest,
   type DesktopInterruptTurnRequest,
   type DesktopMcpServerEnabledRequest,
+  type DesktopMcpServerReloadRequest,
   type DesktopPluginDetailRequest,
   type DesktopPluginDetailResult,
   type DesktopPolicyRulesResult,
@@ -143,6 +144,7 @@ type DesktopIpcServices = {
   setDesktopAppEnabled(request: DesktopAppEnabledRequest): Promise<DesktopExtensionOverviewResult>;
   startDesktopMcpServerAuth(request: DesktopMcpServerAuthRequest): Promise<DesktopMcpServerAuthResult>;
   setDesktopMcpServerEnabled(request: DesktopMcpServerEnabledRequest): Promise<DesktopExtensionOverviewResult>;
+  reloadDesktopMcpServer(request: DesktopMcpServerReloadRequest): Promise<DesktopExtensionOverviewResult>;
   readDesktopSkillDetail(request: DesktopSkillDetailRequest): Promise<DesktopSkillDetailResult>;
   setDesktopSkillEnabled(request: DesktopSkillEnabledRequest): Promise<DesktopExtensionOverviewResult>;
   uninstallDesktopSkill(request: DesktopSkillUninstallRequest): Promise<DesktopExtensionOverviewResult>;
@@ -430,6 +432,13 @@ export function registerDesktopIpcHandlers(services: DesktopIpcServices): void {
     IPC_CHANNELS.setDesktopMcpServerEnabled,
     async (_event, request: DesktopMcpServerEnabledRequest): Promise<DesktopExtensionOverviewResult> => {
       return await services.setDesktopMcpServerEnabled(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.reloadDesktopMcpServer,
+    async (_event, request: DesktopMcpServerReloadRequest): Promise<DesktopExtensionOverviewResult> => {
+      return await services.reloadDesktopMcpServer(request);
     },
   );
 

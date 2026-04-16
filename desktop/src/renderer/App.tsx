@@ -169,6 +169,7 @@ export default function App() {
         removeApp={management.removeApp}
         setAppEnabled={management.setAppEnabled}
         setMcpServerEnabled={management.setMcpServerEnabled}
+        reloadMcpServer={management.reloadMcpServer}
         setPluginEnabled={management.setPluginEnabled}
         setSkillEnabled={management.setSkillEnabled}
         startMcpServerAuth={management.startMcpServerAuth}

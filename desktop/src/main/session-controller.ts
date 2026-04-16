@@ -32,6 +32,7 @@ import type {
   DesktopInterruptTurnRequest,
   DesktopLastSelectedThreadRequest,
   DesktopMcpServerAuthRequest,
+  DesktopMcpServerReloadRequest,
   DesktopMcpServerAuthResult,
   DesktopMcpServerEnabledRequest,
   DesktopRuntimeEvent,
@@ -899,6 +900,12 @@ export class DesktopSessionController {
     request: DesktopMcpServerEnabledRequest,
   ): Promise<DesktopExtensionOverviewResult> {
     return await this.#desktopExtensions.setMcpServerEnabled(request);
+  }
+
+  async reloadDesktopMcpServer(
+    request: DesktopMcpServerReloadRequest,
+  ): Promise<DesktopExtensionOverviewResult> {
+    return await this.#desktopExtensions.reloadMcpServer(request);
   }
 
   async readDesktopSkillDetail(

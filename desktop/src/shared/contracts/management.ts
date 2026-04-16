@@ -204,6 +204,10 @@ export interface DesktopMcpServerAuthRequest {
   readonly serverId: string;
 }
 
+export interface DesktopMcpServerReloadRequest {
+  readonly serverId: string;
+}
+
 export interface DesktopMcpServerAuthResult {
   readonly authorizationUrl: string;
   readonly overview: DesktopExtensionOverviewResult;

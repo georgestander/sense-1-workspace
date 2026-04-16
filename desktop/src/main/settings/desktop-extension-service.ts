@@ -28,6 +28,7 @@ import type {
   DesktopMcpServerAuthResult,
   DesktopMcpServerEnabledRequest,
   DesktopMcpServerRecord,
+  DesktopMcpServerReloadRequest,
   DesktopPluginDetailRequest,
   DesktopPluginDetailResult,
   DesktopPluginDetailSkillRecord,
@@ -1786,11 +1787,28 @@ export class DesktopExtensionService {
       throw new Error("Sense-1 could not start MCP authentication for that server.");
     }
 
-    await this.#openExternal(authorizationUrl);
+    // Keep the OAuth flow inside a Sense-1 managed window so the callback
+    // round-trip lands back here and the user never gets bounced out to the
+    // default browser or a ChatGPT desktop handoff.
+    await this.#openManagedAuth(authorizationUrl);
     return {
       authorizationUrl,
       overview: await this.getOverview({ forceRefetch: true }),
     };
+  }
+
+  async reloadMcpServer(request: DesktopMcpServerReloadRequest): Promise<DesktopExtensionOverviewResult> {
+    let runtimeError: string | null = null;
+    try {
+      await this.#manager.request("config/mcpServer/reload", {
+        id: request.serverId,
+        serverId: request.serverId,
+      });
+    } catch (error) {
+      runtimeError = formatError(error);
+      console.warn(`[desktop:extensions] config/mcpServer/reload for "mcp-reload" failed. ${runtimeError}`);
+    }
+    return await this.#buildOverview({ forceRefetch: true }, runtimeError);
   }
 
   async setMcpServerEnabled(request: DesktopMcpServerEnabledRequest): Promise<DesktopExtensionOverviewResult> {

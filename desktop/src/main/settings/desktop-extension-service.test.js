@@ -2150,7 +2150,7 @@ test("readPluginDetail prefers plugin/read and falls back to local metadata", as
   }
 });
 
-test("startMcpServerAuth opens the returned authorization URL", async () => {
+test("startMcpServerAuth opens the authorization URL inside a Sense-1 managed window, not the default browser", async () => {
   const externallyOpened = [];
   const managedAuthOpened = [];
 
@@ -2217,8 +2217,89 @@ test("startMcpServerAuth opens the returned authorization URL", async () => {
 
   const result = await service.startMcpServerAuth({ serverId: "docs" });
   assert.equal(result.authorizationUrl, "https://example.com/oauth/start");
-  assert.deepEqual(externallyOpened, ["https://example.com/oauth/start"]);
-  assert.deepEqual(managedAuthOpened, []);
+  assert.deepEqual(
+    managedAuthOpened,
+    ["https://example.com/oauth/start"],
+    "MCP OAuth must land inside the Sense-1 managed auth window",
+  );
+  assert.deepEqual(
+    externallyOpened,
+    [],
+    "MCP OAuth must not bounce the user out to the default browser or ChatGPT desktop",
+  );
+});
+
+test("reloadMcpServer calls config/mcpServer/reload once without toggling enabled state", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = { ...process.env, SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot };
+  const managerCalls = [];
+  try {
+    const service = new DesktopExtensionService({
+      env,
+      manager: {
+        request: async (method, params) => {
+          managerCalls.push({ method, params });
+          if (method === "config/read") return { config: { mcp_servers: { docs: { enabled: true } } } };
+          if (method === "plugin/list") return { marketplaces: [] };
+          if (method === "app/list") return { data: [] };
+          if (method === "mcpServerStatus/list") {
+            return { data: [{ id: "docs", state: "ready", authStatus: "connected" }] };
+          }
+          if (method === "skills/list") return { data: [] };
+          if (method === "account/read") return createAccountReadResult();
+          if (method === "config/mcpServer/reload") return {};
+          throw new Error(`Unexpected method: ${method}`);
+        },
+      },
+      openExternal: async () => {},
+      openManagedAuth: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.reloadMcpServer({ serverId: "docs" });
+    const reloadCalls = managerCalls.filter((call) => call.method === "config/mcpServer/reload");
+    const toggleCalls = managerCalls.filter((call) => call.method === "config/value/write");
+    assert.equal(reloadCalls.length, 1, "reload must call the reload RPC exactly once");
+    assert.equal(toggleCalls.length, 0, "reload must not toggle the enabled flag");
+    assert.equal(overview.health.backend.lastRuntimeError, null);
+    const docs = overview.mcpServers.find((server) => server.id === "docs");
+    assert.ok(docs, "mcp server record returned");
+    assert.equal(docs.enabled, true, "enabled state preserved after reload");
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+  }
+});
+
+test("reloadMcpServer surfaces the codex error in health when reload rejects", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = { ...process.env, SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot };
+  try {
+    const service = new DesktopExtensionService({
+      env,
+      manager: {
+        request: async (method) => {
+          if (method === "config/read") return { config: {} };
+          if (method === "plugin/list") return { marketplaces: [] };
+          if (method === "app/list") return { data: [] };
+          if (method === "mcpServerStatus/list") return { data: [] };
+          if (method === "skills/list") return { data: [] };
+          if (method === "account/read") return createAccountReadResult();
+          if (method === "config/mcpServer/reload") {
+            throw new Error("MCP reload failed: upstream timed out");
+          }
+          throw new Error(`Unexpected method: ${method}`);
+        },
+      },
+      openExternal: async () => {},
+      openManagedAuth: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.reloadMcpServer({ serverId: "docs" });
+    assert.match(overview.health.backend.lastRuntimeError ?? "", /MCP reload failed/);
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+  }
 });
 
 test("readSkillDetail returns the skill markdown body", async () => {

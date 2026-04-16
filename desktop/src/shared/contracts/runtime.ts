@@ -62,6 +62,7 @@ export const IPC_CHANNELS = {
   setDesktopAppEnabled: "sense1:desktop:extensions:set-app-enabled",
   startDesktopMcpServerAuth: "sense1:desktop:extensions:start-mcp-auth",
   setDesktopMcpServerEnabled: "sense1:desktop:extensions:set-mcp-enabled",
+  reloadDesktopMcpServer: "sense1:desktop:extensions:reload-mcp",
   readDesktopSkillDetail: "sense1:desktop:extensions:read-skill-detail",
   setDesktopSkillEnabled: "sense1:desktop:extensions:set-skill-enabled",
   uninstallDesktopSkill: "sense1:desktop:extensions:uninstall-skill",

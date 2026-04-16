@@ -813,6 +813,7 @@ async function bootstrapMainProcess(): Promise<void> {
     setDesktopAppEnabled: async (request) => await desktopSessionController.setDesktopAppEnabled(request),
     startDesktopMcpServerAuth: async (request) => await desktopSessionController.startDesktopMcpServerAuth(request),
     setDesktopMcpServerEnabled: async (request) => await desktopSessionController.setDesktopMcpServerEnabled(request),
+    reloadDesktopMcpServer: async (request) => await desktopSessionController.reloadDesktopMcpServer(request),
     readDesktopSkillDetail: async (request) => await desktopSessionController.readDesktopSkillDetail(request),
     setDesktopSkillEnabled: async (request) => await desktopSessionController.setDesktopSkillEnabled(request),
     uninstallDesktopSkill: async (request) => await desktopSessionController.uninstallDesktopSkill(request),

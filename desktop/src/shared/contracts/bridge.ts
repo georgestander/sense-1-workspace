@@ -17,6 +17,7 @@ import type {
   DesktopExtensionOverviewRequest,
   DesktopExtensionOverviewResult,
   DesktopMcpServerEnabledRequest,
+  DesktopMcpServerReloadRequest,
   DesktopPluginDetailRequest,
   DesktopPluginDetailResult,
   DesktopPluginInstallRequest,
@@ -128,6 +129,7 @@ export interface DesktopBridge {
     setAppEnabled(request: DesktopAppEnabledRequest): Promise<DesktopExtensionOverviewResult>;
     startMcpServerAuth(request: DesktopMcpServerAuthRequest): Promise<DesktopMcpServerAuthResult>;
     setMcpServerEnabled(request: DesktopMcpServerEnabledRequest): Promise<DesktopExtensionOverviewResult>;
+    reloadMcpServer(request: DesktopMcpServerReloadRequest): Promise<DesktopExtensionOverviewResult>;
     readSkillDetail(request: DesktopSkillDetailRequest): Promise<DesktopSkillDetailResult>;
     setSkillEnabled(request: DesktopSkillEnabledRequest): Promise<DesktopExtensionOverviewResult>;
     uninstallSkill(request: DesktopSkillUninstallRequest): Promise<DesktopExtensionOverviewResult>;

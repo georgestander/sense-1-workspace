@@ -152,6 +152,7 @@ type PluginsPageProps = {
   removeApp: (request: { appId: string }) => Promise<unknown>;
   setAppEnabled: (request: { appId: string; enabled: boolean }) => Promise<unknown>;
   setMcpServerEnabled: (request: { serverId: string; enabled: boolean }) => Promise<unknown>;
+  reloadMcpServer: (request: { serverId: string }) => Promise<unknown>;
   setPluginEnabled: (request: { pluginId: string; enabled: boolean }) => Promise<unknown>;
   setSkillEnabled: (request: { path: string; enabled: boolean }) => Promise<unknown>;
   startMcpServerAuth?: (request: { serverId: string }) => Promise<unknown>;
@@ -471,6 +472,7 @@ export function PluginsPage({
   removeApp,
   setAppEnabled,
   setMcpServerEnabled,
+  reloadMcpServer,
   setPluginEnabled,
   setSkillEnabled,
   startMcpServerAuth,
@@ -712,10 +714,8 @@ export function PluginsPage({
             void runAction(`mcp-auth:${selectedManagedRecord.id}`, async () => await startMcpServerAuth({ serverId: selectedManagedRecord.id }), `Started auth flow for ${selectedManagedRecord.displayName}.`);
           } : undefined}
           onReload={selectedManagedRecord.canReload ? () => {
-            const wasEnabled = selectedManagedRecord.enablementState === "enabled";
             void runAction(`mcp-reload:${selectedManagedRecord.id}`, async () => {
-              await setMcpServerEnabled({ serverId: selectedManagedRecord.id, enabled: false });
-              await setMcpServerEnabled({ serverId: selectedManagedRecord.id, enabled: wasEnabled });
+              await reloadMcpServer({ serverId: selectedManagedRecord.id });
             }, `Reloaded ${selectedManagedRecord.displayName}.`);
           } : undefined}
           pendingActionKey={pendingActionKey}
