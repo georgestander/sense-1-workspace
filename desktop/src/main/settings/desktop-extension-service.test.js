@@ -42,7 +42,7 @@ async function createInstalledPluginFixture() {
     JSON.stringify({
       mcpServers: {
         "plugin-mcp": {
-          type: "http",
+          type: "streamable_http",
           url: "https://example.com/mcp",
         },
       },
@@ -2655,5 +2655,64 @@ test("installPlugin surfaces runtime error in health when restart rejects post-i
   } finally {
     await fs.rm(runtimeStateRoot, { force: true, recursive: true });
     await fs.rm(pluginRoot, { force: true, recursive: true });
+  }
+});
+
+test("getOverview strips connectors:// scheme from app logo URLs before returning to renderer", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  try {
+    const service = new DesktopExtensionService({
+      env,
+      manager: createManager(async (method) => {
+        if (method === "config/read") return { config: {} };
+        if (method === "plugin/list") return { marketplaces: [] };
+        if (method === "app/list") {
+          return {
+            data: [
+              {
+                id: "gmail",
+                name: "Gmail",
+                logoUrl: "connectors://gmail/logo.png",
+                isAccessible: true,
+                isEnabled: true,
+              },
+              {
+                id: "outlook",
+                name: "Outlook",
+                logoUrl: "https://example.com/outlook.png",
+                isAccessible: true,
+                isEnabled: true,
+              },
+              {
+                id: "teams",
+                name: "Teams",
+                logoUrl: "data:image/png;base64,AAAA",
+                isAccessible: true,
+                isEnabled: true,
+              },
+            ],
+          };
+        }
+        if (method === "mcpServerStatus/list") return { data: [] };
+        if (method === "skills/list") return { data: [] };
+        if (method === "account/read") return createAccountReadResult();
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.getOverview({ forceRefetch: true });
+    const appsById = Object.fromEntries(overview.apps.map((app) => [app.id, app]));
+
+    assert.equal(appsById.gmail.logoUrl, null, "connectors:// URL is dropped");
+    assert.equal(appsById.outlook.logoUrl, "https://example.com/outlook.png");
+    assert.equal(appsById.teams.logoUrl, "data:image/png;base64,AAAA");
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
   }
 });

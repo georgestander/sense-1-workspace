@@ -17,6 +17,7 @@ import {
   openDesktopManagedAuthWindow,
 } from "./window";
 import { resolveDesktopIconPath } from "./desktop-icon.js";
+import { registerRendererProtocolHandlers } from "./renderer-protocol.ts";
 import { emitDesktopRuntimeEvent, emitDesktopThreadDelta, registerDesktopIpcHandlers, unregisterDesktopIpcHandlers } from "./ipc";
 import { DESKTOP_BRIDGE_API_VERSION } from "./contracts";
 import type { DesktopUpdateState } from "./contracts";
@@ -689,6 +690,7 @@ async function bootstrapMainProcess(): Promise<void> {
     return;
   }
 
+  registerRendererProtocolHandlers();
   setDesktopDockIcon();
   ensureRuntimeStarted();
   updateService = await createUpdateService();

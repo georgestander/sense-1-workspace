@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import type { DesktopExtensionPluginMcpIssue } from "../contracts";
+import { classifyMcpServerEntry } from "./mcp-server-classification.ts";
 
 const PLUGIN_CLONE_ROOT_SEGMENTS = [".tmp", "plugins", "plugins"] as const;
 const MANIFEST_FILENAME = ".mcp.json.quarantine-manifest.json";
@@ -11,8 +12,6 @@ export type QuarantineSummary = {
   readonly rewrittenFiles: number;
   readonly removedEntries: DesktopExtensionPluginMcpIssue[];
 };
-
-type ClassifyResult = { ok: true } | { ok: false; reason: string };
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -28,22 +27,7 @@ function nonEmptyString(value: unknown): string | null {
   return trimmed ? trimmed : null;
 }
 
-export function classifyPluginMcpEntry(entry: unknown): ClassifyResult {
-  const record = asRecord(entry);
-  if (Object.keys(record).length === 0) {
-    return { ok: false, reason: "Plugin MCP entry is not an object." };
-  }
-  if (nonEmptyString(record.command)) {
-    return { ok: true };
-  }
-  if (nonEmptyString(record.url)) {
-    return { ok: true };
-  }
-  return {
-    ok: false,
-    reason: "Plugin MCP entry is missing both `command` (stdio) and `url` (remote); codex cannot infer a transport.",
-  };
-}
+export { classifyMcpServerEntry as classifyPluginMcpEntry };
 
 function pluginCloneRoot(profileCodexHome: string): string {
   return path.join(profileCodexHome, ...PLUGIN_CLONE_ROOT_SEGMENTS);
@@ -205,7 +189,7 @@ export async function quarantineInvalidPluginMcpEntries(
 
     for (const serverId of serverIds) {
       const value = mcpServers[serverId];
-      const classification = classifyPluginMcpEntry(value);
+      const classification = classifyMcpServerEntry(value);
       if (classification.ok) {
         surviving[serverId] = value;
         continue;
