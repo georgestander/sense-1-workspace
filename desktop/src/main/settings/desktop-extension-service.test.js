@@ -2392,3 +2392,268 @@ test("uninstallSkill also accepts a profile-owned skill root directory", async (
     await fs.rm(runtimeStateRoot, { force: true, recursive: true });
   }
 });
+
+async function createInstalledPluginFixtureWithInvalidMcp() {
+  const pluginRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-plugin-bad-mcp-"));
+  await fs.writeFile(
+    path.join(pluginRoot, ".app.json"),
+    JSON.stringify({ apps: {} }),
+    "utf8",
+  );
+  await fs.writeFile(
+    path.join(pluginRoot, ".mcp.json"),
+    JSON.stringify({
+      mcpServers: {
+        "cloudflare-api": {
+          type: "http",
+          url: "https://example.com/cloudflare-mcp",
+        },
+        "good-server": {
+          url: "https://example.com/mcp",
+        },
+      },
+    }),
+    "utf8",
+  );
+  return pluginRoot;
+}
+
+test("getOverview surfaces failed backend reads in health.backend.failedReads without throwing", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  try {
+    const service = new DesktopExtensionService({
+      env,
+      manager: createManager(async (method) => {
+        if (method === "app/list") {
+          throw new Error("App Server transport closed before response.");
+        }
+        if (method === "config/read") return { config: {} };
+        if (method === "plugin/list") return { marketplaces: [] };
+        if (method === "mcpServerStatus/list") return { data: [] };
+        if (method === "skills/list") return { data: [] };
+        if (method === "account/read") return createAccountReadResult();
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.getOverview({ forceRefetch: true });
+
+    assert.ok(overview.health, "overview should include a health block");
+    assert.equal(overview.health.backend.failedReads.length, 1);
+    assert.equal(overview.health.backend.failedReads[0].method, "app/list");
+    assert.match(
+      overview.health.backend.failedReads[0].message,
+      /App Server transport closed/,
+    );
+    assert.equal(overview.health.backend.lastRuntimeError, null);
+    assert.deepEqual(overview.health.backend.suspectedMcpServerIds, []);
+    assert.deepEqual(overview.apps, []);
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+  }
+});
+
+test("getOverview surfaces invalid plugin MCP entries without dropping valid ones", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const pluginRoot = await createInstalledPluginFixtureWithInvalidMcp();
+  try {
+    const service = new DesktopExtensionService({
+      env,
+      manager: createManager(async (method) => {
+        if (method === "config/read") return { config: {} };
+        if (method === "plugin/list") {
+          return {
+            marketplaces: [
+              {
+                name: "OpenAI Curated",
+                path: "/tmp/curated.json",
+                plugins: [
+                  {
+                    id: "cloudflare",
+                    name: "cloudflare",
+                    installed: true,
+                    enabled: true,
+                    source: { path: pluginRoot },
+                    interface: { displayName: "Cloudflare" },
+                  },
+                ],
+              },
+            ],
+          };
+        }
+        if (method === "app/list") return { data: [] };
+        if (method === "mcpServerStatus/list") return { data: [] };
+        if (method === "skills/list") return { data: [] };
+        if (method === "account/read") return createAccountReadResult();
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.getOverview({ forceRefetch: true });
+
+    const invalid = overview.health.pluginMcp.invalidEntries;
+    assert.equal(invalid.length, 1);
+    assert.equal(invalid[0].serverId, "cloudflare-api");
+    assert.equal(invalid[0].pluginName, "cloudflare");
+    assert.match(invalid[0].reason, /unsupported transport `http`/);
+
+    const managedPlugin = findManagedExtension(overview, "plugin", "cloudflare");
+    assert.ok(managedPlugin, "plugin record still present");
+    assert.deepEqual(
+      [...managedPlugin.includedMcpServerIds].sort(),
+      ["cloudflare-api", "good-server"],
+      "plugin still reports both MCP ids it composes, even the invalid one",
+    );
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+    await fs.rm(pluginRoot, { force: true, recursive: true });
+  }
+});
+
+test("setPluginEnabled returns health with runtime error when restart rejects", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const pluginRoot = await createInstalledPluginFixture();
+  const restartReasons = [];
+  try {
+    const manager = {
+      request: async (method) => {
+        if (method === "config/read") return { config: {} };
+        if (method === "plugin/list") {
+          return {
+            marketplaces: [
+              {
+                name: "OpenAI Curated",
+                path: "/tmp/curated.json",
+                plugins: [
+                  {
+                    id: "gmail",
+                    name: "gmail",
+                    installed: true,
+                    enabled: true,
+                    source: { path: pluginRoot },
+                    interface: { displayName: "Gmail" },
+                  },
+                ],
+              },
+            ],
+          };
+        }
+        if (method === "app/list") return { data: [] };
+        if (method === "mcpServerStatus/list") return { data: [] };
+        if (method === "skills/list") return { data: [] };
+        if (method === "account/read") return createAccountReadResult();
+        if (method === "config/batchWrite") return {};
+        if (method === "config/mcpServer/reload") return {};
+        throw new Error(`Unexpected method: ${method}`);
+      },
+      restart: async (reason) => {
+        restartReasons.push(reason);
+        throw new Error("Invalid configuration: invalid transport in `mcp_servers.cloudflare-api`");
+      },
+    };
+
+    const service = new DesktopExtensionService({
+      env,
+      manager,
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.setPluginEnabled({ pluginId: "gmail", enabled: true });
+
+    assert.ok(restartReasons.includes("plugin-enabled"), "expected restart attempt");
+    assert.match(
+      overview.health.backend.lastRuntimeError ?? "",
+      /invalid transport in `mcp_servers.cloudflare-api`/,
+    );
+    assert.deepEqual(overview.health.backend.suspectedMcpServerIds, ["cloudflare-api"]);
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+    await fs.rm(pluginRoot, { force: true, recursive: true });
+  }
+});
+
+test("installPlugin surfaces runtime error in health when restart rejects post-install", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const pluginRoot = await createInstalledPluginFixture();
+  try {
+    const manager = {
+      request: async (method) => {
+        if (method === "plugin/install") return { appsNeedingAuth: [] };
+        if (method === "config/read") return { config: {} };
+        if (method === "plugin/list") {
+          return {
+            marketplaces: [
+              {
+                name: "OpenAI Curated",
+                path: "/tmp/curated.json",
+                plugins: [
+                  {
+                    id: "gmail",
+                    name: "gmail",
+                    installed: true,
+                    enabled: true,
+                    source: { path: pluginRoot },
+                    interface: { displayName: "Gmail" },
+                  },
+                ],
+              },
+            ],
+          };
+        }
+        if (method === "app/list") return { data: [] };
+        if (method === "mcpServerStatus/list") return { data: [] };
+        if (method === "skills/list") return { data: [] };
+        if (method === "account/read") return createAccountReadResult();
+        if (method === "config/batchWrite") return {};
+        if (method === "config/mcpServer/reload") return {};
+        throw new Error(`Unexpected method: ${method}`);
+      },
+      restart: async () => {
+        throw new Error("Invalid configuration: invalid transport in `mcp_servers.cloudflare-api`");
+      },
+    };
+
+    const service = new DesktopExtensionService({
+      env,
+      manager,
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.installPlugin({
+      marketplacePath: "/tmp/curated.json",
+      pluginId: "gmail",
+      pluginName: "gmail",
+    });
+
+    assert.match(
+      overview.health.backend.lastRuntimeError ?? "",
+      /invalid transport in `mcp_servers.cloudflare-api`/,
+    );
+    assert.deepEqual(overview.health.backend.suspectedMcpServerIds, ["cloudflare-api"]);
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+    await fs.rm(pluginRoot, { force: true, recursive: true });
+  }
+});

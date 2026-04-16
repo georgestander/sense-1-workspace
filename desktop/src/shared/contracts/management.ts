@@ -107,6 +107,29 @@ export interface DesktopExtensionOverviewRequest {
   readonly forceRefetch?: boolean;
 }
 
+export interface DesktopExtensionBackendFailure {
+  readonly method: string;
+  readonly message: string;
+}
+
+export interface DesktopExtensionPluginMcpIssue {
+  readonly pluginName: string | null;
+  readonly sourcePath: string | null;
+  readonly serverId: string;
+  readonly reason: string;
+}
+
+export interface DesktopExtensionHealth {
+  readonly backend: {
+    readonly failedReads: DesktopExtensionBackendFailure[];
+    readonly lastRuntimeError: string | null;
+    readonly suspectedMcpServerIds: string[];
+  };
+  readonly pluginMcp: {
+    readonly invalidEntries: DesktopExtensionPluginMcpIssue[];
+  };
+}
+
 export interface DesktopExtensionOverviewResult {
   readonly contractVersion: 1;
   readonly provider: DesktopProviderState;
@@ -115,6 +138,7 @@ export interface DesktopExtensionOverviewResult {
   readonly apps: DesktopAppRecord[];
   readonly mcpServers: DesktopMcpServerRecord[];
   readonly skills: DesktopSkillRecord[];
+  readonly health: DesktopExtensionHealth;
 }
 
 export interface DesktopPluginEnabledRequest {
