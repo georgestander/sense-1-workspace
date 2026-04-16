@@ -2,7 +2,14 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { Blocks, Cable, ChevronDown, EllipsisVertical, Filter, Plus, PlugZap, RefreshCw, Search, Sparkles, Trash2 } from "lucide-react";
 
 import { Button } from "./ui/button";
-import type { DesktopAppRecord, DesktopExtensionOverviewResult, DesktopManagedExtensionKind, DesktopPluginRecord, DesktopSkillRecord } from "../../main/contracts";
+import type {
+  DesktopAppRecord,
+  DesktopExtensionHealth,
+  DesktopExtensionOverviewResult,
+  DesktopManagedExtensionKind,
+  DesktopPluginRecord,
+  DesktopSkillRecord,
+} from "../../main/contracts";
 import { PluginDetailView } from "./extensions/PluginDetailView";
 import { SkillDetailModal } from "./extensions/SkillDetailModal";
 import { AppDetailView } from "./extensions/AppDetailView";
@@ -26,6 +33,108 @@ function ExtensionIcon({ kind, src }: { kind: ExtensionIconKind; src?: string | 
   return (
     <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-surface-strong">
       <Icon className="size-3.5 text-muted" />
+    </div>
+  );
+}
+
+function ExtensionHealthBanner({ health }: { health: DesktopExtensionHealth }) {
+  const [expanded, setExpanded] = useState(false);
+  const { backend, pluginMcp } = health;
+  const quarantinedCount = pluginMcp.invalidEntries.length;
+  const failedReadsCount = backend.failedReads.length;
+  const hasRuntimeError = Boolean(backend.lastRuntimeError);
+
+  if (quarantinedCount === 0 && failedReadsCount === 0 && !hasRuntimeError) {
+    return null;
+  }
+
+  const severity: "warning" | "error" =
+    hasRuntimeError || failedReadsCount > 0 ? "error" : "warning";
+  const container = severity === "error"
+    ? "border-b border-red-200 bg-red-50 px-4 py-2 text-red-900"
+    : "border-b border-amber-200 bg-amber-50 px-4 py-2 text-amber-900";
+
+  const summaryParts: string[] = [];
+  if (quarantinedCount > 0) {
+    summaryParts.push(
+      `${quarantinedCount} plugin MCP ${quarantinedCount === 1 ? "entry" : "entries"} set aside`,
+    );
+  }
+  if (failedReadsCount > 0) {
+    summaryParts.push(
+      `${failedReadsCount} backend ${failedReadsCount === 1 ? "call" : "calls"} failed`,
+    );
+  }
+  if (hasRuntimeError) {
+    summaryParts.push("runtime restart reported an error");
+  }
+  const summary = summaryParts.join(" \u00B7 ");
+
+  return (
+    <div className={container}>
+      <button
+        className="flex w-full items-center gap-2 text-left text-xs font-medium"
+        onClick={() => setExpanded((value) => !value)}
+        type="button"
+      >
+        <span className="truncate">Extensions health: {summary}</span>
+        <span className="ml-auto text-[10px] uppercase tracking-wide opacity-70">
+          {expanded ? "Hide" : "Details"}
+        </span>
+      </button>
+      {expanded ? (
+        <div className="mt-2 space-y-2 text-[11px]">
+          {quarantinedCount > 0 ? (
+            <div>
+              <p className="font-medium">Quarantined plugin MCP entries</p>
+              <ul className="mt-1 space-y-1">
+                {pluginMcp.invalidEntries.map((entry, index) => (
+                  <li className="flex flex-col" key={`${entry.pluginName ?? "unknown"}:${entry.serverId}:${index}`}>
+                    <span>
+                      <span className="font-medium">{entry.pluginName ?? "Unknown plugin"}</span>
+                      {" \u2192 "}
+                      <code className="rounded bg-white/60 px-1 py-0.5">{entry.serverId}</code>
+                    </span>
+                    <span className="opacity-80">{entry.reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {failedReadsCount > 0 ? (
+            <div>
+              <p className="font-medium">Failed backend reads</p>
+              <ul className="mt-1 space-y-1">
+                {backend.failedReads.map((entry, index) => (
+                  <li className="flex flex-col" key={`${entry.method}:${index}`}>
+                    <code className="rounded bg-white/60 px-1 py-0.5">{entry.method}</code>
+                    <span className="opacity-80">{entry.message}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {hasRuntimeError ? (
+            <div>
+              <p className="font-medium">Last runtime error</p>
+              <p className="mt-1 opacity-80">{backend.lastRuntimeError}</p>
+              {backend.suspectedMcpServerIds.length > 0 ? (
+                <p className="mt-1 opacity-80">
+                  Likely MCP server(s):{" "}
+                  {backend.suspectedMcpServerIds.map((id, index) => (
+                    <span key={id}>
+                      {index > 0 ? ", " : null}
+                      <code className="rounded bg-white/60 px-1 py-0.5">{id}</code>
+                    </span>
+                  ))}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -543,6 +652,9 @@ export function PluginsPage({
           ))}
         </div>
       ) : null}
+
+      {/* ---- Extension health banner ---- */}
+      {overview?.health ? <ExtensionHealthBanner health={overview.health} /> : null}
 
       {/* ---- Content ---- */}
       {/* Show detail view for plugin/app/mcp (replaces card grid) */}
