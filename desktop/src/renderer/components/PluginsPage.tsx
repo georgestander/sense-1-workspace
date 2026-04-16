@@ -600,9 +600,10 @@ export function PluginsPage({
             void runAction(`mcp-auth:${selectedManagedRecord.id}`, async () => await startMcpServerAuth({ serverId: selectedManagedRecord.id }), `Started auth flow for ${selectedManagedRecord.displayName}.`);
           } : undefined}
           onReload={selectedManagedRecord.canReload ? () => {
+            const wasEnabled = selectedManagedRecord.enablementState === "enabled";
             void runAction(`mcp-reload:${selectedManagedRecord.id}`, async () => {
               await setMcpServerEnabled({ serverId: selectedManagedRecord.id, enabled: false });
-              await setMcpServerEnabled({ serverId: selectedManagedRecord.id, enabled: true });
+              await setMcpServerEnabled({ serverId: selectedManagedRecord.id, enabled: wasEnabled });
             }, `Reloaded ${selectedManagedRecord.displayName}.`);
           } : undefined}
           pendingActionKey={pendingActionKey}

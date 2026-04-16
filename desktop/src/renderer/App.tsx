@@ -155,7 +155,8 @@ export default function App() {
         }}
         onTryInChat={(extensionName) => {
           setActiveView("home");
-          const prompt = `$${extensionName}`;
+          const token = extensionName.toLowerCase().replace(/[^a-z0-9:_-]+/g, "-").replace(/^-+|-+$/g, "");
+          const prompt = `$${token} `;
           if (sessionState.selectedThread) {
             setThreadPrompt(prompt);
             return;

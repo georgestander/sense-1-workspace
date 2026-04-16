@@ -92,7 +92,7 @@ export function SkillDetailModal({
             {onTryInChat ? (
               <Button
                 className="h-7 gap-1.5 rounded-lg px-2.5 text-[11px]"
-                onClick={() => onTryInChat(managedRecord.displayName)}
+                onClick={() => onTryInChat(managedRecord.name)}
                 variant="secondary"
               >
                 <MessageSquare className="size-3" />
