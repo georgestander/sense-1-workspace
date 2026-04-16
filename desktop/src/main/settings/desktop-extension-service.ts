@@ -4,6 +4,12 @@ import { spawnSync } from "node:child_process";
 
 import type { AppServerProcessManager } from "../runtime/app-server-process-manager.js";
 import { resolveProfileCodexHome } from "../profile/profile-state.js";
+import { classifyMcpServerEntry } from "./mcp-server-classification.ts";
+import {
+  quarantineInvalidPluginMcpEntries,
+  readQuarantinedPluginMcpEntries,
+} from "./plugin-mcp-quarantine.ts";
+import { sanitizeRenderableUrl } from "./renderable-url.ts";
 import type {
   DesktopAppRemoveRequest,
   DesktopAppInstallRequest,
@@ -197,7 +203,14 @@ async function resolvePluginIcons(plugins: DesktopPluginRecord[]): Promise<Deskt
         return plugin;
       }
       const iconDataUri = await readIconAsDataUri(plugin.iconPath);
-      return iconDataUri ? { ...plugin, iconPath: iconDataUri } : plugin;
+      if (iconDataUri) {
+        return { ...plugin, iconPath: iconDataUri };
+      }
+      // If the icon could not be turned into a data URI (missing file, unknown
+      // mime, or a raw upstream URL), only keep it when the remaining value is
+      // safe to render. This prevents bare filesystem paths or unregistered
+      // schemes like `connectors://` from reaching <img src>.
+      return { ...plugin, iconPath: sanitizeRenderableUrl(plugin.iconPath) };
     }),
   );
 }
@@ -352,56 +365,6 @@ function mergeConfigWithLocalToggles(
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-const MCP_STDIO_TRANSPORTS = new Set(["stdio"]);
-const MCP_REMOTE_TRANSPORTS = new Set(["sse", "streamable_http", "streamable-http"]);
-
-function classifyMcpServerEntry(entry: unknown): { ok: true } | { ok: false; reason: string } {
-  const record = asRecord(entry);
-  if (Object.keys(record).length === 0) {
-    return { ok: false, reason: "Plugin MCP entry is not an object." };
-  }
-  const command = firstString(record.command);
-  const url = firstString(record.url);
-  const declaredType = firstString(record.type, record.transport);
-  const declaredTypeLower = declaredType ? declaredType.toLowerCase() : null;
-
-  if (declaredTypeLower) {
-    if (MCP_STDIO_TRANSPORTS.has(declaredTypeLower)) {
-      if (!command) {
-        return {
-          ok: false,
-          reason: `Plugin MCP entry declares transport \`${declaredType}\` but is missing \`command\`.`,
-        };
-      }
-      return { ok: true };
-    }
-    if (MCP_REMOTE_TRANSPORTS.has(declaredTypeLower)) {
-      if (!url) {
-        return {
-          ok: false,
-          reason: `Plugin MCP entry declares transport \`${declaredType}\` but is missing \`url\`.`,
-        };
-      }
-      return { ok: true };
-    }
-    return {
-      ok: false,
-      reason: `Plugin MCP entry declares unsupported transport \`${declaredType}\`; codex accepts \`stdio\`, \`sse\`, or \`streamable_http\`.`,
-    };
-  }
-
-  if (command) {
-    return { ok: true };
-  }
-  if (url) {
-    return { ok: true };
-  }
-  return {
-    ok: false,
-    reason: "Plugin MCP entry is missing both `command` (stdio) and `url` (remote); codex cannot infer a transport.",
-  };
 }
 
 const MCP_SERVER_ERROR_PATTERN = /mcp_servers[.\[]"?([A-Za-z0-9._@:-]+)"?\]?/gu;
@@ -630,7 +593,7 @@ function normalizeApps(rawApps: unknown, appConfig: Record<string, unknown>): De
         isAccessible: asBoolean(record.isAccessible),
         isEnabled: asBoolean(settings.enabled, asBoolean(record.isEnabled, true)),
         pluginDisplayNames: asStringArray(record.pluginDisplayNames),
-        logoUrl: firstString(record.logoUrl),
+        logoUrl: sanitizeRenderableUrl(firstString(record.logoUrl)),
       } satisfies DesktopAppRecord;
     })
     .filter((entry): entry is DesktopAppRecord => entry !== null)
@@ -1354,6 +1317,12 @@ export class DesktopExtensionService {
     const profile = await this.#resolveProfile();
     const profileCodexHome = resolveProfileCodexHome(profile.id, this.#env);
     const failedReads: DesktopExtensionBackendFailure[] = [];
+
+    try {
+      await quarantineInvalidPluginMcpEntries(profileCodexHome);
+    } catch (error) {
+      console.warn(`[desktop:extensions] plugin MCP quarantine (canonical sweep) failed. ${formatError(error)}`);
+    }
     const [configResult, pluginResult, appResult, mcpResult, skillResult, accountResult] = await Promise.all([
       this.#requestOrFallback<ConfigReadResult>("config/read", { includeLayers: false }, { config: null }, failedReads),
       this.#requestOrFallback<unknown>("plugin/list", {
@@ -1398,10 +1367,16 @@ export class DesktopExtensionService {
       }),
     };
 
-    const enriched = await enrichPluginsWithLocalMetadata(
-      normalizePlugins(pluginResult, asRecord(config?.plugins)),
-      profileCodexHome,
-    );
+    const normalizedPlugins = normalizePlugins(pluginResult, asRecord(config?.plugins));
+    const pluginSourcePaths = uniqueStrings(normalizedPlugins.map((plugin) => plugin.sourcePath));
+    if (pluginSourcePaths.length > 0) {
+      try {
+        await quarantineInvalidPluginMcpEntries(profileCodexHome, pluginSourcePaths);
+      } catch (error) {
+        console.warn(`[desktop:extensions] plugin MCP quarantine (per-plugin sweep) failed. ${formatError(error)}`);
+      }
+    }
+    const enriched = await enrichPluginsWithLocalMetadata(normalizedPlugins, profileCodexHome);
     const plugins = await resolvePluginIcons(enriched.plugins);
     const metadataByPluginId = enriched.metadataByPluginId;
     const apps = backfillAppPluginDisplayNames(
@@ -1423,8 +1398,35 @@ export class DesktopExtensionService {
     });
 
     const invalidMcpEntries: DesktopExtensionPluginMcpIssue[] = [];
+    const seenInvalidKeys = new Set<string>();
+    const addInvalidEntry = (entry: DesktopExtensionPluginMcpIssue) => {
+      const key = `${entry.sourcePath ?? ""}\u0000${entry.serverId}`;
+      if (seenInvalidKeys.has(key)) {
+        return;
+      }
+      seenInvalidKeys.add(key);
+      invalidMcpEntries.push(entry);
+    };
+    const pluginNameBySourcePath = new Map<string, string>();
+    for (const plugin of normalizedPlugins) {
+      const resolved = plugin.sourcePath ? path.resolve(plugin.sourcePath) : null;
+      if (resolved) {
+        pluginNameBySourcePath.set(resolved, plugin.name);
+      }
+    }
+    try {
+      for (const entry of await readQuarantinedPluginMcpEntries(profileCodexHome, pluginSourcePaths)) {
+        const resolved = entry.sourcePath ? path.resolve(entry.sourcePath) : null;
+        const friendlyName = resolved ? pluginNameBySourcePath.get(resolved) ?? null : null;
+        addInvalidEntry(friendlyName ? { ...entry, pluginName: friendlyName } : entry);
+      }
+    } catch (error) {
+      console.warn(`[desktop:extensions] reading quarantine manifests failed. ${formatError(error)}`);
+    }
     for (const metadata of metadataByPluginId.values()) {
-      invalidMcpEntries.push(...metadata.invalidMcpEntries);
+      for (const entry of metadata.invalidMcpEntries) {
+        addInvalidEntry(entry);
+      }
     }
 
     const health: DesktopExtensionHealth = {
