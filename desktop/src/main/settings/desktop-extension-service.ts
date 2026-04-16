@@ -4,10 +4,12 @@ import { spawnSync } from "node:child_process";
 
 import type { AppServerProcessManager } from "../runtime/app-server-process-manager.js";
 import { resolveProfileCodexHome } from "../profile/profile-state.js";
+import { classifyMcpServerEntry } from "./mcp-server-classification.ts";
 import {
   quarantineInvalidPluginMcpEntries,
   readQuarantinedPluginMcpEntries,
 } from "./plugin-mcp-quarantine.ts";
+import { sanitizeRenderableUrl } from "./renderable-url.ts";
 import type {
   DesktopAppRemoveRequest,
   DesktopAppInstallRequest,
@@ -201,7 +203,14 @@ async function resolvePluginIcons(plugins: DesktopPluginRecord[]): Promise<Deskt
         return plugin;
       }
       const iconDataUri = await readIconAsDataUri(plugin.iconPath);
-      return iconDataUri ? { ...plugin, iconPath: iconDataUri } : plugin;
+      if (iconDataUri) {
+        return { ...plugin, iconPath: iconDataUri };
+      }
+      // If the icon could not be turned into a data URI (missing file, unknown
+      // mime, or a raw upstream URL), only keep it when the remaining value is
+      // safe to render. This prevents bare filesystem paths or unregistered
+      // schemes like `connectors://` from reaching <img src>.
+      return { ...plugin, iconPath: sanitizeRenderableUrl(plugin.iconPath) };
     }),
   );
 }
@@ -356,56 +365,6 @@ function mergeConfigWithLocalToggles(
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-const MCP_STDIO_TRANSPORTS = new Set(["stdio"]);
-const MCP_REMOTE_TRANSPORTS = new Set(["sse", "streamable_http", "streamable-http"]);
-
-function classifyMcpServerEntry(entry: unknown): { ok: true } | { ok: false; reason: string } {
-  const record = asRecord(entry);
-  if (Object.keys(record).length === 0) {
-    return { ok: false, reason: "Plugin MCP entry is not an object." };
-  }
-  const command = firstString(record.command);
-  const url = firstString(record.url);
-  const declaredType = firstString(record.type, record.transport);
-  const declaredTypeLower = declaredType ? declaredType.toLowerCase() : null;
-
-  if (declaredTypeLower) {
-    if (MCP_STDIO_TRANSPORTS.has(declaredTypeLower)) {
-      if (!command) {
-        return {
-          ok: false,
-          reason: `Plugin MCP entry declares transport \`${declaredType}\` but is missing \`command\`.`,
-        };
-      }
-      return { ok: true };
-    }
-    if (MCP_REMOTE_TRANSPORTS.has(declaredTypeLower)) {
-      if (!url) {
-        return {
-          ok: false,
-          reason: `Plugin MCP entry declares transport \`${declaredType}\` but is missing \`url\`.`,
-        };
-      }
-      return { ok: true };
-    }
-    return {
-      ok: false,
-      reason: `Plugin MCP entry declares unsupported transport \`${declaredType}\`; codex accepts \`stdio\`, \`sse\`, or \`streamable_http\`.`,
-    };
-  }
-
-  if (command) {
-    return { ok: true };
-  }
-  if (url) {
-    return { ok: true };
-  }
-  return {
-    ok: false,
-    reason: "Plugin MCP entry is missing both `command` (stdio) and `url` (remote); codex cannot infer a transport.",
-  };
 }
 
 const MCP_SERVER_ERROR_PATTERN = /mcp_servers[.\[]"?([A-Za-z0-9._@:-]+)"?\]?/gu;
@@ -634,7 +593,7 @@ function normalizeApps(rawApps: unknown, appConfig: Record<string, unknown>): De
         isAccessible: asBoolean(record.isAccessible),
         isEnabled: asBoolean(settings.enabled, asBoolean(record.isEnabled, true)),
         pluginDisplayNames: asStringArray(record.pluginDisplayNames),
-        logoUrl: firstString(record.logoUrl),
+        logoUrl: sanitizeRenderableUrl(firstString(record.logoUrl)),
       } satisfies DesktopAppRecord;
     })
     .filter((entry): entry is DesktopAppRecord => entry !== null)
