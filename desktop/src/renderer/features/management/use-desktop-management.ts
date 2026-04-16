@@ -5,6 +5,8 @@ import type {
   DesktopAppInstallRequest,
   DesktopAppEnabledRequest,
   DesktopExtensionOverviewResult,
+  DesktopMcpServerAuthRequest,
+  DesktopMcpServerAuthResult,
   DesktopMcpServerEnabledRequest,
   DesktopPluginInstallRequest,
   DesktopPluginUninstallRequest,
@@ -111,6 +113,13 @@ export function useDesktopManagement({
     return nextOverview;
   }, []);
 
+  const startMcpServerAuth = useCallback(async (request: DesktopMcpServerAuthRequest): Promise<DesktopMcpServerAuthResult> => {
+    const bridge = requireDesktopBridge();
+    const result = await bridge.management.startMcpServerAuth(request);
+    setOverview(result.overview);
+    return result;
+  }, []);
+
   const setMcpServerEnabled = useCallback(async (request: DesktopMcpServerEnabledRequest) => {
     const bridge = requireDesktopBridge();
     const nextOverview = await bridge.management.setMcpServerEnabled(request);
@@ -144,6 +153,7 @@ export function useDesktopManagement({
     setMcpServerEnabled,
     setPluginEnabled,
     setSkillEnabled,
+    startMcpServerAuth,
     uninstallPlugin,
     uninstallSkill,
   };

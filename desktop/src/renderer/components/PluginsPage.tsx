@@ -36,6 +36,7 @@ type PluginsPageProps = {
   loading: boolean;
   onCreatePlugin: () => void;
   onCreateSkill: () => void;
+  onTryInChat?: (extensionName: string) => void;
   openAppInstall: (request: { appId: string; installUrl: string }) => Promise<unknown>;
   onRefresh: () => void;
   overview: DesktopExtensionOverviewResult | null;
@@ -44,6 +45,7 @@ type PluginsPageProps = {
   setMcpServerEnabled: (request: { serverId: string; enabled: boolean }) => Promise<unknown>;
   setPluginEnabled: (request: { pluginId: string; enabled: boolean }) => Promise<unknown>;
   setSkillEnabled: (request: { path: string; enabled: boolean }) => Promise<unknown>;
+  startMcpServerAuth?: (request: { serverId: string }) => Promise<unknown>;
   uninstallPlugin: (request: { pluginId: string }) => Promise<unknown>;
   uninstallSkill: (request: { path: string }) => Promise<unknown>;
 };
@@ -353,6 +355,7 @@ export function PluginsPage({
   loading,
   onCreatePlugin,
   onCreateSkill,
+  onTryInChat,
   openAppInstall,
   onRefresh,
   overview,
@@ -361,6 +364,7 @@ export function PluginsPage({
   setMcpServerEnabled,
   setPluginEnabled,
   setSkillEnabled,
+  startMcpServerAuth,
   uninstallPlugin,
   uninstallSkill,
 }: PluginsPageProps) {
@@ -554,6 +558,19 @@ export function PluginsPage({
             setActiveTab(tabMap[kind]);
             selectEntity(id, kind);
           }}
+          onOpen={selectedManagedRecord.canOpen && selectedManagedRecord.sourcePath ? () => {
+            void window.sense1Desktop.workspace.openFilePath(selectedManagedRecord.sourcePath!);
+          } : undefined}
+          onTryInChat={onTryInChat}
+          onToggleBundledItem={(id, kind, enabled) => {
+            if (kind === "skill") {
+              void runAction(`skill-enable:${id}`, async () => await setSkillEnabled({ path: id, enabled }));
+            } else if (kind === "app") {
+              void runAction(`app-enable:${id}`, async () => await setAppEnabled({ appId: id, enabled }));
+            } else if (kind === "mcp") {
+              void runAction(`mcp-enable:${id}`, async () => await setMcpServerEnabled({ serverId: id, enabled }));
+            }
+          }}
           pendingActionKey={pendingActionKey}
           Toggle={Toggle}
         />
@@ -579,6 +596,16 @@ export function PluginsPage({
           legacyMcp={overview.mcpServers.find((m) => m.id === selectedManagedRecord.id)}
           onBack={clearSelection}
           onToggleEnabled={(next) => void runAction(`mcp-enable:${selectedManagedRecord.id}`, async () => await setMcpServerEnabled({ serverId: selectedManagedRecord.id, enabled: next }))}
+          onStartAuth={selectedManagedRecord.canConnect && startMcpServerAuth ? () => {
+            void runAction(`mcp-auth:${selectedManagedRecord.id}`, async () => await startMcpServerAuth({ serverId: selectedManagedRecord.id }), `Started auth flow for ${selectedManagedRecord.displayName}.`);
+          } : undefined}
+          onReload={selectedManagedRecord.canReload ? () => {
+            const wasEnabled = selectedManagedRecord.enablementState === "enabled";
+            void runAction(`mcp-reload:${selectedManagedRecord.id}`, async () => {
+              await setMcpServerEnabled({ serverId: selectedManagedRecord.id, enabled: false });
+              await setMcpServerEnabled({ serverId: selectedManagedRecord.id, enabled: wasEnabled });
+            }, `Reloaded ${selectedManagedRecord.displayName}.`);
+          } : undefined}
           pendingActionKey={pendingActionKey}
           Toggle={Toggle}
         />
@@ -804,6 +831,7 @@ export function PluginsPage({
               void window.sense1Desktop.workspace.openFilePath(selectedManagedRecord.sourcePath);
             }
           }}
+          onTryInChat={onTryInChat}
           pendingActionKey={pendingActionKey}
           Toggle={Toggle}
         />

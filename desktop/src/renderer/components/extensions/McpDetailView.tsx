@@ -1,15 +1,18 @@
-import { ArrowLeft, Cable } from "lucide-react";
+import { ArrowLeft, Cable, Check, RefreshCw } from "lucide-react";
 
 import type {
   DesktopManagedExtensionRecord,
   DesktopMcpServerRecord,
 } from "../../../main/contracts";
+import { Button } from "../ui/button";
 
 type McpDetailViewProps = {
   managedRecord: DesktopManagedExtensionRecord;
   legacyMcp: DesktopMcpServerRecord | undefined;
   onBack: () => void;
   onToggleEnabled: (next: boolean) => void;
+  onStartAuth?: () => void;
+  onReload?: () => void;
   pendingActionKey: string | null;
   Toggle: React.ComponentType<{ checked: boolean; disabled?: boolean; onChange?: (next: boolean) => void }>;
 };
@@ -43,11 +46,19 @@ export function McpDetailView({
   legacyMcp,
   onBack,
   onToggleEnabled,
+  onStartAuth,
+  onReload,
   pendingActionKey,
   Toggle,
 }: McpDetailViewProps) {
   const isEnabled = managedRecord.enablementState === "enabled";
   const enableKey = `mcp-enable:${managedRecord.id}`;
+  const authKey = `mcp-auth:${managedRecord.id}`;
+  const reloadKey = `mcp-reload:${managedRecord.id}`;
+
+  const authState = managedRecord.authState;
+  const needsConnect = authState === "required" || authState === "failed";
+  const isConnected = authState === "connected";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -71,6 +82,17 @@ export function McpDetailView({
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {managedRecord.canReload && onReload ? (
+            <Button
+              className="h-7 gap-1.5 rounded-lg px-2.5 text-[11px]"
+              disabled={pendingActionKey === reloadKey}
+              onClick={onReload}
+              variant="secondary"
+            >
+              <RefreshCw className="size-3" />
+              Reload
+            </Button>
+          ) : null}
           {managedRecord.canDisable ? (
             <Toggle
               checked={isEnabled}
@@ -89,13 +111,40 @@ export function McpDetailView({
             <SectionHeading>Status</SectionHeading>
             <div className="flex items-center gap-3 rounded-xl bg-surface-soft px-3 py-3">
               <HealthBadge state={managedRecord.healthState} />
-              {managedRecord.authState !== "not-required" ? (
+              {isConnected ? (
+                <span className="flex items-center gap-1 rounded-md bg-green-50 px-2 py-1 text-[11px] font-medium text-green-700">
+                  <Check className="size-3" />
+                  Connected
+                </span>
+              ) : needsConnect ? (
                 <span className="rounded bg-amber-50 px-2 py-0.5 text-[11px] text-amber-600">
-                  Auth: {managedRecord.authState}
+                  Auth required
+                </span>
+              ) : authState !== "not-required" ? (
+                <span className="rounded bg-amber-50 px-2 py-0.5 text-[11px] text-amber-600">
+                  Auth: {authState}
                 </span>
               ) : null}
             </div>
           </section>
+
+          {/* Auth action */}
+          {managedRecord.canConnect && needsConnect && onStartAuth ? (
+            <section>
+              <SectionHeading>Authentication</SectionHeading>
+              <div className="flex items-center gap-3 rounded-xl bg-surface-soft px-3 py-3">
+                <span className="rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-600">Auth required</span>
+                <Button
+                  className="h-7 rounded-lg px-3 text-[11px]"
+                  disabled={pendingActionKey === authKey}
+                  onClick={onStartAuth}
+                  variant="default"
+                >
+                  Connect
+                </Button>
+              </div>
+            </section>
+          ) : null}
 
           {/* Capabilities */}
           {legacyMcp ? (
@@ -118,6 +167,7 @@ export function McpDetailView({
             <div className="rounded-xl bg-surface-soft px-3 py-2">
               <MetadataRow label="Server ID" value={managedRecord.id} />
               <MetadataRow label="Ownership" value={managedRecord.ownership} />
+              <MetadataRow label="Install state" value={managedRecord.installState} />
             </div>
           </section>
         </div>
