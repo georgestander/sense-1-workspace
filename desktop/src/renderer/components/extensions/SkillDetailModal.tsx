@@ -1,4 +1,4 @@
-import { ExternalLink, Sparkles, Trash2, X } from "lucide-react";
+import { ExternalLink, MessageSquare, Sparkles, Trash2, X } from "lucide-react";
 
 import type { DesktopManagedExtensionRecord, DesktopSkillRecord } from "../../../main/contracts";
 import { Button } from "../ui/button";
@@ -10,6 +10,7 @@ type SkillDetailModalProps = {
   onToggleEnabled: (next: boolean) => void;
   onUninstall: () => void;
   onOpen: () => void;
+  onTryInChat?: (name: string) => void;
   pendingActionKey: string | null;
   Toggle: React.ComponentType<{ checked: boolean; disabled?: boolean; onChange?: (next: boolean) => void }>;
 };
@@ -21,6 +22,7 @@ export function SkillDetailModal({
   onToggleEnabled,
   onUninstall,
   onOpen,
+  onTryInChat,
   pendingActionKey,
   Toggle,
 }: SkillDetailModalProps) {
@@ -87,6 +89,16 @@ export function SkillDetailModal({
             ) : null}
           </div>
           <div className="flex items-center gap-2">
+            {onTryInChat ? (
+              <Button
+                className="h-7 gap-1.5 rounded-lg px-2.5 text-[11px]"
+                onClick={() => onTryInChat(managedRecord.displayName)}
+                variant="secondary"
+              >
+                <MessageSquare className="size-3" />
+                Try in chat
+              </Button>
+            ) : null}
             {managedRecord.canOpen ? (
               <Button
                 className="h-7 gap-1.5 rounded-lg px-2.5 text-[11px]"

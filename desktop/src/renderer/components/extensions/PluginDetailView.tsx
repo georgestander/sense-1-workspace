@@ -1,4 +1,4 @@
-import { ArrowLeft, Blocks, Cable, ExternalLink, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, Blocks, Cable, ExternalLink, MessageSquare, Sparkles, Trash2 } from "lucide-react";
 
 import type {
   DesktopAppRecord,
@@ -15,6 +15,9 @@ type PluginDetailViewProps = {
   onToggleEnabled: (next: boolean) => void;
   onUninstall: () => void;
   onNavigateToEntity: (id: string, kind: "skill" | "app" | "mcp") => void;
+  onOpen?: () => void;
+  onTryInChat?: (name: string) => void;
+  onToggleBundledItem?: (id: string, kind: "skill" | "app" | "mcp", enabled: boolean) => void;
   pendingActionKey: string | null;
   Toggle: React.ComponentType<{ checked: boolean; disabled?: boolean; onChange?: (next: boolean) => void }>;
 };
@@ -33,24 +36,34 @@ function MetadataRow({ label, value }: { label: string; value: string | null | u
   );
 }
 
-function IncludedEntityChip({
+function IncludedEntityRow({
   icon: Icon,
   label,
   onClick,
+  toggle,
 }: {
   icon: typeof Sparkles;
   label: string;
   onClick?: () => void;
+  toggle?: React.ReactNode;
 }) {
   return (
-    <button
-      className="inline-flex items-center gap-1.5 rounded-lg bg-surface-soft px-2.5 py-1.5 text-[11px] text-ink transition-colors hover:bg-surface-strong"
-      onClick={onClick}
-      type="button"
-    >
-      <Icon className="size-3 text-muted" />
-      {label}
-    </button>
+    <div className="flex items-center gap-2 py-1">
+      <button
+        className="inline-flex min-w-0 flex-1 items-center gap-1.5 rounded-lg bg-surface-soft px-2.5 py-1.5 text-[11px] text-ink transition-colors hover:bg-surface-strong"
+        onClick={onClick}
+        type="button"
+      >
+        <Icon className="size-3 shrink-0 text-muted" />
+        <span className="truncate">{label}</span>
+      </button>
+      {toggle ? (
+        /* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */
+        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+          {toggle}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -61,6 +74,9 @@ export function PluginDetailView({
   onToggleEnabled,
   onUninstall,
   onNavigateToEntity,
+  onOpen,
+  onTryInChat,
+  onToggleBundledItem,
   pendingActionKey,
   Toggle,
 }: PluginDetailViewProps) {
@@ -107,6 +123,26 @@ export function PluginDetailView({
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {managedRecord.canOpen && onOpen ? (
+            <Button
+              className="h-7 gap-1.5 rounded-lg px-2.5 text-[11px]"
+              onClick={onOpen}
+              variant="secondary"
+            >
+              <ExternalLink className="size-3" />
+              Open
+            </Button>
+          ) : null}
+          {onTryInChat ? (
+            <Button
+              className="h-7 gap-1.5 rounded-lg px-2.5 text-[11px]"
+              onClick={() => onTryInChat(managedRecord.displayName)}
+              variant="secondary"
+            >
+              <MessageSquare className="size-3" />
+              Try in chat
+            </Button>
+          ) : null}
           {managedRecord.canDisable ? (
             <Toggle
               checked={isEnabled}
@@ -162,26 +198,44 @@ export function PluginDetailView({
           {hasIncludes ? (
             <section>
               <SectionHeading>Includes</SectionHeading>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="space-y-0.5">
                 {includedSkills.map((skill) => (
-                  <IncludedEntityChip
+                  <IncludedEntityRow
                     icon={Sparkles}
                     key={skill.id}
                     label={skill.displayName}
                     onClick={() => onNavigateToEntity(skill.id, "skill")}
+                    toggle={
+                      skill.canDisable && onToggleBundledItem ? (
+                        <Toggle
+                          checked={skill.enablementState === "enabled"}
+                          disabled={pendingActionKey === `skill-enable:${skill.id}`}
+                          onChange={(next) => onToggleBundledItem(skill.id, "skill", next)}
+                        />
+                      ) : null
+                    }
                   />
                 ))}
                 {includedApps.length > 0
                   ? includedApps.map((app) => (
-                      <IncludedEntityChip
+                      <IncludedEntityRow
                         icon={Blocks}
                         key={app.id}
                         label={app.displayName}
                         onClick={() => onNavigateToEntity(app.id, "app")}
+                        toggle={
+                          app.canDisable && onToggleBundledItem ? (
+                            <Toggle
+                              checked={app.enablementState === "enabled"}
+                              disabled={pendingActionKey === `app-enable:${app.id}`}
+                              onChange={(next) => onToggleBundledItem(app.id, "app", next)}
+                            />
+                          ) : null
+                        }
                       />
                     ))
                   : legacyAppRecords.map((app) => (
-                      <IncludedEntityChip
+                      <IncludedEntityRow
                         icon={Blocks}
                         key={app.id}
                         label={app.name}
@@ -189,11 +243,20 @@ export function PluginDetailView({
                       />
                     ))}
                 {includedMcps.map((mcp) => (
-                  <IncludedEntityChip
+                  <IncludedEntityRow
                     icon={Cable}
                     key={mcp.id}
                     label={mcp.displayName}
                     onClick={() => onNavigateToEntity(mcp.id, "mcp")}
+                    toggle={
+                      mcp.canDisable && onToggleBundledItem ? (
+                        <Toggle
+                          checked={mcp.enablementState === "enabled"}
+                          disabled={pendingActionKey === `mcp-enable:${mcp.id}`}
+                          onChange={(next) => onToggleBundledItem(mcp.id, "mcp", next)}
+                        />
+                      ) : null
+                    }
                   />
                 ))}
               </div>

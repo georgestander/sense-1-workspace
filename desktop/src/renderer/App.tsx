@@ -153,6 +153,15 @@ export default function App() {
         onRefresh={() => {
           void management.loadOverview(true);
         }}
+        onTryInChat={(extensionName) => {
+          setActiveView("home");
+          const prompt = `$${extensionName}`;
+          if (sessionState.selectedThread) {
+            setThreadPrompt(prompt);
+            return;
+          }
+          setDraftPrompt(prompt);
+        }}
         installPlugin={management.installPlugin}
         openAppInstall={management.openAppInstall}
         overview={management.overview}
@@ -161,6 +170,7 @@ export default function App() {
         setMcpServerEnabled={management.setMcpServerEnabled}
         setPluginEnabled={management.setPluginEnabled}
         setSkillEnabled={management.setSkillEnabled}
+        startMcpServerAuth={management.startMcpServerAuth}
         uninstallPlugin={management.uninstallPlugin}
         uninstallSkill={management.uninstallSkill}
       />
