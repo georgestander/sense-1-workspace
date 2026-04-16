@@ -7,6 +7,7 @@ import { resolveDesktopProfile } from "./bootstrap/desktop-bootstrap.js";
 import { resolveSignedInDesktopProfile } from "./bootstrap/bootstrap-profile.js";
 import {
   filterProfileCodexHomeRoots,
+  latestUserEntryRequestsManagedInventoryInstall,
   ManagementInventoryChangeTracker,
 } from "./settings/management-inventory-change.ts";
 import {
@@ -626,7 +627,10 @@ appServerManager.on("notification", (message) => {
       void persistInteractionState(threadId).catch(() => {});
     }
     runtimeFileChangeTracker.clear(threadId);
-    if (managementInventoryChangeTracker.consume(threadId)) {
+    if (
+      managementInventoryChangeTracker.consume(threadId)
+      || latestUserEntryRequestsManagedInventoryInstall(currentThreadState)
+    ) {
       emitDesktopRuntimeEvent({ kind: "managementInventoryChanged" });
     }
 

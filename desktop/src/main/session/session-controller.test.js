@@ -6395,6 +6395,8 @@ test("runDesktopTask keeps folder-bound creator shortcuts inside the selected wo
   assert.match(developerInstructions, /profile CODEX_HOME/u);
   assert.match(developerInstructions, /already has write access/u);
   assert.match(developerInstructions, /Do not claim sandbox, workspace-boundary, or permission blocking/u);
+  assert.match(developerInstructions, /explicit exception to the normal workspace deliverable rule/u);
+  assert.match(developerInstructions, /does not satisfy a managed install request/u);
   assert.match(developerInstructions, /create_basic_plugin\.py/u);
   assert.match(developerInstructions, /Do not stop at a TODO-only template/u);
   assert.match(developerInstructions, /or a draft left in the selected workspace for later move\/install/u);

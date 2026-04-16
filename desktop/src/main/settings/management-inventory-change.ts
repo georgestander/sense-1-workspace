@@ -34,6 +34,21 @@ function uniquePaths(paths: string[]): string[] {
   return Array.from(new Set(paths.map((candidate) => path.resolve(candidate))));
 }
 
+const MANAGED_INVENTORY_SHORTCUTS = new Set([
+  "plugin-creator",
+  "skill-creator",
+  "skill-installer",
+]);
+
+function normalizeShortcutToken(token: unknown): string {
+  const resolved = firstString(token);
+  if (!resolved) {
+    return "";
+  }
+
+  return resolved.split(":").at(-1)?.trim().toLowerCase() ?? "";
+}
+
 export function filterProfileCodexHomeRoots(
   roots: Array<string | null | undefined>,
 ): string[] {
@@ -99,6 +114,23 @@ export function isManagementInventoryPath(
   }
 
   return isPathWithinAnyRoot(absolutePath, resolveInventoryRoots(codexHomeRoots));
+}
+
+export function latestUserEntryRequestsManagedInventoryInstall(
+  threadState: { entries?: Array<{ kind?: unknown; promptShortcuts?: Array<{ token?: unknown }> }> } | null | undefined,
+): boolean {
+  const entries = Array.isArray(threadState?.entries) ? threadState.entries : [];
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (entry?.kind !== "user") {
+      continue;
+    }
+
+    const shortcuts = Array.isArray(entry.promptShortcuts) ? entry.promptShortcuts : [];
+    return shortcuts.some((shortcut) => MANAGED_INVENTORY_SHORTCUTS.has(normalizeShortcutToken(shortcut?.token)));
+  }
+
+  return false;
 }
 
 export function collectManagementInventoryPathsFromRuntimeMessage(
