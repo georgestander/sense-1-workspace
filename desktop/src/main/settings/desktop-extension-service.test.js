@@ -2513,8 +2513,8 @@ test("getOverview surfaces invalid plugin MCP entries without dropping valid one
     assert.ok(managedPlugin, "plugin record still present");
     assert.deepEqual(
       [...managedPlugin.includedMcpServerIds].sort(),
-      ["cloudflare-api", "good-server"],
-      "plugin still reports both MCP ids it composes, even the invalid one",
+      ["good-server"],
+      "invalid MCP entry is quarantined off the composed list; valid entry survives",
     );
   } finally {
     await fs.rm(runtimeStateRoot, { force: true, recursive: true });

@@ -4,6 +4,10 @@ import { spawnSync } from "node:child_process";
 
 import type { AppServerProcessManager } from "../runtime/app-server-process-manager.js";
 import { resolveProfileCodexHome } from "../profile/profile-state.js";
+import {
+  quarantineInvalidPluginMcpEntries,
+  readQuarantinedPluginMcpEntries,
+} from "./plugin-mcp-quarantine.ts";
 import type {
   DesktopAppRemoveRequest,
   DesktopAppInstallRequest,
@@ -1354,6 +1358,12 @@ export class DesktopExtensionService {
     const profile = await this.#resolveProfile();
     const profileCodexHome = resolveProfileCodexHome(profile.id, this.#env);
     const failedReads: DesktopExtensionBackendFailure[] = [];
+
+    try {
+      await quarantineInvalidPluginMcpEntries(profileCodexHome);
+    } catch (error) {
+      console.warn(`[desktop:extensions] plugin MCP quarantine (canonical sweep) failed. ${formatError(error)}`);
+    }
     const [configResult, pluginResult, appResult, mcpResult, skillResult, accountResult] = await Promise.all([
       this.#requestOrFallback<ConfigReadResult>("config/read", { includeLayers: false }, { config: null }, failedReads),
       this.#requestOrFallback<unknown>("plugin/list", {
@@ -1398,10 +1408,16 @@ export class DesktopExtensionService {
       }),
     };
 
-    const enriched = await enrichPluginsWithLocalMetadata(
-      normalizePlugins(pluginResult, asRecord(config?.plugins)),
-      profileCodexHome,
-    );
+    const normalizedPlugins = normalizePlugins(pluginResult, asRecord(config?.plugins));
+    const pluginSourcePaths = uniqueStrings(normalizedPlugins.map((plugin) => plugin.sourcePath));
+    if (pluginSourcePaths.length > 0) {
+      try {
+        await quarantineInvalidPluginMcpEntries(profileCodexHome, pluginSourcePaths);
+      } catch (error) {
+        console.warn(`[desktop:extensions] plugin MCP quarantine (per-plugin sweep) failed. ${formatError(error)}`);
+      }
+    }
+    const enriched = await enrichPluginsWithLocalMetadata(normalizedPlugins, profileCodexHome);
     const plugins = await resolvePluginIcons(enriched.plugins);
     const metadataByPluginId = enriched.metadataByPluginId;
     const apps = backfillAppPluginDisplayNames(
@@ -1423,8 +1439,35 @@ export class DesktopExtensionService {
     });
 
     const invalidMcpEntries: DesktopExtensionPluginMcpIssue[] = [];
+    const seenInvalidKeys = new Set<string>();
+    const addInvalidEntry = (entry: DesktopExtensionPluginMcpIssue) => {
+      const key = `${entry.sourcePath ?? ""}\u0000${entry.serverId}`;
+      if (seenInvalidKeys.has(key)) {
+        return;
+      }
+      seenInvalidKeys.add(key);
+      invalidMcpEntries.push(entry);
+    };
+    const pluginNameBySourcePath = new Map<string, string>();
+    for (const plugin of normalizedPlugins) {
+      const resolved = plugin.sourcePath ? path.resolve(plugin.sourcePath) : null;
+      if (resolved) {
+        pluginNameBySourcePath.set(resolved, plugin.name);
+      }
+    }
+    try {
+      for (const entry of await readQuarantinedPluginMcpEntries(profileCodexHome, pluginSourcePaths)) {
+        const resolved = entry.sourcePath ? path.resolve(entry.sourcePath) : null;
+        const friendlyName = resolved ? pluginNameBySourcePath.get(resolved) ?? null : null;
+        addInvalidEntry(friendlyName ? { ...entry, pluginName: friendlyName } : entry);
+      }
+    } catch (error) {
+      console.warn(`[desktop:extensions] reading quarantine manifests failed. ${formatError(error)}`);
+    }
     for (const metadata of metadataByPluginId.values()) {
-      invalidMcpEntries.push(...metadata.invalidMcpEntries);
+      for (const entry of metadata.invalidMcpEntries) {
+        addInvalidEntry(entry);
+      }
     }
 
     const health: DesktopExtensionHealth = {
