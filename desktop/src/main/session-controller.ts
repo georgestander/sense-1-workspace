@@ -124,6 +124,7 @@ export type DesktopSessionControllerOptions = {
   readonly desktopVoiceClient?: DesktopVoiceClient;
   readonly env?: NodeJS.ProcessEnv;
   readonly openExternal: (url: string) => Promise<void>;
+  readonly openManagedAuth?: (url: string) => Promise<void>;
   readonly onDesktopRunStarted?: (result: DesktopTaskRunResult) => void | Promise<void>;
   readonly onDesktopTaskResult?: (result: DesktopTaskRunResult) => void | Promise<void>;
   readonly onThreadTitleChanged?: (threadId: string, title: string) => void | Promise<void>;
@@ -175,6 +176,7 @@ export class DesktopSessionController {
   readonly #appStartedAt: string;
   readonly #env: NodeJS.ProcessEnv;
   readonly #openExternal: (url: string) => Promise<void>;
+  readonly #openManagedAuth: (url: string) => Promise<void>;
   readonly #onDesktopRunStarted: ((result: DesktopTaskRunResult) => void | Promise<void>) | null;
   readonly #onDesktopTaskResult: ((result: DesktopTaskRunResult) => void | Promise<void>) | null;
   readonly #onThreadTitleChanged: ((threadId: string, title: string) => void | Promise<void>) | null;
@@ -208,6 +210,7 @@ export class DesktopSessionController {
     this.#appStartedAt = options.appStartedAt;
     this.#env = options.env ?? process.env;
     this.#openExternal = options.openExternal;
+    this.#openManagedAuth = options.openManagedAuth ?? options.openExternal;
     this.#resolveProfile = async () => await this.#resolveCurrentProfile();
     this.#onRuntimeEvent = options.onRuntimeEvent ?? null;
     this.#onDesktopRunStarted = options.onDesktopRunStarted ?? null;
@@ -241,6 +244,7 @@ export class DesktopSessionController {
       env: this.#env,
       manager: this.#manager,
       openExternal: this.#openExternal,
+      openManagedAuth: this.#openManagedAuth,
       resolveProfile: this.#resolveProfile,
     });
     this.#desktopTenant = new DesktopTenantService({

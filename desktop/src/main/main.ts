@@ -13,6 +13,7 @@ import {
 import {
   createMainWindow,
   focusMainWindow,
+  openDesktopAuthWindow,
 } from "./window";
 import { resolveDesktopIconPath } from "./desktop-icon.js";
 import { emitDesktopRuntimeEvent, emitDesktopThreadDelta, registerDesktopIpcHandlers, unregisterDesktopIpcHandlers } from "./ipc";
@@ -449,6 +450,9 @@ const desktopSessionController = new DesktopSessionController(appServerManager, 
   env: process.env,
   openExternal: async (url) => {
     await shell.openExternal(url);
+  },
+  openManagedAuth: async (url) => {
+    await openDesktopAuthWindow(url);
   },
   onRuntimeEvent: async (event) => {
     emitDesktopRuntimeEvent(event);

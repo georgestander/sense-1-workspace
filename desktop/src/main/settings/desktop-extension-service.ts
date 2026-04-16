@@ -40,6 +40,7 @@ type DesktopExtensionServiceOptions = {
   env?: NodeJS.ProcessEnv;
   manager: AppServerProcessManager;
   openExternal: (url: string) => Promise<void>;
+  openManagedAuth?: (url: string) => Promise<void>;
   resolveProfile: () => Promise<{ id: string }>;
 };
 
@@ -1183,12 +1184,14 @@ export class DesktopExtensionService {
   readonly #env: NodeJS.ProcessEnv;
   readonly #manager: AppServerProcessManager;
   readonly #openExternal: (url: string) => Promise<void>;
+  readonly #openManagedAuth: (url: string) => Promise<void>;
   readonly #resolveProfile: () => Promise<{ id: string }>;
 
   constructor(options: DesktopExtensionServiceOptions) {
     this.#env = options.env ?? process.env;
     this.#manager = options.manager;
     this.#openExternal = options.openExternal;
+    this.#openManagedAuth = options.openManagedAuth ?? options.openExternal;
     this.#resolveProfile = options.resolveProfile;
   }
 
@@ -1451,7 +1454,7 @@ export class DesktopExtensionService {
     }
 
     for (const installUrl of authUrls) {
-      await this.#openExternal(installUrl);
+      await this.#openManagedAuth(installUrl);
     }
 
     return finalOverview;
@@ -1594,7 +1597,7 @@ export class DesktopExtensionService {
       ],
     });
     await this.#restartRuntimeIfSupported("app-install");
-    await this.#openExternal(request.installUrl);
+    await this.#openManagedAuth(request.installUrl);
     return await this.getOverview({ forceRefetch: true });
   }
 
