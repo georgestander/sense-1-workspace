@@ -200,39 +200,72 @@ export function RightRailProgressSection({
     return null;
   }
 
+  const totalSteps = hasStructuredSteps ? structuredSteps.length : (threadPlanState?.steps.length ?? 0);
+  const completedSteps = hasStructuredSteps ? structuredSteps.filter((s) => s.status === "completed").length : 0;
+  const inProgressSteps = hasStructuredSteps ? structuredSteps.filter((s) => s.status === "inProgress").length : 0;
+  const progressPct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+  const progressBadge = hasStructuredSteps && totalSteps > 0 ? (
+    <span className="inline-flex items-center rounded-full bg-surface-soft px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-ink-faint">
+      {completedSteps}/{totalSteps}
+    </span>
+  ) : null;
+
   return (
     <RightRailSection
+      badge={progressBadge}
       onToggle={() => toggleRightRailSection("progress")}
       open={isRightRailSectionOpen("progress")}
       title="Progress"
     >
       <div className="space-y-4">
+        {hasStructuredSteps && totalSteps > 0 ? (
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium text-ink-faint">
+                {inProgressSteps > 0 ? "In progress" : completedSteps === totalSteps ? "Complete" : "Queued"}
+              </span>
+              <span className="text-[11px] font-semibold tabular-nums text-ink">{progressPct}%</span>
+            </div>
+            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-surface-soft">
+              <div
+                aria-label={`${completedSteps} of ${totalSteps} steps complete`}
+                aria-valuemax={totalSteps}
+                aria-valuemin={0}
+                aria-valuenow={completedSteps}
+                className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out"
+                role="progressbar"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+          </div>
+        ) : null}
+
         {hasStructuredSteps ? (
-          <ol className="space-y-2 text-sm text-ink">
+          <ol className="space-y-1.5 text-[13px] text-ink">
             {structuredSteps.map((planStep, index) => (
-              <li className="flex items-start gap-3" key={index}>
+              <li className="flex items-start gap-2.5" key={index}>
                 {planStep.status === "completed" ? (
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent">
-                    <Check className="size-3.5" />
+                  <span className="mt-[1px] flex size-4 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent">
+                    <Check className="size-2.5" strokeWidth={3} />
                   </span>
                 ) : planStep.status === "inProgress" ? (
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-faint text-accent">
-                    <Asterisk className="size-3.5 animate-starburst" />
+                  <span className="mt-[1px] flex size-4 shrink-0 items-center justify-center rounded-full bg-accent-faint text-accent">
+                    <Asterisk className="size-2.5 animate-starburst" strokeWidth={2.5} />
                   </span>
                 ) : (
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-low text-ink-muted">
-                    <Circle className="size-3" />
+                  <span className="mt-[1px] flex size-4 shrink-0 items-center justify-center rounded-full border border-line text-ink-muted">
+                    <Circle className="size-2" strokeWidth={2} />
                   </span>
                 )}
-                <span className={cn("text-sm", planStep.status === "completed" ? "text-ink-faint" : "text-ink")}>{planStep.step}</span>
+                <span className={cn("text-[13px] leading-[1.45]", planStep.status === "completed" ? "text-ink-faint line-through decoration-ink-faint/40" : "text-ink")}>{planStep.step}</span>
               </li>
             ))}
           </ol>
         ) : hasPlanSteps && threadPlanState ? (
-          <ol className="space-y-1.5 text-sm text-ink">
+          <ol className="space-y-1.5 text-[13px] text-ink">
             {threadPlanState.steps.map((step, index) => (
               <li className="flex items-start gap-2" key={index}>
-                <ListChecks className="mt-0.5 size-4 shrink-0 text-muted" />
+                <ListChecks className="mt-0.5 size-3.5 shrink-0 text-muted" />
                 <span>{step}</span>
               </li>
             ))}
@@ -240,21 +273,21 @@ export function RightRailProgressSection({
         ) : null}
 
         {persistedSessionActivityLoading ? (
-          <p className="text-center text-[0.8125rem] leading-[1.52] text-ink-muted">Loading activity...</p>
+          <p className="text-[12px] leading-[1.5] text-ink-muted">Loading activity...</p>
         ) : hasPersistedActivity && persistedSessionActivitySummary ? (
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-[0.08em] text-muted">Session activity</p>
-            <dl className="space-y-2 text-sm text-ink">
-              <div className="flex items-center justify-between gap-3"><dt className="text-ink-muted">Files changed</dt><dd>{persistedSessionActivitySummary.fileWrites}</dd></div>
-              <div className="flex items-center justify-between gap-3"><dt className="text-ink-muted">Commands run</dt><dd>{persistedSessionActivitySummary.commandsRun}</dd></div>
-              <div className="flex items-center justify-between gap-3"><dt className="text-ink-muted">Approvals granted</dt><dd>{persistedSessionActivitySummary.approvalsGranted}</dd></div>
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-faint">Session activity</p>
+            <dl className="space-y-1 text-[12px] text-ink">
+              <div className="flex items-center justify-between gap-3"><dt className="text-ink-muted">Files changed</dt><dd className="tabular-nums">{persistedSessionActivitySummary.fileWrites}</dd></div>
+              <div className="flex items-center justify-between gap-3"><dt className="text-ink-muted">Commands run</dt><dd className="tabular-nums">{persistedSessionActivitySummary.commandsRun}</dd></div>
+              <div className="flex items-center justify-between gap-3"><dt className="text-ink-muted">Approvals granted</dt><dd className="tabular-nums">{persistedSessionActivitySummary.approvalsGranted}</dd></div>
               <div className="flex items-center justify-between gap-3"><dt className="text-ink-muted">Last activity</dt><dd className="text-right text-ink">{persistedSessionActivitySummary.lastActivity ? new Date(persistedSessionActivitySummary.lastActivity).toLocaleString() : "No activity yet"}</dd></div>
             </dl>
           </div>
         ) : null}
 
         {!hasPlanSteps && !hasPersistedActivity && !persistedSessionActivityLoading && isWorkspaceThread ? (
-          <p className="text-center text-[0.8125rem] leading-[1.52] text-ink-muted">No activity yet.</p>
+          <p className="text-[12px] leading-[1.5] text-ink-muted">No activity yet.</p>
         ) : null}
       </div>
     </RightRailSection>
