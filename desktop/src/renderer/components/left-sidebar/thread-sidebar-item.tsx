@@ -51,14 +51,14 @@ export function ThreadSidebarItem({
     <div className={cn("relative", isNested ? "py-0.5" : "")}>
       <div
         className={cn(
-          "group flex items-start gap-2 rounded-xl",
-          isNested ? (isSelected ? "bg-surface-strong" : "hover:bg-surface-soft") : isSelected ? "bg-surface-strong" : "hover:bg-surface-soft",
+          "group flex items-start gap-2 rounded-md",
+          isNested ? (isSelected ? "bg-surface-high" : "hover:bg-surface-high") : isSelected ? "bg-surface-high" : "hover:bg-surface-high",
         )}
       >
         <button
           className={cn(
-            "min-w-0 flex-1 rounded-xl text-left outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-accent/30 motion-reduce:transition-none",
-            isNested ? "px-2 py-1.5" : "px-3 py-2",
+            "min-w-0 flex-1 rounded-md text-left outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-accent/30 motion-reduce:transition-none",
+            isNested ? "px-2 py-1" : "px-2.5 py-1.5",
           )}
           onClick={onSelect}
           type="button"
@@ -67,9 +67,9 @@ export function ThreadSidebarItem({
             {threadStatus === "running" ? (
               <LoaderCircle aria-label="Running" className="size-3.5 shrink-0 animate-spin text-ink-muted" />
             ) : threadStatus === "completed" ? (
-              <CheckCircle2 aria-label="Completed in background" className="size-3.5 shrink-0 text-emerald-600" />
+              <CheckCircle2 aria-label="Completed in background" className="size-3.5 shrink-0 text-success" />
             ) : null}
-            <p className={cn("truncate text-ink", isNested ? "text-sm" : "text-sm font-medium")}>{thread.title}</p>
+            <p className={cn("truncate text-ink", isNested ? "text-[13px]" : "text-[13px] font-medium")}>{thread.title}</p>
           </div>
           {!isNested && thread.workspaceRoot ? (
             <p className="mt-0.5 flex items-center gap-[0.2rem] truncate text-xs text-muted">

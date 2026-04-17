@@ -21,20 +21,20 @@ export function RightRailSection({
   bodyClassName,
 }: RightRailSectionProps) {
   return (
-    <section className="overflow-hidden rounded-2xl bg-surface-soft">
+    <section className="overflow-hidden rounded-lg border border-line bg-surface-high">
       <button
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left outline-none transition-colors hover:bg-surface-strong focus-visible:ring-[3px] focus-visible:ring-accent/30"
+        className="flex w-full items-center justify-between gap-3 px-2.5 py-2 text-left outline-none transition-colors hover:bg-surface-soft focus-visible:ring-[3px] focus-visible:ring-accent/30"
         onClick={onToggle}
         type="button"
       >
-        <span className="text-xs font-semibold uppercase tracking-[0.11em] text-muted">{title}</span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">{title}</span>
         <span className="flex items-center gap-2">
           {badge}
-          <ChevronDown className={cn("size-4 text-muted transition-transform", open ? "rotate-180" : "")} />
+          <ChevronDown className={cn("size-3.5 text-muted transition-transform", open ? "rotate-180" : "")} />
         </span>
       </button>
-      {open ? <div className={cn("px-3 py-3", bodyClassName)}>{children}</div> : null}
+      {open ? <div className={cn("border-t border-line px-2.5 py-2.5", bodyClassName)}>{children}</div> : null}
     </section>
   );
 }
