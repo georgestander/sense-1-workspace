@@ -277,7 +277,7 @@ function ThreadComposerInner({
           <ShortcutPillRow overview={extensionOverview} prompt={deferredThreadPrompt} />
         </div>
         <textarea
-          className="min-h-[5.5rem] resize-none rounded-xl border border-line/40 bg-canvas px-3 py-2 text-sm outline-none transition-all placeholder:text-muted focus-visible:ring-[3px] focus-visible:ring-accent/30 disabled:cursor-not-allowed disabled:opacity-70"
+          className="min-h-[5.5rem] resize-none rounded-xl border border-line bg-canvas px-3 py-2 text-sm outline-none transition-all placeholder:text-muted focus-visible:ring-[3px] focus-visible:ring-accent/30 disabled:cursor-not-allowed disabled:opacity-70"
           disabled={composerDisabled}
           onClick={(event) => setShortcutCursorIndex(event.currentTarget.selectionStart ?? event.currentTarget.value.length)}
           onKeyDown={handleComposerKeyDown}
@@ -325,7 +325,7 @@ function ThreadComposerInner({
             >
               <Paperclip />
             </Button>
-            <label className="inline-flex items-center gap-2 rounded-xl border border-line/40 px-2 py-1 text-xs text-muted">
+            <label className="inline-flex items-center gap-2 rounded-xl border border-line px-2 py-1 text-xs text-muted">
               <select
                 className="bg-transparent text-ink outline-none"
                 disabled={composerDisabled || modelOptions.length === 0}
@@ -343,7 +343,7 @@ function ThreadComposerInner({
                 )}
               </select>
             </label>
-            <label className="inline-flex items-center gap-2 rounded-xl border border-line/40 px-2 py-1 text-xs text-muted">
+            <label className="inline-flex items-center gap-2 rounded-xl border border-line px-2 py-1 text-xs text-muted">
               <BrainCircuit className="size-3.5" />
               <select
                 className="bg-transparent text-ink outline-none"

@@ -57,7 +57,7 @@ export function AutomationScheduleField({ disabled = false, value, onChange }: A
   return (
     <div className="flex flex-col gap-2">
       <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Schedule</span>
-      <div className={cn("rounded-2xl border border-line/40 bg-canvas p-3", disabled && "opacity-80")}>
+      <div className={cn("rounded-2xl border border-line bg-canvas p-3", disabled && "opacity-80")}>
         <p className="text-sm font-medium text-ink">{summary}</p>
         <p className="mt-1 text-xs leading-5 text-ink-muted">Use the schedule controls below instead of editing RRULE text directly.</p>
         {disabled ? (

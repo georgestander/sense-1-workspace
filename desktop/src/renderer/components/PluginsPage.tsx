@@ -593,7 +593,7 @@ export function PluginsPage({
   return (
     <div className="flex h-full min-h-0 flex-col bg-canvas">
       {/* ---- Toolbar ---- */}
-      <div className="flex items-center gap-1 border-b border-line/40 px-4 py-2">
+      <div className="flex items-center gap-1 border-b border-line px-4 py-2">
         {/* Tabs with counts */}
         <nav className="flex items-center gap-0.5">
           {TABS.map((tab) => (
@@ -646,7 +646,7 @@ export function PluginsPage({
 
       {/* ---- Error / feedback banners ---- */}
       {error || actionError || actionFeedback ? (
-        <div className="border-b border-line/30 px-4 py-2">
+        <div className="border-b border-line px-4 py-2">
           {[error, actionError, actionFeedback].filter(Boolean).map((msg, i) => (
             <p className="text-xs text-ink-muted" key={i}>{msg}</p>
           ))}

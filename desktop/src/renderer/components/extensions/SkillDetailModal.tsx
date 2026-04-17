@@ -43,7 +43,7 @@ export function SkillDetailModal({
       {/* Modal */}
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-line bg-surface-high shadow-xl">
         {/* Header */}
-        <div className="flex items-start gap-3 border-b border-line/30 px-5 py-4">
+        <div className="flex items-start gap-3 border-b border-line px-5 py-4">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-strong">
             <Sparkles className="size-4 text-muted" />
           </div>
@@ -75,7 +75,7 @@ export function SkillDetailModal({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-between border-t border-line/30 px-5 py-3">
+        <div className="flex items-center justify-between border-t border-line px-5 py-3">
           <div className="flex items-center gap-3">
             {managedRecord.canDisable ? (
               <div className="flex items-center gap-2">

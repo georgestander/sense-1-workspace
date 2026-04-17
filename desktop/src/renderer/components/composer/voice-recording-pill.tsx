@@ -38,7 +38,7 @@ export function VoiceRecordingPill({
       <span className="min-w-[2rem] text-[10px] font-medium tabular-nums text-ink">{elapsedLabel}</span>
       <Button
         aria-label="Stop voice input"
-        className="size-6 rounded-full border-line/60 px-0"
+        className="size-6 rounded-full border-line px-0"
         onClick={() => void onStop()}
         size="icon-sm"
         variant="secondary"

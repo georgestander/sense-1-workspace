@@ -30,7 +30,7 @@ export function AutomationWorkspaceField({
   return (
     <label className="flex flex-col gap-2">
       <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Workspace</span>
-      <div className="rounded-2xl border border-line/40 bg-canvas px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
+      <div className="rounded-2xl border border-line bg-canvas px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
         <div className="flex items-center gap-2">
           <Folder className="size-4 shrink-0 text-muted" />
           <select

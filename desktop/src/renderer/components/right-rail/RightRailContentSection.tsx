@@ -232,7 +232,7 @@ export function RightRailContentSection({
             </div>
             {canRefreshWorkspaceStructure ? (
               <button
-                className="mt-2 rounded-md border border-line/50 px-2 py-1.5 text-xs text-ink-muted transition-colors hover:bg-surface-soft hover:text-ink"
+                className="mt-2 rounded-md border border-line px-2 py-1.5 text-xs text-ink-muted transition-colors hover:bg-surface-soft hover:text-ink"
                 onClick={() => void refreshWorkspaceStructure()}
                 type="button"
               >

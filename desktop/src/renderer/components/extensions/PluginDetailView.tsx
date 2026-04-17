@@ -107,7 +107,7 @@ export function PluginDetailView({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-line/40 px-4 py-3">
+      <div className="flex items-center gap-3 border-b border-line px-4 py-3">
         <button
           className="flex size-7 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-soft hover:text-ink"
           onClick={onBack}

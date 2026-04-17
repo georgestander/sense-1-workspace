@@ -403,11 +403,11 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
         ) : null}
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <Button aria-label="Add local files" disabled={!canStartWork} onClick={async () => { const paths = await pickFiles(); if (paths.length > 0) setAttachedFiles((current) => [...new Set([...current, ...paths])]); }} size="icon" variant="secondary"><Paperclip /></Button>
-          <label className="inline-flex items-center gap-2 rounded-xl border border-line/40 px-2.5 py-1.5 text-xs text-muted">
+          <label className="inline-flex items-center gap-2 rounded-xl border border-line px-2.5 py-1.5 text-xs text-muted">
             <input checked={workInFolder} className="size-3.5 accent-ink" disabled={!canStartWork} onChange={(event) => { const checked = event.target.checked; setWorkInFolder(checked); setFolderMenuOpen(checked); }} type="checkbox" />
             Keep this task bound to a folder
           </label>
-          <div className="inline-flex items-center gap-2 rounded-xl border border-line/40 px-2 py-1.5 text-xs text-muted">
+          <div className="inline-flex items-center gap-2 rounded-xl border border-line px-2 py-1.5 text-xs text-muted">
             <span>Model</span>
             <select className="bg-transparent text-ink outline-none" disabled={!canStartWork || modelOptions.length === 0} onChange={(event) => handleModelSelection(event.target.value)} value={selectedModel || ""}>
               {modelOptions.length > 0 ? modelOptions.map((option) => (

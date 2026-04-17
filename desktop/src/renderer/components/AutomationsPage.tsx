@@ -171,7 +171,7 @@ export function AutomationsPage({
   return (
     <div className="flex h-full min-h-0 bg-canvas">
       <aside className="flex w-[320px] shrink-0 flex-col border-r border-line bg-surface-soft">
-        <div className="border-b border-line/40 px-5 py-5">
+        <div className="border-b border-line px-5 py-5">
           <p className="text-xs font-semibold uppercase tracking-[0.11em] text-muted">Automations</p>
           <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-ink">Scheduled work</h1>
           <p className="mt-2 text-sm leading-6 text-ink-muted">
@@ -271,7 +271,7 @@ export function AutomationsPage({
                     <label className="flex flex-col gap-2">
                       <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Title</span>
                       <input
-                        className="rounded-2xl border border-line/40 bg-canvas px-3 py-2 text-sm text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
+                        className="rounded-2xl border border-line bg-canvas px-3 py-2 text-sm text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
                         onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
                         value={draft.name}
                       />
@@ -279,7 +279,7 @@ export function AutomationsPage({
 
                     <label className="flex flex-col gap-2">
                       <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Run target</span>
-                      <div className="flex items-center gap-2 rounded-2xl border border-line/40 bg-canvas px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
+                      <div className="flex items-center gap-2 rounded-2xl border border-line bg-canvas px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
                         <Clock3 className="size-4 shrink-0 text-muted" />
                         <select
                           className="min-w-0 flex-1 bg-transparent outline-none"
@@ -306,7 +306,7 @@ export function AutomationsPage({
                     <label className="md:col-span-2 mt-1 flex flex-col gap-2">
                       <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Prompt</span>
                       <textarea
-                        className="min-h-[280px] rounded-[1.5rem] border border-line/40 bg-canvas px-4 py-3 text-sm leading-6 text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
+                        className="min-h-[280px] rounded-[1.5rem] border border-line bg-canvas px-4 py-3 text-sm leading-6 text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
                         onChange={(event) => setDraft((current) => ({ ...current, prompt: event.target.value }))}
                         placeholder="Describe the recurring task clearly enough that it can run without more setup."
                         value={draft.prompt}
@@ -321,7 +321,7 @@ export function AutomationsPage({
                       />
                     </div>
 
-                    <details className="md:col-span-2 rounded-2xl border border-line/40 bg-canvas px-4 py-3">
+                    <details className="md:col-span-2 rounded-2xl border border-line bg-canvas px-4 py-3">
                       <summary className="cursor-pointer select-none text-sm font-medium text-ink">
                         Advanced settings
                       </summary>
