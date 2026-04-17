@@ -6,8 +6,14 @@ const STORAGE_KEY = "sense1-theme";
 
 export function readStoredTheme(): ThemePreference {
   if (typeof localStorage === "undefined") return "system";
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored === "light" || stored === "dark" || stored === "system") return stored;
+  // localStorage.getItem can throw SecurityError in restricted profiles or
+  // sandboxed webviews; fall back to the default theme so startup never aborts.
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === "light" || stored === "dark" || stored === "system") return stored;
+  } catch {
+    // ignore — default to "system"
+  }
   return "system";
 }
 
@@ -18,7 +24,11 @@ export function applyTheme(theme: ThemePreference): void {
 
 export function persistTheme(theme: ThemePreference): void {
   if (typeof localStorage === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, theme);
+  try {
+    localStorage.setItem(STORAGE_KEY, theme);
+  } catch {
+    // ignore — preference won't persist across reloads in restricted contexts
+  }
 }
 
 export function useTheme(): [ThemePreference, (next: ThemePreference) => void] {
