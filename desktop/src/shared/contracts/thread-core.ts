@@ -35,7 +35,7 @@ export interface DesktopAppServerThreadTurn {
 export type DesktopAppServerInputItem =
   | { readonly type: "text"; readonly text: string }
   | { readonly type: "localImage"; readonly path: string }
-  | { readonly type: "mention"; readonly path: string; readonly name?: string };
+  | { readonly type: "mention"; readonly path: string; readonly name?: string; readonly token?: string };
 
 export type DesktopAppServerItem =
   | {

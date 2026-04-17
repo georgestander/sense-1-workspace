@@ -89,9 +89,18 @@ type MpcOAuthLoginResult = {
   url?: string | null;
 };
 
+type LocalPluginMcpMetadata = {
+  readonly id: string;
+  readonly transport: string | null;
+  readonly command: string | null;
+  readonly url: string | null;
+  readonly invalidReason: string | null;
+};
+
 type LocalPluginMetadata = {
   readonly appIds: string[];
   readonly mcpServerIds: string[];
+  readonly mcpServers: LocalPluginMcpMetadata[];
   readonly sourcePath: string | null;
   readonly skills: DesktopSkillRecord[];
   readonly invalidMcpEntries: DesktopExtensionPluginMcpIssue[];
@@ -149,9 +158,42 @@ function uniqueStrings(values: Array<string | null | undefined>): string[] {
   return unique;
 }
 
+function canonicalAppKey(id: string | null | undefined): string {
+  const resolved = firstString(id);
+  if (!resolved) {
+    return "";
+  }
+  return resolved.replace(/^connector_/iu, "").trim().toLowerCase();
+}
+
+function humanizeAppId(id: string): string {
+  const base = firstString(id)?.replace(/^connector_/iu, "") ?? id;
+  const parts = base.split(/[_-]+/u).filter(Boolean);
+  if (parts.length === 0) {
+    return id;
+  }
+  return parts
+    .map((part) => (part.length <= 3 ? part.toUpperCase() : `${part[0]?.toUpperCase() ?? ""}${part.slice(1)}`))
+    .join(" ");
+}
+
 function firstNamedString(value: unknown): string | null {
   const record = asRecord(value);
   return firstString(record.id, record.name, record.displayName, typeof value === "string" ? value : null);
+}
+
+function normalizeConfigIdentifier(value: string | null | undefined): string | null {
+  let normalized = firstString(value);
+  while (normalized && normalized.length >= 2) {
+    const first = normalized[0];
+    const last = normalized[normalized.length - 1];
+    if ((first === "\"" && last === "\"") || (first === "'" && last === "'")) {
+      normalized = normalized.slice(1, -1).trim();
+      continue;
+    }
+    break;
+  }
+  return normalized || null;
 }
 
 function quoteTomlKeyIfNeeded(key: string): string {
@@ -159,7 +201,7 @@ function quoteTomlKeyIfNeeded(key: string): string {
 }
 
 function configSectionKeyPath(section: "plugins" | "apps" | "mcp_servers", id: string): string {
-  return `${section}.${quoteTomlKeyIfNeeded(id)}`;
+  return `${section}.${quoteTomlKeyIfNeeded(normalizeConfigIdentifier(id) ?? id)}`;
 }
 
 async function fileExists(targetPath: string): Promise<boolean> {
@@ -263,10 +305,10 @@ function parseLocalConfigToggles(rawConfig: string): LocalConfigToggles {
       continue;
     }
 
-    const tableMatch = line.match(/^\[(plugins|apps|mcp_servers)\.(?:"([^"]+)"|([A-Za-z0-9._@:-]+))\]$/u);
+      const tableMatch = line.match(/^\[(plugins|apps|mcp_servers)\.(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9._@:-]+))\]$/u);
     if (tableMatch) {
       activeSection = tableMatch[1] as "apps" | "mcp_servers" | "plugins";
-      activeKey = firstString(tableMatch[2], tableMatch[3]);
+      activeKey = normalizeConfigIdentifier(firstString(tableMatch[2], tableMatch[3], tableMatch[4]));
       continue;
     }
 
@@ -277,12 +319,12 @@ function parseLocalConfigToggles(rawConfig: string): LocalConfigToggles {
     }
 
     const dottedEnabledMatch = line.match(
-      /^(plugins|apps|mcp_servers)\.(?:"([^"]+)"|([A-Za-z0-9._@:-]+))\.enabled\s*=\s*(true|false)$/iu,
+      /^(plugins|apps|mcp_servers)\.(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9._@:-]+))\.enabled\s*=\s*(true|false)$/iu,
     );
     if (dottedEnabledMatch) {
       const section = dottedEnabledMatch[1] as "apps" | "mcp_servers" | "plugins";
-      const key = firstString(dottedEnabledMatch[2], dottedEnabledMatch[3]);
-      const enabled = parseTomlBooleanToken(dottedEnabledMatch[4]);
+      const key = normalizeConfigIdentifier(firstString(dottedEnabledMatch[2], dottedEnabledMatch[3], dottedEnabledMatch[4]));
+      const enabled = parseTomlBooleanToken(dottedEnabledMatch[5]);
       if (key && enabled !== null) {
         toggles[section][key] = {
           ...asRecord(toggles[section][key]),
@@ -476,7 +518,7 @@ function normalizePlugins(rawPlugins: unknown, pluginConfig: Record<string, unkn
     const plugins = Array.isArray(marketplace?.plugins) ? marketplace.plugins : [];
     for (const plugin of plugins) {
       const summary = asRecord(plugin);
-      const pluginId = firstString(summary.id);
+      const pluginId = normalizeConfigIdentifier(firstString(summary.id));
       const pluginSettings = pluginId ? asRecord(pluginConfig[pluginId]) : {};
       const interfaceRecord = asRecord(summary.interface);
       if (!pluginId) {
@@ -523,7 +565,7 @@ function isMatchingMarketplacePluginEntry(
   marketplacePlugin: Record<string, unknown>,
   plugin: DesktopPluginRecord,
 ): boolean {
-  const marketplacePluginId = firstString(marketplacePlugin.id, marketplacePlugin.name);
+      const marketplacePluginId = normalizeConfigIdentifier(firstString(marketplacePlugin.id, marketplacePlugin.name));
   if (marketplacePluginId && (marketplacePluginId === plugin.id || marketplacePluginId === plugin.name)) {
     return true;
   }
@@ -578,7 +620,7 @@ function normalizeApps(rawApps: unknown, appConfig: Record<string, unknown>): De
     : [];
 
   return data
-    .map((entry) => {
+    .map<DesktopAppRecord | null>((entry) => {
       const record = asRecord(entry);
       const appId = firstString(record.id);
       if (!appId) {
@@ -594,10 +636,93 @@ function normalizeApps(rawApps: unknown, appConfig: Record<string, unknown>): De
         isEnabled: asBoolean(settings.enabled, asBoolean(record.isEnabled, true)),
         pluginDisplayNames: asStringArray(record.pluginDisplayNames),
         logoUrl: sanitizeRenderableUrl(firstString(record.logoUrl)),
+        source: "runtime",
+        runtimeStateKnown: true,
       } satisfies DesktopAppRecord;
     })
     .filter((entry): entry is DesktopAppRecord => entry !== null)
     .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function buildFallbackAppsFromPluginMetadata(
+  apps: DesktopAppRecord[],
+  plugins: DesktopPluginRecord[],
+  metadataByPluginId: Map<string, LocalPluginMetadata>,
+  appConfig: Record<string, unknown>,
+): DesktopAppRecord[] {
+  const recordByKey = new Map<string, DesktopAppRecord>();
+  const configByCanonicalKey = new Map<string, Record<string, unknown>>();
+
+  for (const [configAppId, rawConfig] of Object.entries(appConfig)) {
+    const key = canonicalAppKey(configAppId);
+    if (!key) {
+      continue;
+    }
+    configByCanonicalKey.set(key, {
+      ...(configByCanonicalKey.get(key) ?? {}),
+      ...asRecord(rawConfig),
+    });
+  }
+
+  for (const app of apps) {
+    const key = canonicalAppKey(app.id);
+    if (!key || recordByKey.has(key)) {
+      continue;
+    }
+    recordByKey.set(key, app);
+  }
+
+  for (const plugin of plugins) {
+    if (!plugin.installed) {
+      continue;
+    }
+    const metadata = metadataByPluginId.get(plugin.id);
+    if (!metadata) {
+      continue;
+    }
+
+    for (const appId of metadata.appIds) {
+      const key = canonicalAppKey(appId);
+      if (!key || recordByKey.has(key)) {
+        continue;
+      }
+      const config = configByCanonicalKey.get(key) ?? asRecord(appConfig[appId]);
+      recordByKey.set(key, {
+        id: appId,
+        name: humanizeAppId(appId),
+        description: "Plugin app connector",
+        installUrl: null,
+        isAccessible: false,
+        isEnabled: asBoolean(config.enabled, plugin.enabled),
+        pluginDisplayNames: uniqueStrings([plugin.displayName, plugin.name]),
+        logoUrl: null,
+        source: "local-fallback",
+        runtimeStateKnown: false,
+      });
+    }
+  }
+
+  for (const [appId, rawConfig] of Object.entries(appConfig)) {
+    const key = canonicalAppKey(appId);
+    if (!key || recordByKey.has(key)) {
+      continue;
+    }
+    const config = configByCanonicalKey.get(key) ?? asRecord(rawConfig);
+    recordByKey.set(key, {
+      id: appId,
+      name: humanizeAppId(appId),
+      description: "Configured app connector",
+      installUrl: null,
+      isAccessible: false,
+      isEnabled: asBoolean(config.enabled, false),
+      pluginDisplayNames: [],
+      logoUrl: null,
+      source: "local-fallback",
+      runtimeStateKnown: false,
+    });
+  }
+
+  return [...recordByKey.values()].sort((left, right) => left.name.localeCompare(right.name));
 }
 
 async function resolveInstalledPluginSourcePath(
@@ -627,6 +752,7 @@ async function readPluginLocalMetadata(
     return {
       appIds: [],
       mcpServerIds: [],
+      mcpServers: [],
       sourcePath: null,
       skills: [],
       invalidMcpEntries: [],
@@ -643,13 +769,26 @@ async function readPluginLocalMetadata(
   } catch {}
 
   let mcpServerIds: string[] = [];
+  const mcpServers: LocalPluginMcpMetadata[] = [];
   const invalidMcpEntries: DesktopExtensionPluginMcpIssue[] = [];
   try {
     const mcpJson = JSON.parse(await fs.readFile(path.join(sourcePath, ".mcp.json"), "utf8")) as { mcpServers?: Record<string, unknown> };
     const serverEntries = Object.entries(asRecord(mcpJson?.mcpServers));
     mcpServerIds = uniqueStrings(serverEntries.map(([id]) => id));
     for (const [serverId, serverConfig] of serverEntries) {
+      const serverRecord = asRecord(serverConfig);
       const classification = classifyMcpServerEntry(serverConfig);
+      mcpServers.push({
+        id: serverId,
+        transport: firstString(
+          serverRecord.type,
+          serverRecord.transport,
+          serverRecord.command ? "stdio" : serverRecord.url ? "http" : null,
+        ),
+        command: firstString(serverRecord.command),
+        url: firstString(serverRecord.url),
+        invalidReason: classification.ok ? null : classification.reason,
+      });
       if (!classification.ok) {
         invalidMcpEntries.push({
           pluginName: plugin.name,
@@ -691,6 +830,7 @@ async function readPluginLocalMetadata(
   return {
     appIds,
     mcpServerIds,
+    mcpServers,
     sourcePath,
     skills,
     invalidMcpEntries,
@@ -763,6 +903,9 @@ function mergeSkills(
   }
 
   for (const plugin of plugins) {
+    if (!plugin.installed) {
+      continue;
+    }
     const metadata = metadataByPluginId.get(plugin.id);
     if (!metadata) {
       continue;
@@ -790,10 +933,11 @@ function backfillAppPluginDisplayNames(
 
   for (const plugin of plugins) {
     for (const appId of plugin.appIds) {
+      const key = canonicalAppKey(appId);
       pluginKeysByAppId.set(
-        appId,
+        key,
         uniqueStrings([
-          ...(pluginKeysByAppId.get(appId) ?? []),
+          ...(pluginKeysByAppId.get(key) ?? []),
           plugin.displayName,
           plugin.name,
           plugin.id,
@@ -806,16 +950,25 @@ function backfillAppPluginDisplayNames(
     ...app,
     pluginDisplayNames: uniqueStrings([
       ...app.pluginDisplayNames,
-      ...(pluginKeysByAppId.get(app.id) ?? []),
+      ...(pluginKeysByAppId.get(canonicalAppKey(app.id)) ?? []),
     ]),
   }));
 }
 
 function normalizeMcpServers(rawMcpStatus: unknown, mcpConfig: Record<string, unknown>): DesktopMcpServerRecord[] {
+  return normalizeMcpServersWithOptions(rawMcpStatus, mcpConfig, { runtimeStateKnown: true });
+}
+
+function normalizeMcpServersWithOptions(
+  rawMcpStatus: unknown,
+  mcpConfig: Record<string, unknown>,
+  options: { runtimeStateKnown: boolean },
+): DesktopMcpServerRecord[] {
   const data = Array.isArray((rawMcpStatus as { data?: unknown[] } | null)?.data)
     ? (rawMcpStatus as { data: unknown[] }).data
     : [];
   const statusById = new Map<string, Record<string, unknown>>();
+  const runtimeStateKnown = options.runtimeStateKnown;
   for (const entry of data) {
     const record = asRecord(entry);
     const id = firstString(record.id, record.name);
@@ -839,9 +992,58 @@ function normalizeMcpServers(rawMcpStatus: unknown, mcpConfig: Record<string, un
         transport: firstString(config.transport, config.command ? "stdio" : config.url ? "http" : null),
         command: firstString(config.command),
         url: firstString(config.url),
+        source: runtimeStateKnown ? "runtime" : "local-fallback",
+        runtimeStateKnown,
+        invalidReason: null,
       } satisfies DesktopMcpServerRecord;
     })
     .sort((left, right) => left.id.localeCompare(right.id));
+}
+
+function buildFallbackMcpServersFromPluginMetadata(
+  mcpServers: DesktopMcpServerRecord[],
+  plugins: DesktopPluginRecord[],
+  metadataByPluginId: Map<string, LocalPluginMetadata>,
+  mcpConfig: Record<string, unknown>,
+): DesktopMcpServerRecord[] {
+  const recordById = new Map<string, DesktopMcpServerRecord>(
+    mcpServers.map((server) => [server.id, server] as const),
+  );
+
+  for (const plugin of plugins) {
+    if (!plugin.installed) {
+      continue;
+    }
+    const metadata = metadataByPluginId.get(plugin.id);
+    if (!metadata) {
+      continue;
+    }
+
+    for (const server of metadata.mcpServers) {
+      const existing = recordById.get(server.id);
+      if (existing?.runtimeStateKnown) {
+        continue;
+      }
+
+      const config = asRecord(mcpConfig[server.id]);
+      recordById.set(server.id, {
+        id: server.id,
+        enabled: asBoolean(config.enabled, existing?.enabled ?? (plugin.enabled && !server.invalidReason)),
+        state: server.invalidReason ? "quarantined" : null,
+        authStatus: existing?.authStatus ?? null,
+        toolsCount: existing?.toolsCount ?? 0,
+        resourcesCount: existing?.resourcesCount ?? 0,
+        transport: server.transport ?? existing?.transport ?? null,
+        command: server.command ?? existing?.command ?? null,
+        url: server.url ?? existing?.url ?? null,
+        source: "local-fallback",
+        runtimeStateKnown: false,
+        invalidReason: server.invalidReason ?? existing?.invalidReason ?? null,
+      });
+    }
+  }
+
+  return [...recordById.values()].sort((left, right) => left.id.localeCompare(right.id));
 }
 
 function normalizeSkills(rawSkills: unknown): DesktopSkillRecord[] {
@@ -907,6 +1109,9 @@ function mcpOwnership(ownerPluginIds: string[]): DesktopManagedExtensionOwnershi
 }
 
 function appAuthState(app: DesktopAppRecord): DesktopManagedExtensionAuthState {
+  if (!app.runtimeStateKnown) {
+    return "unknown";
+  }
   if (!app.installUrl) {
     return "not-required";
   }
@@ -914,7 +1119,11 @@ function appAuthState(app: DesktopAppRecord): DesktopManagedExtensionAuthState {
 }
 
 function pluginAuthState(plugin: DesktopPluginRecord, apps: DesktopAppRecord[]): DesktopManagedExtensionAuthState {
-  const relatedApps = apps.filter((app) => plugin.appIds.includes(app.id));
+  const relatedApps = apps.filter((app) =>
+    plugin.appIds.some((appId) => canonicalAppKey(appId) === canonicalAppKey(app.id)));
+  if (relatedApps.some((app) => !app.runtimeStateKnown)) {
+    return "unknown";
+  }
   if (relatedApps.some((app) => app.installUrl && !app.isAccessible)) {
     return "required";
   }
@@ -925,6 +1134,9 @@ function pluginAuthState(plugin: DesktopPluginRecord, apps: DesktopAppRecord[]):
 }
 
 function mcpAuthState(server: DesktopMcpServerRecord): DesktopManagedExtensionAuthState {
+  if (!server.runtimeStateKnown) {
+    return "unknown";
+  }
   const normalized = firstString(server.authStatus)?.toLowerCase() ?? "";
   if (!normalized) {
     return "not-required";
@@ -948,7 +1160,7 @@ function healthStateForAuth(authState: DesktopManagedExtensionAuthState): Deskto
   if (authState === "failed") {
     return "error";
   }
-  if (authState === "required") {
+  if (authState === "required" || authState === "unknown") {
     return "warning";
   }
   return "healthy";
@@ -956,13 +1168,23 @@ function healthStateForAuth(authState: DesktopManagedExtensionAuthState): Deskto
 
 function mcpHealthState(server: DesktopMcpServerRecord, authState: DesktopManagedExtensionAuthState): DesktopManagedExtensionHealthState {
   const normalizedState = firstString(server.state)?.toLowerCase() ?? "";
-  if (normalizedState.includes("error") || normalizedState.includes("failed") || authState === "failed") {
+  if (server.invalidReason || normalizedState.includes("error") || normalizedState.includes("failed") || authState === "failed") {
     return "error";
+  }
+  if (!server.runtimeStateKnown) {
+    return "warning";
   }
   if (authState === "required") {
     return "warning";
   }
   return "healthy";
+}
+
+function appHealthState(app: DesktopAppRecord, authState: DesktopManagedExtensionAuthState): DesktopManagedExtensionHealthState {
+  if (!app.runtimeStateKnown) {
+    return "warning";
+  }
+  return healthStateForAuth(authState);
 }
 
 function authActionAvailable(authState: DesktopManagedExtensionAuthState): boolean {
@@ -1089,7 +1311,7 @@ function buildManagedExtensions({
       .filter((plugin) =>
         plugin.installed
         && (
-          plugin.appIds.includes(app.id)
+          plugin.appIds.some((appId) => canonicalAppKey(appId) === canonicalAppKey(app.id))
         || app.pluginDisplayNames.includes(plugin.displayName)
         || app.pluginDisplayNames.includes(plugin.name)
         || app.pluginDisplayNames.includes(plugin.id)))
@@ -1144,7 +1366,7 @@ function buildManagedExtensions({
       installState: app.isAccessible || app.isEnabled || ownerPluginIds.length > 0 ? "installed" : "discoverable",
       enablementState: app.isEnabled ? "enabled" : "disabled",
       authState,
-      healthState: healthStateForAuth(authState),
+      healthState: appHealthState(app, authState),
       ownership: appOwnership(ownerPluginIds),
       ownerPluginIds,
       includedSkillIds: [],
@@ -1156,8 +1378,8 @@ function buildManagedExtensions({
       marketplacePath: null,
       canOpen: false,
       canUninstall: false,
-      canDisable: app.isAccessible,
-      canConnect: authActionAvailable(authState),
+      canDisable: app.runtimeStateKnown && app.isAccessible,
+      canConnect: app.runtimeStateKnown && authActionAvailable(authState),
       canReload: false,
     });
   }
@@ -1217,9 +1439,9 @@ function buildManagedExtensions({
       marketplacePath: ownerPluginIds.length === 1 ? pluginById.get(ownerPluginIds[0])?.marketplacePath ?? null : null,
       canOpen: false,
       canUninstall: false,
-      canDisable: true,
-      canConnect: authActionAvailable(authState),
-      canReload: true,
+      canDisable: server.runtimeStateKnown && !server.invalidReason,
+      canConnect: server.runtimeStateKnown && !server.invalidReason && authActionAvailable(authState),
+      canReload: server.runtimeStateKnown && !server.invalidReason,
     });
   }
 
@@ -1379,8 +1601,17 @@ export class DesktopExtensionService {
     const enriched = await enrichPluginsWithLocalMetadata(normalizedPlugins, profileCodexHome);
     const plugins = await resolvePluginIcons(enriched.plugins);
     const metadataByPluginId = enriched.metadataByPluginId;
+    const appListFailed = failedReads.some((entry) => entry.method === "app/list");
+    const mcpStatusFailed = failedReads.some((entry) => entry.method === "mcpServerStatus/list");
     const apps = backfillAppPluginDisplayNames(
-      normalizeApps(appResult, asRecord(config?.apps)),
+      appListFailed
+        ? buildFallbackAppsFromPluginMetadata(
+            normalizeApps(appResult, asRecord(config?.apps)),
+            plugins,
+            metadataByPluginId,
+            asRecord(config?.apps),
+          )
+        : normalizeApps(appResult, asRecord(config?.apps)),
       plugins,
     );
     const skills = mergeSkills(
@@ -1388,7 +1619,14 @@ export class DesktopExtensionService {
       plugins,
       metadataByPluginId,
     );
-    const mcpServers = normalizeMcpServers(mcpResult, asRecord(config?.mcp_servers));
+    const mcpServers = mcpStatusFailed
+      ? buildFallbackMcpServersFromPluginMetadata(
+          normalizeMcpServersWithOptions(mcpResult, asRecord(config?.mcp_servers), { runtimeStateKnown: false }),
+          plugins,
+          metadataByPluginId,
+          asRecord(config?.mcp_servers),
+        )
+      : normalizeMcpServers(mcpResult, asRecord(config?.mcp_servers));
     const managedExtensions = buildManagedExtensions({
       plugins,
       apps,

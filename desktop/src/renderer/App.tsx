@@ -14,6 +14,7 @@ import { PluginsPage } from "./components/PluginsPage";
 import { StartSurface } from "./components/StartSurface";
 import { ThreadView } from "./components/ThreadView";
 import { shouldShowHomeRightRail } from "./features/app/app-view-visibility.js";
+import type { DesktopPromptShortcutSuggestion } from "../shared/prompt-shortcuts.ts";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -62,8 +63,10 @@ export default function App() {
     rightRailOpen,
     rightRailProps,
     setDraftPrompt,
+    setDraftPromptSeed,
     setRightRailOpen,
     setThreadPrompt,
+    setThreadPromptSeed,
     settingsModalProps,
     showInstallUpdateAction,
     startSurfaceProps,
@@ -153,15 +156,14 @@ export default function App() {
         onRefresh={() => {
           void management.loadOverview(true);
         }}
-        onTryInChat={(extensionName) => {
+        onTryInChat={(shortcut: DesktopPromptShortcutSuggestion) => {
           setActiveView("home");
-          const token = extensionName.toLowerCase().replace(/[^a-z0-9:_-]+/g, "-").replace(/^-+|-+$/g, "");
-          const prompt = `$${token} `;
+          const prompt = `$${shortcut.token} `;
           if (sessionState.selectedThread) {
-            setThreadPrompt(prompt);
+            setThreadPromptSeed(prompt, [shortcut.item]);
             return;
           }
-          setDraftPrompt(prompt);
+          setDraftPromptSeed(prompt, [shortcut.item]);
         }}
         installPlugin={management.installPlugin}
         openAppInstall={management.openAppInstall}

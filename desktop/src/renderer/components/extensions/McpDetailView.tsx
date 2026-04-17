@@ -59,6 +59,7 @@ export function McpDetailView({
   const authState = managedRecord.authState;
   const needsConnect = authState === "required" || authState === "failed";
   const isConnected = authState === "connected";
+  const runtimeStateKnown = legacyMcp?.runtimeStateKnown ?? true;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -111,7 +112,11 @@ export function McpDetailView({
             <SectionHeading>Status</SectionHeading>
             <div className="flex items-center gap-3 rounded-xl bg-surface-soft px-3 py-3">
               <HealthBadge state={managedRecord.healthState} />
-              {isConnected ? (
+              {!runtimeStateKnown ? (
+                <span className="rounded bg-amber-50 px-2 py-0.5 text-[11px] text-amber-600">
+                  Runtime status unavailable
+                </span>
+              ) : isConnected ? (
                 <span className="flex items-center gap-1 rounded-md bg-green-50 px-2 py-1 text-[11px] font-medium text-green-700">
                   <Check className="size-3" />
                   Connected
@@ -157,6 +162,8 @@ export function McpDetailView({
                 <MetadataRow label="State" value={legacyMcp.state} />
                 <MetadataRow label="Command" value={legacyMcp.command} />
                 <MetadataRow label="URL" value={legacyMcp.url} />
+                <MetadataRow label="Source" value={legacyMcp.runtimeStateKnown ? "runtime" : "local fallback"} />
+                <MetadataRow label="Issue" value={legacyMcp.invalidReason} />
               </div>
             </section>
           ) : null}

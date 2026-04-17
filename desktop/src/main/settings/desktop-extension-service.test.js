@@ -193,8 +193,10 @@ test("getOverview preserves marketplace metadata and uses the profile codex home
       installUrl: "https://chatgpt.com/gmail/install",
       isAccessible: false,
       isEnabled: false,
-      pluginDisplayNames: ["Gmail"],
+      pluginDisplayNames: ["Gmail", "gmail"],
       logoUrl: null,
+      source: "runtime",
+      runtimeStateKnown: true,
     });
   } finally {
     await fs.rm(runtimeStateRoot, { force: true, recursive: true });
@@ -522,6 +524,97 @@ test("getOverview merges file-backed plugin and app enablement when runtime conf
     assert.equal(overview.apps[0]?.isEnabled, true);
     assert.equal(findManagedExtension(overview, "plugin", "gmail@openai-curated")?.enablementState, "enabled");
     assert.equal(findManagedExtension(overview, "app", "connector_gmail")?.enablementState, "enabled");
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+    await fs.rm(pluginRoot, { force: true, recursive: true });
+  }
+});
+
+test("getOverview normalizes quoted marketplace plugin ids from runtime and local config", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const { codexHome } = await ensureProfileDirectories("default", env);
+  const pluginRoot = await createInstalledPluginFixture();
+
+  try {
+    await fs.writeFile(
+      path.join(codexHome, "config.toml"),
+      [
+        `[plugins.'\"life-science-research@openai-curated\"']`,
+        "enabled = true",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const service = new DesktopExtensionService({
+      env,
+      manager: createManager(async (method) => {
+        if (method === "config/read") {
+          return {
+            config: {
+              plugins: {},
+            },
+          };
+        }
+
+        if (method === "plugin/list") {
+          return {
+            marketplaces: [
+              {
+                name: "OpenAI Curated",
+                path: "/tmp/openai-curated-marketplace.json",
+                plugins: [
+                  {
+                    id: "\"life-science-research@openai-curated\"",
+                    name: "life-science-research",
+                    installed: true,
+                    enabled: false,
+                    source: {
+                      path: pluginRoot,
+                    },
+                    interface: {
+                      displayName: "Life Science Research",
+                    },
+                  },
+                ],
+              },
+            ],
+          };
+        }
+
+        if (method === "app/list") {
+          return { data: [] };
+        }
+
+        if (method === "mcpServerStatus/list") {
+          return { data: [] };
+        }
+
+        if (method === "skills/list") {
+          return { data: [] };
+        }
+
+        if (method === "account/read") {
+          return createAccountReadResult();
+        }
+
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.getOverview({ forceRefetch: true });
+    assert.equal(overview.plugins[0]?.id, "life-science-research@openai-curated");
+    assert.equal(overview.plugins[0]?.enabled, true);
+    assert.equal(
+      findManagedExtension(overview, "plugin", "life-science-research@openai-curated")?.enablementState,
+      "enabled",
+    );
   } finally {
     await fs.rm(runtimeStateRoot, { force: true, recursive: true });
     await fs.rm(pluginRoot, { force: true, recursive: true });
@@ -1255,6 +1348,86 @@ test("installPlugin writes enablement using the canonical installed plugin id", 
       },
       {
         keyPath: "mcp_servers.plugin-mcp.enabled",
+        mergeStrategy: "upsert",
+        value: true,
+      },
+    ],
+  });
+});
+
+test("setPluginEnabled writes a canonical plugin key when the request id is quoted", async () => {
+  const managerCalls = [];
+
+  const service = new DesktopExtensionService({
+    manager: createManager(async (method, params) => {
+      managerCalls.push({ method, params });
+
+      if (method === "config/batchWrite") {
+        return { ok: true };
+      }
+
+      if (method === "config/read") {
+        return {
+          config: {
+            plugins: {},
+          },
+        };
+      }
+
+      if (method === "plugin/list") {
+        return {
+          marketplaces: [
+            {
+              name: "OpenAI Curated",
+              path: "/tmp/openai-curated-marketplace.json",
+              plugins: [
+                {
+                  id: "\"life-science-research@openai-curated\"",
+                  name: "life-science-research",
+                  installed: true,
+                  enabled: false,
+                  interface: {
+                    displayName: "Life Science Research",
+                  },
+                },
+              ],
+            },
+          ],
+        };
+      }
+
+      if (method === "app/list") {
+        return { data: [] };
+      }
+
+      if (method === "mcpServerStatus/list") {
+        return { data: [] };
+      }
+
+      if (method === "skills/list") {
+        return { data: [] };
+      }
+
+      if (method === "account/read") {
+        return createAccountReadResult();
+      }
+
+      throw new Error(`Unexpected method: ${method}`);
+    }),
+    openExternal: async () => {},
+    resolveProfile: async () => ({ id: "default" }),
+  });
+
+  await service.setPluginEnabled({
+    pluginId: "\"life-science-research@openai-curated\"",
+    enabled: true,
+  });
+
+  const batchWriteCall = managerCalls.find((entry) => entry.method === "config/batchWrite");
+  assert.deepEqual(batchWriteCall?.params, {
+    edits: [
+      {
+        keyPath: 'plugins."life-science-research@openai-curated".enabled',
         mergeStrategy: "upsert",
         value: true,
       },
@@ -2456,6 +2629,439 @@ test("getOverview surfaces failed backend reads in health.backend.failedReads wi
     assert.deepEqual(overview.apps, []);
   } finally {
     await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+  }
+});
+
+test("getOverview synthesizes plugin-owned apps from local metadata when app/list fails", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const pluginRoot = await createInstalledPluginFixture();
+  try {
+    const service = new DesktopExtensionService({
+      env,
+      manager: createManager(async (method) => {
+        if (method === "config/read") {
+          return {
+            config: {
+              apps: {
+                connector_gmail: {
+                  enabled: false,
+                },
+              },
+              plugins: {
+                gmail: {
+                  enabled: true,
+                },
+              },
+            },
+          };
+        }
+        if (method === "plugin/list") {
+          return {
+            marketplaces: [
+              {
+                name: "OpenAI Curated",
+                path: "/tmp/curated.json",
+                plugins: [
+                  {
+                    id: "gmail",
+                    name: "gmail",
+                    installed: true,
+                    enabled: true,
+                    source: { path: pluginRoot },
+                    interface: { displayName: "Gmail" },
+                  },
+                ],
+              },
+            ],
+          };
+        }
+        if (method === "app/list") {
+          throw new Error("failed to list apps: 403 Forbidden");
+        }
+        if (method === "mcpServerStatus/list") return { data: [] };
+        if (method === "skills/list") return { data: [] };
+        if (method === "account/read") return createAccountReadResult();
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.getOverview({ forceRefetch: true });
+
+    assert.equal(overview.health.backend.failedReads[0]?.method, "app/list");
+    assert.deepEqual(overview.apps, [
+      {
+        id: "connector_gmail",
+        name: "Gmail",
+        description: "Plugin app connector",
+        installUrl: null,
+        isAccessible: false,
+        isEnabled: false,
+        pluginDisplayNames: ["Gmail", "gmail"],
+        logoUrl: null,
+        source: "local-fallback",
+        runtimeStateKnown: false,
+      },
+    ]);
+    assert.equal(findManagedExtension(overview, "plugin", "gmail")?.authState, "unknown");
+    assert.equal(findManagedExtension(overview, "plugin", "gmail")?.healthState, "warning");
+    assert.equal(findManagedExtension(overview, "plugin", "gmail")?.canConnect, false);
+    assert.deepEqual(findManagedExtension(overview, "app", "connector_gmail"), {
+      id: "connector_gmail",
+      kind: "app",
+      name: "Gmail",
+      displayName: "Gmail",
+      description: "Plugin app connector",
+      installState: "installed",
+      enablementState: "disabled",
+      authState: "unknown",
+      healthState: "warning",
+      ownership: "plugin-owned",
+      ownerPluginIds: ["gmail"],
+      includedSkillIds: [],
+      includedAppIds: [],
+      includedMcpServerIds: [],
+      capabilities: [],
+      sourcePath: null,
+      marketplaceName: null,
+      marketplacePath: null,
+      canOpen: false,
+      canUninstall: false,
+      canDisable: false,
+      canConnect: false,
+      canReload: false,
+    });
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+    await fs.rm(pluginRoot, { force: true, recursive: true });
+  }
+});
+
+test("getOverview applies canonical app toggle keys to synthesized fallback plugin apps", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const pluginRoot = await createInstalledPluginFixture();
+  try {
+    const service = new DesktopExtensionService({
+      env,
+      manager: createManager(async (method) => {
+        if (method === "config/read") {
+          return {
+            config: {
+              apps: {
+                gmail: {
+                  enabled: false,
+                },
+              },
+              plugins: {
+                gmail: {
+                  enabled: true,
+                },
+              },
+            },
+          };
+        }
+        if (method === "plugin/list") {
+          return {
+            marketplaces: [
+              {
+                name: "OpenAI Curated",
+                path: "/tmp/curated.json",
+                plugins: [
+                  {
+                    id: "gmail",
+                    name: "gmail",
+                    installed: true,
+                    enabled: true,
+                    source: { path: pluginRoot },
+                    interface: { displayName: "Gmail" },
+                  },
+                ],
+              },
+            ],
+          };
+        }
+        if (method === "app/list") {
+          throw new Error("failed to list apps: 403 Forbidden");
+        }
+        if (method === "mcpServerStatus/list") return { data: [] };
+        if (method === "skills/list") return { data: [] };
+        if (method === "account/read") return createAccountReadResult();
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.getOverview({ forceRefetch: true });
+
+    assert.equal(overview.apps[0]?.id, "connector_gmail");
+    assert.equal(overview.apps[0]?.isEnabled, false);
+    assert.equal(findManagedExtension(overview, "app", "connector_gmail")?.enablementState, "disabled");
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+    await fs.rm(pluginRoot, { force: true, recursive: true });
+  }
+});
+
+test("getOverview keeps standalone configured apps visible when app/list fails", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  try {
+    const service = new DesktopExtensionService({
+      env,
+      manager: createManager(async (method) => {
+        if (method === "config/read") {
+          return {
+            config: {
+              apps: {
+                canva: {
+                  enabled: true,
+                },
+              },
+            },
+          };
+        }
+        if (method === "plugin/list") return { marketplaces: [] };
+        if (method === "app/list") {
+          throw new Error("failed to list apps: 403 Forbidden");
+        }
+        if (method === "mcpServerStatus/list") return { data: [] };
+        if (method === "skills/list") return { data: [] };
+        if (method === "account/read") return createAccountReadResult();
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.getOverview({ forceRefetch: true });
+
+    assert.equal(overview.health.backend.failedReads[0]?.method, "app/list");
+    assert.deepEqual(overview.apps, [
+      {
+        id: "canva",
+        name: "Canva",
+        description: "Configured app connector",
+        installUrl: null,
+        isAccessible: false,
+        isEnabled: true,
+        pluginDisplayNames: [],
+        logoUrl: null,
+        source: "local-fallback",
+        runtimeStateKnown: false,
+      },
+    ]);
+    assert.deepEqual(findManagedExtension(overview, "app", "canva"), {
+      id: "canva",
+      kind: "app",
+      name: "Canva",
+      displayName: "Canva",
+      description: "Configured app connector",
+      installState: "installed",
+      enablementState: "enabled",
+      authState: "unknown",
+      healthState: "warning",
+      ownership: "built-in",
+      ownerPluginIds: [],
+      includedSkillIds: [],
+      includedAppIds: [],
+      includedMcpServerIds: [],
+      capabilities: [],
+      sourcePath: null,
+      marketplaceName: null,
+      marketplacePath: null,
+      canOpen: false,
+      canUninstall: false,
+      canDisable: false,
+      canConnect: false,
+      canReload: false,
+    });
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+  }
+});
+
+test("getOverview synthesizes plugin-owned MCP servers from local metadata when mcpServerStatus/list fails", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const pluginRoot = await createInstalledPluginFixture();
+  try {
+    const service = new DesktopExtensionService({
+      env,
+      manager: createManager(async (method) => {
+        if (method === "config/read") {
+          return {
+            config: {
+              mcp_servers: {
+                "plugin-mcp": {
+                  enabled: true,
+                },
+              },
+              plugins: {
+                gmail: {
+                  enabled: true,
+                },
+              },
+            },
+          };
+        }
+        if (method === "plugin/list") {
+          return {
+            marketplaces: [
+              {
+                name: "OpenAI Curated",
+                path: "/tmp/curated.json",
+                plugins: [
+                  {
+                    id: "gmail",
+                    name: "gmail",
+                    installed: true,
+                    enabled: true,
+                    source: { path: pluginRoot },
+                    interface: { displayName: "Gmail" },
+                  },
+                ],
+              },
+            ],
+          };
+        }
+        if (method === "app/list") return { data: [] };
+        if (method === "mcpServerStatus/list") {
+          throw new Error("mcpServerStatus/list transport closed");
+        }
+        if (method === "skills/list") return { data: [] };
+        if (method === "account/read") return createAccountReadResult();
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.getOverview({ forceRefetch: true });
+
+    assert.equal(overview.health.backend.failedReads[0]?.method, "mcpServerStatus/list");
+    assert.deepEqual(overview.mcpServers, [
+      {
+        id: "plugin-mcp",
+        enabled: true,
+        state: null,
+        authStatus: null,
+        toolsCount: 0,
+        resourcesCount: 0,
+        transport: "streamable_http",
+        command: null,
+        url: "https://example.com/mcp",
+        source: "local-fallback",
+        runtimeStateKnown: false,
+        invalidReason: null,
+      },
+    ]);
+    assert.deepEqual(findManagedExtension(overview, "mcp", "plugin-mcp"), {
+      id: "plugin-mcp",
+      kind: "mcp",
+      name: "plugin-mcp",
+      displayName: "plugin-mcp",
+      description: "https://example.com/mcp",
+      installState: "installed",
+      enablementState: "enabled",
+      authState: "unknown",
+      healthState: "warning",
+      ownership: "plugin-owned",
+      ownerPluginIds: ["gmail"],
+      includedSkillIds: [],
+      includedAppIds: [],
+      includedMcpServerIds: [],
+      capabilities: [],
+      sourcePath: null,
+      marketplaceName: "OpenAI Curated",
+      marketplacePath: "/tmp/curated.json",
+      canOpen: false,
+      canUninstall: false,
+      canDisable: false,
+      canConnect: false,
+      canReload: false,
+    });
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+    await fs.rm(pluginRoot, { force: true, recursive: true });
+  }
+});
+
+test("getOverview does not synthesize plugin-owned app or MCP fallback rows when live reads succeed with empty data", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const pluginRoot = await createInstalledPluginFixture();
+  try {
+    const service = new DesktopExtensionService({
+      env,
+      manager: createManager(async (method) => {
+        if (method === "config/read") {
+          return {
+            config: {
+              plugins: {
+                gmail: {
+                  enabled: true,
+                },
+              },
+            },
+          };
+        }
+        if (method === "plugin/list") {
+          return {
+            marketplaces: [
+              {
+                name: "OpenAI Curated",
+                path: "/tmp/curated.json",
+                plugins: [
+                  {
+                    id: "gmail",
+                    name: "gmail",
+                    installed: true,
+                    enabled: true,
+                    source: { path: pluginRoot },
+                    interface: { displayName: "Gmail" },
+                  },
+                ],
+              },
+            ],
+          };
+        }
+        if (method === "app/list") return { data: [] };
+        if (method === "mcpServerStatus/list") return { data: [] };
+        if (method === "skills/list") return { data: [] };
+        if (method === "account/read") return createAccountReadResult();
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.getOverview({ forceRefetch: true });
+
+    assert.deepEqual(overview.health.backend.failedReads, []);
+    assert.deepEqual(overview.apps, []);
+    assert.deepEqual(overview.mcpServers, []);
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+    await fs.rm(pluginRoot, { force: true, recursive: true });
   }
 });
 

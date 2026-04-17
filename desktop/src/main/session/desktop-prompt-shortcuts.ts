@@ -3,6 +3,7 @@ export {
   replaceActivePromptShortcut,
   resolveActivePromptShortcutQuery,
   resolveInputItemPromptShortcutMatches,
+  resolveManagedExtensionPromptShortcut,
   resolvePromptShortcutInputItems,
   resolvePromptShortcutMatches,
   resolvePromptShortcutSuggestions,

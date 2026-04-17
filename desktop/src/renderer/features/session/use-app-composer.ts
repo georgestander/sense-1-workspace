@@ -1,5 +1,5 @@
 import { useEffect, useState, type RefObject } from "react";
-import type { DesktopThreadSnapshot } from "../../../main/contracts";
+import type { DesktopAppServerInputItem, DesktopThreadSnapshot } from "../../../main/contracts";
 import {
   buildDraftRunRequest,
   buildSelectedThreadRunRequest,
@@ -19,6 +19,7 @@ type UseAppComposerParams = {
     cwd?: string | null;
     workspaceRoot?: string | null;
     attachments?: string[];
+    inputItems?: DesktopAppServerInputItem[];
   }) => Promise<unknown>;
   selectedThread: DesktopThreadSnapshot | null;
   selectedThreadId: string | null;
@@ -49,6 +50,8 @@ export function useAppComposer({
 }: UseAppComposerParams) {
   const [draftPrompt, setDraftPrompt] = useState("");
   const [threadPromptOverride, setThreadPromptOverride] = useState("");
+  const [draftPromptInputItems, setDraftPromptInputItems] = useState<DesktopAppServerInputItem[]>([]);
+  const [threadPromptInputItems, setThreadPromptInputItems] = useState<DesktopAppServerInputItem[]>([]);
   const [attachedFiles, setAttachedFiles] = useState<string[]>([]);
   const [inputResponseText, setInputResponseText] = useState("");
   const [inputResponsePending, setInputResponsePending] = useState(false);
@@ -66,13 +69,26 @@ export function useAppComposer({
     void clearSelectedThread();
     setDraftPrompt("");
     setThreadPromptOverride("");
+    setDraftPromptInputItems([]);
+    setThreadPromptInputItems([]);
     setAttachedFiles([]);
     setTaskError(null);
+  }
+
+  function setDraftPromptSeed(prompt: string, inputItems: DesktopAppServerInputItem[] = []) {
+    setDraftPrompt(prompt);
+    setDraftPromptInputItems([...inputItems]);
+  }
+
+  function setThreadPromptSeed(prompt: string, inputItems: DesktopAppServerInputItem[] = []) {
+    setThreadPromptOverride(prompt);
+    setThreadPromptInputItems([...inputItems]);
   }
 
   async function submitSelectedThreadPrompt(threadPrompt: string) {
     if (await handleFastModeCommand(threadPrompt)) {
       setThreadPromptOverride("");
+      setThreadPromptInputItems([]);
       setAttachedFiles([]);
       setTaskError(null);
       return true;
@@ -80,6 +96,7 @@ export function useAppComposer({
 
     const request = buildSelectedThreadRunRequest({
       attachedFiles,
+      inputItems: threadPromptInputItems,
       selectedThread,
       threadPrompt,
     });
@@ -94,7 +111,12 @@ export function useAppComposer({
       setTaskError("Finish the current run before sending attachments.");
       return false;
     }
+    if (useBusyThreadActions && (request.inputItems?.length ?? 0) > 0) {
+      setTaskError("Finish the current run before invoking a plugin, app, or skill shortcut.");
+      return false;
+    }
     setThreadPromptOverride("");
+    setThreadPromptInputItems([]);
     setAttachedFiles([]);
     setTaskError(null);
     requestAnimationFrame(() => {
@@ -111,6 +133,7 @@ export function useAppComposer({
   async function queueSelectedThreadPrompt(threadPrompt: string) {
     if (await handleFastModeCommand(threadPrompt)) {
       setThreadPromptOverride("");
+      setThreadPromptInputItems([]);
       setAttachedFiles([]);
       setTaskError(null);
       return true;
@@ -118,6 +141,7 @@ export function useAppComposer({
 
     const request = buildSelectedThreadRunRequest({
       attachedFiles,
+      inputItems: threadPromptInputItems,
       selectedThread,
       threadPrompt,
     });
@@ -132,7 +156,12 @@ export function useAppComposer({
       setTaskError("Finish the current run before sending attachments.");
       return false;
     }
+    if (useBusyThreadActions && (request.inputItems?.length ?? 0) > 0) {
+      setTaskError("Finish the current run before invoking a plugin, app, or skill shortcut.");
+      return false;
+    }
     setThreadPromptOverride("");
+    setThreadPromptInputItems([]);
     setAttachedFiles([]);
     setTaskError(null);
     requestAnimationFrame(() => {
@@ -149,6 +178,7 @@ export function useAppComposer({
   async function submitDraftTask() {
     if (await handleFastModeCommand(draftPrompt)) {
       setDraftPrompt("");
+      setDraftPromptInputItems([]);
       setAttachedFiles([]);
       setTaskError(null);
       return;
@@ -157,6 +187,7 @@ export function useAppComposer({
     const request = buildDraftRunRequest({
       attachedFiles,
       draftPrompt,
+      inputItems: draftPromptInputItems,
       workInFolder,
       workspaceFolder,
     });
@@ -168,6 +199,7 @@ export function useAppComposer({
       return;
     }
     setDraftPrompt("");
+    setDraftPromptInputItems([]);
     setAttachedFiles([]);
     requestAnimationFrame(() => {
       transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -178,8 +210,10 @@ export function useAppComposer({
   return {
     draftPrompt,
     setDraftPrompt,
+    setDraftPromptSeed,
     threadPromptOverride,
     setThreadPrompt: setThreadPromptOverride,
+    setThreadPromptSeed,
     attachedFiles,
     setAttachedFiles,
     inputResponseText,
