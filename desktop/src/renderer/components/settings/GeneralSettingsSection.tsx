@@ -106,7 +106,7 @@ export function GeneralSettingsSection({
                 <p className="mt-[0.35rem] text-[1rem] font-medium leading-[1.45] text-ink">
                   {currentVersion ? `v${currentVersion}` : "Version unavailable"}
                 </p>
-                <p className={cn("mt-[0.55rem] text-[0.875rem] font-medium leading-[1.6]", updateSummary.isError ? "text-[oklch(65%_0.15_25)]" : "text-ink")}>
+                <p className={cn("mt-[0.55rem] text-[0.875rem] font-medium leading-[1.6]", updateSummary.isError ? "text-danger" : "text-ink")}>
                   {updateSummary.title}
                 </p>
                 <p className="mt-[0.15rem] text-[0.8125rem] leading-[1.52] text-ink-muted">
@@ -158,7 +158,7 @@ export function GeneralSettingsSection({
               )}
             </select>
             {settingsError?.key === "model" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : null}
           </label>
 
@@ -181,7 +181,7 @@ export function GeneralSettingsSection({
               )}
             </select>
             {settingsError?.key === "reasoningEffort" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : (
               <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">Higher reasoning uses more tokens but produces more thorough analysis.</p>
             )}
@@ -212,7 +212,7 @@ export function GeneralSettingsSection({
                   const skillPath = parseSkillApprovalKey(entry).path ?? entry;
                   const skillName = skillPath.split("/").slice(-2, -1)[0] ?? skillPath;
                   return (
-                    <div className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2" key={entry}>
+                    <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-high px-3 py-2" key={entry}>
                       <div className="min-w-0">
                         <p className="truncate text-[0.875rem] font-medium leading-[1.45] text-ink">{skillName}</p>
                         <p className="truncate text-[0.75rem] leading-[1.5] text-ink-muted">{skillPath}</p>
@@ -233,7 +233,7 @@ export function GeneralSettingsSection({
               <p className="mt-3 text-[0.8125rem] leading-[1.52] text-ink-muted">No skill approvals have been trusted for this profile yet.</p>
             )}
             {settingsError?.key === "trustedSkillApprovals" ? (
-              <p className="mt-[0.65rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+              <p className="mt-[0.65rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : null}
           </div>
           <label className="flex flex-col gap-[0.4rem]">
@@ -247,7 +247,7 @@ export function GeneralSettingsSection({
               <option value="fast">Fast</option>
             </select>
             {settingsError?.key === "serviceTier" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : (
               <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">Fast mode prefers the low-latency service tier for new runs.</p>
             )}

@@ -27,7 +27,7 @@ export function ConfigurationSettingsSection({ saveSettings, settingsData, setti
               value={settingsData.runtimeInstructions ?? ""}
             />
             {settingsError?.key === "runtimeInstructions" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : (
               <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">
                 Custom instructions prepended to the built-in workspace and safety rules for each run.
@@ -47,7 +47,7 @@ export function ConfigurationSettingsSection({ saveSettings, settingsData, setti
               <option value="apply">Apply</option>
             </select>
             {settingsError?.key === "defaultOperatingMode" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : (
               <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">
                 New workspace threads start in this mode until you set a workspace-specific mode.
@@ -66,7 +66,7 @@ export function ConfigurationSettingsSection({ saveSettings, settingsData, setti
               <option value="readonly">Read-only (no file modifications)</option>
             </select>
             {settingsError?.key === "workspaceReadonly" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : (
               <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">
                 {(settingsData.workspaceReadonly ?? "allow") === "allow"
@@ -87,7 +87,7 @@ export function ConfigurationSettingsSection({ saveSettings, settingsData, setti
               <option value="none">Threads start without a folder</option>
             </select>
             {settingsError?.key === "workspaceFolderBinding" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : (
               <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">
                 {(settingsData.workspaceFolderBinding ?? "inherit") === "inherit"
@@ -123,7 +123,7 @@ export function PersonalizationSettingsSection({ saveSettings, settingsData, set
               <option value="pragmatic">Pragmatic</option>
             </select>
             {settingsError?.key === "personality" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : (
               <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">
                 This becomes the default tone for new desktop runs until you override it in a thread.
@@ -159,9 +159,9 @@ export function UsageSettingsSection({ saveSettings, settingsData, settingsError
               <option value="never">Minimize desktop prompts</option>
             </select>
             {settingsError?.key === "approvalPosture" ? (
-              <p aria-live="assertive" className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]" role="alert">{settingsError.message}</p>
+              <p aria-live="assertive" className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger" role="alert">{settingsError.message}</p>
             ) : (
-              <p className={`mt-[0.2rem] text-[0.8125rem] leading-[1.52] ${settingsData.approvalPosture === "never" ? "text-[oklch(70%_0.12_80)]" : "text-ink-muted"}`}>
+              <p className={`mt-[0.2rem] text-[0.8125rem] leading-[1.52] ${settingsData.approvalPosture === "never" ? "text-warning" : "text-ink-muted"}`}>
                 {settingsData.approvalPosture === "onRequest"
                   ? "Sense-1 waits when the runtime reports that approval is needed."
                   : settingsData.approvalPosture === "unlessTrusted"
@@ -182,7 +182,7 @@ export function UsageSettingsSection({ saveSettings, settingsData, settingsError
               <option value="readOnly">Read only</option>
             </select>
             {settingsError?.key === "sandboxPosture" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : (
               <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">
                 {settingsData.sandboxPosture === "workspaceWrite"
@@ -204,9 +204,9 @@ export function UsageSettingsSection({ saveSettings, settingsData, settingsError
               <option value="autoAll">Do not add extra desktop pauses</option>
             </select>
             {settingsError?.key === "approvalOperationPosture" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : (
-              <p className={`mt-[0.2rem] text-[0.8125rem] leading-[1.52] ${(settingsData.approvalOperationPosture ?? "askAll") === "autoAll" ? "text-[oklch(70%_0.12_80)]" : "text-ink-muted"}`}>
+              <p className={`mt-[0.2rem] text-[0.8125rem] leading-[1.52] ${(settingsData.approvalOperationPosture ?? "askAll") === "autoAll" ? "text-warning" : "text-ink-muted"}`}>
                 {(settingsData.approvalOperationPosture ?? "askAll") === "askAll"
                   ? "Sense-1 adds a desktop pause before most file, command, or network actions."
                   : (settingsData.approvalOperationPosture ?? "askAll") === "askRisky"
@@ -226,7 +226,7 @@ export function UsageSettingsSection({ saveSettings, settingsData, settingsError
               value={settingsData.approvalTrustedWorkspaces ?? ""}
             />
             {settingsError?.key === "approvalTrustedWorkspaces" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : (
               <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">
                 Comma-separated folder paths used by Sense-1's desktop trust rules. Native runtime approval behavior is separate.

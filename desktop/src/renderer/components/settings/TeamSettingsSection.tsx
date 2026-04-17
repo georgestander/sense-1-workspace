@@ -215,7 +215,7 @@ export function TeamSettingsSection({
                       value={memberEmail}
                     />
                     <select
-                      className="rounded-md bg-white px-[0.65rem] py-[0.4rem] text-[0.875rem] leading-[1.6] text-ink outline-none focus:ring-1 focus:ring-line"
+                      className="rounded-md bg-surface-high px-[0.65rem] py-[0.4rem] text-[0.875rem] leading-[1.6] text-ink outline-none focus:ring-1 focus:ring-line"
                       disabled={saving}
                       onChange={(event) => setMemberRole(event.target.value === "admin" ? "admin" : "member")}
                       value={memberRole}
@@ -244,7 +244,7 @@ export function TeamSettingsSection({
                   <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Members</p>
                   <div className="mt-3 flex flex-col gap-2">
                     {effectiveTeamState.members.map((member) => (
-                      <div className="rounded-lg bg-white px-3 py-2" key={`${member.tenantId}:${member.email}`}>
+                      <div className="rounded-lg bg-surface-high px-3 py-2" key={`${member.tenantId}:${member.email}`}>
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium text-ink">{member.actorDisplayName}</p>
@@ -262,7 +262,7 @@ export function TeamSettingsSection({
             </>
           ) : null}
 
-          {error ? <p className="text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{error}</p> : null}
+          {error ? <p className="text-[0.8125rem] leading-[1.52] text-danger">{error}</p> : null}
         </div>
       )}
     </>

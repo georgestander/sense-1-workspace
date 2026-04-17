@@ -19,7 +19,7 @@ export function FastModeSuggestionMenu({
   }
 
   return (
-    <div className="rounded-2xl border border-line/60 bg-white/96 p-2 shadow-[0_16px_36px_rgba(10,15,20,0.08)] backdrop-blur-sm">
+    <div className="rounded-2xl border border-line bg-surface-glass p-2 shadow-[0_16px_36px_rgba(10,15,20,0.08)] backdrop-blur-sm">
       <p className="px-2 pb-1 text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-muted">
         Slash commands
       </p>

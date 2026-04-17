@@ -97,7 +97,7 @@ export function AuthScreens(props: AuthScreensProps) {
   if (bootstrapLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-canvas px-6 text-ink">
-        <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-[0_20px_60px_rgba(10,15,20,0.06)]">
+        <div className="w-full max-w-md rounded-3xl bg-surface-high p-8 text-center shadow-[0_20px_60px_rgba(10,15,20,0.06)]">
           <div className="mx-auto flex size-16 items-center justify-center rounded-[1.35rem] bg-surface-soft p-1.5 shadow-[0_12px_28px_rgba(10,15,20,0.06)]">
             <BrandMark className="size-full rounded-[1rem]" />
           </div>
@@ -112,7 +112,7 @@ export function AuthScreens(props: AuthScreensProps) {
   if (runtimeSetup?.blocked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-canvas px-6 py-10 text-ink">
-        <div className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-[0_20px_60px_rgba(10,15,20,0.06)]">
+        <div className="w-full max-w-xl rounded-3xl bg-surface-high p-8 shadow-[0_20px_60px_rgba(10,15,20,0.06)]">
           <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-[1.35rem] bg-surface-soft p-1.5 shadow-[0_12px_28px_rgba(10,15,20,0.06)]">
             <BrandMark className="size-full rounded-[1rem]" />
           </div>

@@ -70,7 +70,7 @@ export function AutomationScheduleField({ disabled = false, value, onChange }: A
           <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <label className="flex flex-col gap-2">
               <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Repeat</span>
-              <div className="flex items-center gap-2 rounded-xl border border-line/40 bg-white px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
+              <div className="flex items-center gap-2 rounded-xl border border-line bg-surface-high px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
                 <Clock3 className="size-4 shrink-0 text-muted" />
                 <select
                   disabled={disabled}

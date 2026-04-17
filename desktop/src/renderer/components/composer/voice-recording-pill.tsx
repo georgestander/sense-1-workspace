@@ -18,7 +18,7 @@ export function VoiceRecordingPill({
     <div
       aria-label={`Voice recording ${elapsedLabel}`}
       className={cn(
-        "inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-line/60 bg-white px-2.5 shadow-[0_6px_16px_rgba(10,15,20,0.05)]",
+        "inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-line bg-surface-high px-2.5 shadow-[0_6px_16px_rgba(10,15,20,0.05)]",
         className,
       )}
       role="status"

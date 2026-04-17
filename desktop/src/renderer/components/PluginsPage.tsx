@@ -51,8 +51,8 @@ function ExtensionHealthBanner({ health }: { health: DesktopExtensionHealth }) {
   const severity: "warning" | "error" =
     hasRuntimeError || failedReadsCount > 0 ? "error" : "warning";
   const container = severity === "error"
-    ? "border-b border-red-200 bg-red-50 px-4 py-2 text-red-900"
-    : "border-b border-amber-200 bg-amber-50 px-4 py-2 text-amber-900";
+    ? "border-b border-line bg-danger-faint px-4 py-2 text-danger"
+    : "border-b border-line bg-warning-faint px-4 py-2 text-warning";
 
   const summaryParts: string[] = [];
   if (quarantinedCount > 0) {
@@ -93,7 +93,7 @@ function ExtensionHealthBanner({ health }: { health: DesktopExtensionHealth }) {
                     <span>
                       <span className="font-medium">{entry.pluginName ?? "Unknown plugin"}</span>
                       {" \u2192 "}
-                      <code className="rounded bg-white/60 px-1 py-0.5">{entry.serverId}</code>
+                      <code className="rounded bg-surface-high px-1 py-0.5">{entry.serverId}</code>
                     </span>
                     <span className="opacity-80">{entry.reason}</span>
                   </li>
@@ -108,7 +108,7 @@ function ExtensionHealthBanner({ health }: { health: DesktopExtensionHealth }) {
               <ul className="mt-1 space-y-1">
                 {backend.failedReads.map((entry, index) => (
                   <li className="flex flex-col" key={`${entry.method}:${index}`}>
-                    <code className="rounded bg-white/60 px-1 py-0.5">{entry.method}</code>
+                    <code className="rounded bg-surface-high px-1 py-0.5">{entry.method}</code>
                     <span className="opacity-80">{entry.message}</span>
                   </li>
                 ))}
@@ -126,7 +126,7 @@ function ExtensionHealthBanner({ health }: { health: DesktopExtensionHealth }) {
                   {backend.suspectedMcpServerIds.map((id, index) => (
                     <span key={id}>
                       {index > 0 ? ", " : null}
-                      <code className="rounded bg-white/60 px-1 py-0.5">{id}</code>
+                      <code className="rounded bg-surface-high px-1 py-0.5">{id}</code>
                     </span>
                   ))}
                 </p>
@@ -273,7 +273,7 @@ function Toggle({ checked, disabled, onChange }: { checked: boolean; disabled?: 
       role="switch"
       type="button"
     >
-      <span className={`pointer-events-none block size-3.5 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-[1.125rem]" : "translate-x-[0.1875rem]"}`} />
+      <span className={`pointer-events-none block size-3.5 rounded-full bg-surface-high shadow-sm transition-transform ${checked ? "translate-x-[1.125rem]" : "translate-x-[0.1875rem]"}`} />
     </button>
   );
 }
@@ -302,7 +302,7 @@ function OverflowMenu({ children }: { children: React.ReactNode }) {
         <EllipsisVertical className="size-3.5" />
       </button>
       {open ? (
-        <div className="absolute right-0 top-7 z-50 min-w-[10rem] rounded-xl border border-line/40 bg-white py-1 shadow-lg">
+        <div className="absolute right-0 top-7 z-50 min-w-[10rem] rounded-xl border border-line bg-surface-high py-1 shadow-lg">
           {children}
         </div>
       ) : null}
@@ -313,7 +313,7 @@ function OverflowMenu({ children }: { children: React.ReactNode }) {
 function OverflowItem({ children, destructive, disabled, onClick }: { children: React.ReactNode; destructive?: boolean; disabled?: boolean; onClick: () => void }) {
   return (
     <button
-      className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors ${destructive ? "text-red-500 hover:bg-red-50" : "text-ink hover:bg-surface-soft"} disabled:pointer-events-none disabled:opacity-40`}
+      className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors ${destructive ? "text-danger hover:bg-danger-faint" : "text-ink hover:bg-surface-soft"} disabled:pointer-events-none disabled:opacity-40`}
       disabled={disabled}
       onClick={onClick}
       type="button"
@@ -362,7 +362,7 @@ function FilterPopover({
         {isFiltered ? <span className="size-1.5 rounded-full bg-accent" /> : null}
       </button>
       {open ? (
-        <div className="absolute right-0 top-8 z-50 w-56 rounded-xl border border-line/40 bg-white p-3 shadow-lg">
+        <div className="absolute right-0 top-8 z-50 w-56 rounded-xl border border-line bg-surface-high p-3 shadow-lg">
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted">Status</p>
           <div className="flex flex-wrap gap-1">
             {INVENTORY_FILTERS.map((f) => (
@@ -437,7 +437,7 @@ function CreateMenu({ onCreatePlugin, onCreateSkill }: { onCreatePlugin: () => v
         <ChevronDown className="size-3" />
       </button>
       {open ? (
-        <div className="absolute right-0 top-8 z-50 min-w-[9rem] rounded-xl border border-line/40 bg-white py-1 shadow-lg">
+        <div className="absolute right-0 top-8 z-50 min-w-[9rem] rounded-xl border border-line bg-surface-high py-1 shadow-lg">
           <button className="flex w-full items-center px-3 py-1.5 text-left text-xs text-ink transition-colors hover:bg-surface-soft" onClick={() => { onCreatePlugin(); setOpen(false); }} type="button">Plugin</button>
           <button className="flex w-full items-center px-3 py-1.5 text-left text-xs text-ink transition-colors hover:bg-surface-soft" onClick={() => { onCreateSkill(); setOpen(false); }} type="button">Skill</button>
         </div>
@@ -624,7 +624,7 @@ export function PluginsPage({
         <div className="relative">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted" />
           <input
-            className="h-7 w-44 rounded-lg border border-line/40 bg-white pl-7 pr-2 text-xs text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-accent/30"
+            className="h-7 w-44 rounded-lg border border-line bg-surface-high pl-7 pr-2 text-xs text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-accent/30"
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={`Search ${activeTab}...`}
             type="text"
@@ -751,7 +751,7 @@ export function PluginsPage({
                         <div className="flex items-center gap-2">
                           <h3 className="truncate text-[13px] font-medium text-ink">{plugin.displayName}</h3>
                           {!plugin.installed ? <span className="shrink-0 rounded bg-surface-strong px-1.5 py-0.5 text-[10px] text-muted">Available</span> : null}
-                          {needsConnect ? <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-600">Auth</span> : null}
+                          {needsConnect ? <span className="shrink-0 rounded bg-warning-faint px-1.5 py-0.5 text-[10px] text-warning">Auth</span> : null}
                         </div>
                         <p className="mt-0.5 truncate text-[11px] leading-4 text-muted">{plugin.description ?? "No description"}</p>
                       </div>
@@ -820,7 +820,7 @@ export function PluginsPage({
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <h3 className="truncate text-[13px] font-medium text-ink">{app.name}</h3>
-                          {needsConnect ? <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-600">Auth</span> : null}
+                          {needsConnect ? <span className="shrink-0 rounded bg-warning-faint px-1.5 py-0.5 text-[10px] text-warning">Auth</span> : null}
                         </div>
                         <p className="mt-0.5 truncate text-[11px] leading-4 text-muted">{app.description ?? "App connector"}</p>
                       </div>
@@ -871,7 +871,7 @@ export function PluginsPage({
                     </div>
                     {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
                     <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                      {server.authStatus ? <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-600">{server.authStatus}</span> : null}
+                      {server.authStatus ? <span className="rounded bg-warning-faint px-1.5 py-0.5 text-[10px] text-warning">{server.authStatus}</span> : null}
                       <Toggle checked={server.enabled} onChange={(next) => void setMcpServerEnabled({ serverId: server.id, enabled: next })} />
                     </div>
                   </article>

@@ -86,14 +86,14 @@ export function AppDetailView({
             <div className="rounded-xl bg-surface-soft px-3 py-3">
               {isConnected ? (
                 <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-1 rounded-md bg-green-50 px-2 py-1 text-[11px] font-medium text-green-700">
+                  <span className="flex items-center gap-1 rounded-md bg-success-faint px-2 py-1 text-[11px] font-medium text-success">
                     <Check className="size-3" />
                     Connected
                   </span>
                 </div>
               ) : needsConnect ? (
                 <div className="flex items-center gap-3">
-                  <span className="rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-600">Auth required</span>
+                  <span className="rounded bg-warning-faint px-2 py-1 text-[11px] text-warning">Auth required</span>
                   <Button
                     className="h-7 rounded-lg px-3 text-[11px]"
                     disabled={pendingActionKey === connectKey}

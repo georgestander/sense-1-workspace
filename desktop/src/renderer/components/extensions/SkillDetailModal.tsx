@@ -41,7 +41,7 @@ export function SkillDetailModal({
       />
 
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-line/40 bg-white shadow-xl">
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-line bg-surface-high shadow-xl">
         {/* Header */}
         <div className="flex items-start gap-3 border-b border-line/30 px-5 py-4">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-strong">

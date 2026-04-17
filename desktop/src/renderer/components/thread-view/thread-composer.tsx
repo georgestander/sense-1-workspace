@@ -231,7 +231,7 @@ function ThreadComposerInner({
 
   return (
     <div className="shrink-0" style={{ height: spacerHeight + 24 }}>
-      <div ref={floatingRef} className="fixed bottom-3 left-1/2 z-50 flex w-full max-w-3xl -translate-x-1/2 flex-col gap-3 rounded-[1.7rem] bg-white p-3 shadow-[0_-12px_28px_rgba(10,15,20,0.04)]">
+      <div ref={floatingRef} className="fixed bottom-3 left-1/2 z-50 flex w-full max-w-3xl -translate-x-1/2 flex-col gap-3 rounded-[1.7rem] border border-line bg-surface-high p-3 shadow-[0_-12px_28px_rgba(10,15,20,0.04)]">
         {taskError ? (
           <p className="rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft" role="alert">
             {taskError}
@@ -248,13 +248,13 @@ function ThreadComposerInner({
           </p>
         ) : null}
         {dictation.error ? (
-          <p className="px-1 text-[0.5rem] leading-tight text-black">{dictation.error}</p>
+          <p className="px-1 text-[0.5rem] leading-tight text-ink">{dictation.error}</p>
         ) : null}
         {dictation.hint ? (
-          <p className="px-1 text-[0.5rem] leading-tight text-black" role="note">{dictation.hint}</p>
+          <p className="px-1 text-[0.5rem] leading-tight text-ink" role="note">{dictation.hint}</p>
         ) : null}
         {dictation.statusText || dictation.liveTranscript?.assistant ? (
-          <div className="px-1 text-[0.5rem] leading-tight text-black" role="status">
+          <div className="px-1 text-[0.5rem] leading-tight text-ink" role="status">
             {dictation.statusText ? <p>{dictation.statusText}</p> : null}
             {dictation.liveTranscript?.assistant ? <p>Codex: {dictation.liveTranscript.assistant}</p> : null}
           </div>
@@ -363,7 +363,7 @@ function ThreadComposerInner({
               </select>
             </label>
             <button
-              className={`inline-flex items-center gap-2 rounded-xl border px-2 py-1 text-xs ${selectedServiceTier === "fast" ? "border-[oklch(76%_0.17_75)] bg-[oklch(95%_0.04_85)] text-ink" : "border-line/40 text-muted"}`}
+              className={`inline-flex items-center gap-2 rounded-xl border px-2 py-1 text-xs ${selectedServiceTier === "fast" ? "border-warning bg-warning-faint text-ink" : "border-line text-muted"}`}
               disabled={composerDisabled}
               onClick={() => handleServiceTierSelection(selectedServiceTier === "fast" ? "flex" : "fast")}
               type="button"
