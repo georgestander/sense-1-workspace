@@ -2,6 +2,24 @@
 
 All notable changes to Sense-1 Workspace are recorded here.
 
+## [Unreleased]
+
+### Added
+
+- Dark mode. `data-theme` attribute on `<html>` with light / dark / system values, persisted in `localStorage` and applied pre-paint via an inline script in `index.html` to avoid FOUC. System follows `prefers-color-scheme`. Picker in Settings → General → Appearance.
+- Semantic status tokens: `--color-danger`, `--color-warning`, `--color-success` (and `-faint` variants) for error, attention, and confirmed states.
+- Theme-aware shadow tokens: `--shadow-raised`, `--shadow-menu`, `--shadow-overlay`, `--shadow-composer`. Deeper alphas in dark mode so shadows remain visible.
+- Richer Lucide file icons covering code, JSON, shell, config, archive, media, and font types, plus special filenames (package.json, Dockerfile, .lockb, etc.).
+- Right-rail Progress section now shows an N/M badge in the header and a percent progress bar.
+
+### Changed
+
+- Rebuilt the token palette on neutral chroma. Light canvas is pure white (`oklch(1 0 0)`), dark canvas is near-black (`oklch(0.06 0 0)`). Killed the blue-gray body gradient.
+- Rebuilt `ui/button` and `ui/input` primitives on tokens only — no more `bg-white` / `bg-red-600` / `text-white`.
+- Purged ~90 hardcoded color leaks across 20+ files (`bg-white`, `bg-red-50`, `bg-amber-50`, `bg-green-50`, inline `text-[oklch(...)]`, `text-black`, `text-emerald-600`) in favor of tokens. Fixed `text-white` on `bg-ink` buttons to `text-canvas` so text stays readable when `bg-ink` flips in dark mode.
+- Compact rails: left `w-72` → `w-64`, right `w-80` → `w-72`. Tighter padding (`p-3/4` → `p-2/3`) and smaller radii (`rounded-2xl` → `rounded-lg`) on nav buttons and section cards.
+- `DESIGN.md`: token tables rewritten to match implemented palette; no-line rule amended to permit ghost hairlines via `--color-line` on menus / modals / inputs where tonal shifts are insufficient on near-white or near-black canvas; added Shadow Tokens and Theming API sections.
+
 ## [0.10.0] - 2026-04-15
 
 ### Added
