@@ -29,6 +29,13 @@
   --color-warning-faint: oklch(0.72 0.15 75 / 12%);
   --color-success: oklch(0.62 0.14 150);
   --color-success-faint: oklch(0.62 0.14 150 / 10%);
+
+  /* Shadow tokens — flip with theme (deeper in dark mode so they remain
+   * visible against dark surfaces). Always pure black / transparent. */
+  --shadow-raised: 0 4px 12px rgb(0 0 0 / 0.08);
+  --shadow-menu: 0 20px 40px -10px rgb(0 0 0 / 0.12);
+  --shadow-overlay: 0 20px 60px rgb(0 0 0 / 0.10);
+  --shadow-composer: 0 -12px 28px rgb(0 0 0 / 0.05);
 }
 
 /* Dark theme token overrides.
@@ -62,6 +69,11 @@
   --color-warning-faint: oklch(0.78 0.15 75 / 14%);
   --color-success: oklch(0.70 0.14 150);
   --color-success-faint: oklch(0.70 0.14 150 / 12%);
+
+  --shadow-raised: 0 4px 12px rgb(0 0 0 / 0.45);
+  --shadow-menu: 0 20px 40px -10px rgb(0 0 0 / 0.55);
+  --shadow-overlay: 0 20px 60px rgb(0 0 0 / 0.65);
+  --shadow-composer: 0 -12px 28px rgb(0 0 0 / 0.5);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -88,6 +100,11 @@
     --color-warning-faint: oklch(0.78 0.15 75 / 14%);
     --color-success: oklch(0.70 0.14 150);
     --color-success-faint: oklch(0.70 0.14 150 / 12%);
+
+    --shadow-raised: 0 4px 12px rgb(0 0 0 / 0.45);
+    --shadow-menu: 0 20px 40px -10px rgb(0 0 0 / 0.55);
+    --shadow-overlay: 0 20px 60px rgb(0 0 0 / 0.65);
+    --shadow-composer: 0 -12px 28px rgb(0 0 0 / 0.5);
   }
 }
 

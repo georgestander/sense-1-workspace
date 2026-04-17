@@ -83,7 +83,7 @@ export function ThreadSidebarItem({
             <MoreHorizontal className="size-4" />
           </button>
           {menuOpen ? (
-            <div className="absolute right-0 top-9 z-30 w-36 rounded-xl border border-line bg-surface-high p-1.5 shadow-[0_20px_40px_-10px_rgba(10,15,20,0.1)]">
+            <div className="absolute right-0 top-9 z-30 w-36 rounded-xl border border-line bg-surface-high p-1.5 shadow-[var(--shadow-menu)]">
               <button className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-ink transition-colors hover:bg-surface-soft" onClick={(event) => { event.stopPropagation(); onRename(); }} type="button">
                 <Pencil className="size-3.5 text-muted" />
                 Rename
@@ -103,7 +103,7 @@ export function ThreadSidebarItem({
         </div>
       </div>
       {renaming ? (
-        <form className={cn("mt-2 rounded-xl border border-line bg-surface-high p-2 shadow-[0_20px_40px_-10px_rgba(10,15,20,0.08)]", isNested ? "ml-2" : "")} onSubmit={(event) => { event.preventDefault(); onRenameSubmit(); }}>
+        <form className={cn("mt-2 rounded-xl border border-line bg-surface-high p-2 shadow-[var(--shadow-menu)]", isNested ? "ml-2" : "")} onSubmit={(event) => { event.preventDefault(); onRenameSubmit(); }}>
           <Input autoFocus onChange={(event) => onRenameValueChange(event.target.value)} placeholder="Thread title" value={renameValue} />
           <div className="mt-2 flex justify-end gap-2">
             <Button onClick={onRenameCancel} size="sm" type="button" variant="secondary">Cancel</Button>

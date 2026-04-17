@@ -142,7 +142,7 @@ export function AutomationScheduleField({ disabled = false, value, onChange }: A
                   <Button
                     aria-pressed={selected}
                     disabled={disabled}
-                    className={cn("h-8 px-3 text-xs", selected ? "bg-ink text-white hover:bg-ink-soft" : "")}
+                    className={cn("h-8 px-3 text-xs", selected ? "bg-ink text-canvas hover:opacity-90" : "")}
                     key={option.code}
                     onClick={() => {
                       const nextDays = selected

@@ -190,7 +190,7 @@ export function AutomationsPage({
           <div className="space-y-2">
             {automations.map((automation) => (
               <button
-                className={`w-full rounded-2xl px-4 py-3 text-left transition-colors ${selectedAutomationId === automation.id ? "bg-ink text-white" : "bg-surface-soft text-ink hover:bg-surface-strong"}`}
+                className={`w-full rounded-2xl px-4 py-3 text-left transition-colors ${selectedAutomationId === automation.id ? "bg-ink text-canvas" : "bg-surface-soft text-ink hover:bg-surface-strong"}`}
                 key={automation.id}
                 onClick={() => {
                   setComposerVisible(true);
@@ -199,7 +199,7 @@ export function AutomationsPage({
                 type="button"
               >
                 <p className="text-sm font-medium">{automation.name}</p>
-                <p className={`mt-1 text-xs ${selectedAutomationId === automation.id ? "text-white/75" : "text-ink-muted"}`}>
+                <p className={`mt-1 text-xs ${selectedAutomationId === automation.id ? "text-canvas/75" : "text-ink-muted"}`}>
                   {automation.status} · {automation.nextRunAt ? `Next ${new Date(automation.nextRunAt).toLocaleString()}` : "No upcoming run"}
                 </p>
               </button>

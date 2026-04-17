@@ -370,7 +370,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {selectedServiceTier === "fast" ? (
             <button
-              className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-xs font-semibold text-canvas shadow-[0_8px_20px_rgba(10,15,20,0.12)]"
+              className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-xs font-semibold text-canvas shadow-[var(--shadow-raised)]"
               onClick={() => handleServiceTierSelection("flex")}
               type="button"
             >
@@ -438,7 +438,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
               <ChevronDown className={cn("size-4 text-muted transition-transform", folderMenuOpen ? "rotate-180" : "")} />
             </button>
             {folderMenuOpen ? (
-              <div className="relative z-40 mt-2 rounded-xl border border-line bg-surface-high p-2 shadow-[0_20px_40px_-10px_rgba(10,15,20,0.1)]" id="folder-menu-options">
+              <div className="relative z-40 mt-2 rounded-xl border border-line bg-surface-high p-2 shadow-[var(--shadow-menu)]" id="folder-menu-options">
                 <button className="mb-1 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-ink outline-none transition-all hover:bg-surface-soft focus-visible:ring-[3px] focus-visible:ring-accent/30 motion-reduce:transition-none" onClick={chooseDifferentFolder} type="button">
                   <FolderOpen className="size-4 text-muted" />
                   Choose a different folder

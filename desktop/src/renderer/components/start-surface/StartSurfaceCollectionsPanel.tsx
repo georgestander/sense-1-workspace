@@ -102,7 +102,7 @@ export function StartSurfaceCollectionsPanel(props: StartSurfaceCollectionsPanel
                         <MoreHorizontal className="size-4" />
                       </button>
                       {workspaceMenuOpen ? (
-                        <div className="absolute right-0 top-8 z-20 w-40 rounded-xl border border-line bg-surface-high p-1.5 shadow-[0_20px_40px_-10px_rgba(10,15,20,0.1)]">
+                        <div className="absolute right-0 top-8 z-20 w-40 rounded-xl border border-line bg-surface-high p-1.5 shadow-[var(--shadow-menu)]">
                           <button className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-ink transition-colors hover:bg-surface-soft disabled:cursor-not-allowed disabled:opacity-60" disabled={workspaceArchivePendingId === workspaceId} onClick={() => void handleArchiveWorkspace(workspaceId, root)} type="button">
                             <FolderArchive className="size-3.5 text-muted" />
                             {workspaceArchivePendingId === workspaceId ? "Archiving..." : "Archive"}

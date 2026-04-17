@@ -120,18 +120,18 @@ function ArtifactLinkCard({
 
   return (
     <div
-      className="my-2 flex w-full cursor-pointer items-center gap-3 rounded-xl bg-ink px-4 py-3 text-left shadow-[0_4px_12px_rgba(10,15,20,0.15)] transition-all hover:opacity-90 active:scale-[0.99]"
+      className="my-2 flex w-full cursor-pointer items-center gap-3 rounded-xl bg-ink px-4 py-3 text-left shadow-[var(--shadow-raised)] transition-all hover:opacity-90 active:scale-[0.99]"
       onClick={handleClick}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleClick(); }}
       role="button"
       tabIndex={0}
     >
-      {(() => { const IconComponent = getFileIcon(fileName); return <IconComponent className="size-5 shrink-0 text-white/80" />; })()}
+      {(() => { const IconComponent = getFileIcon(fileName); return <IconComponent className="size-5 shrink-0 text-canvas/80" />; })()}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-white">{typeof children === "string" ? children : fileName}</p>
-        <p className="text-[11px] text-white/60">{getFileTypeLabel(fileName)} · Click to open</p>
+        <p className="truncate text-sm font-semibold text-canvas">{typeof children === "string" ? children : fileName}</p>
+        <p className="text-[11px] text-canvas/60">{getFileTypeLabel(fileName)} · Click to open</p>
       </div>
-      <svg className="size-5 shrink-0 text-white/70" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+      <svg className="size-5 shrink-0 text-canvas/70" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
         <path d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5M15.75 3h5.25v5.25M21 3l-8.25 8.25" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </div>

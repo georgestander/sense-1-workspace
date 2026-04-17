@@ -367,7 +367,7 @@ function FilterPopover({
           <div className="flex flex-wrap gap-1">
             {INVENTORY_FILTERS.map((f) => (
               <button
-                className={`rounded-md px-2 py-1 text-[11px] transition-colors ${f.id === inventoryFilter ? "bg-ink text-white" : "bg-surface-soft text-ink hover:bg-surface-strong"}`}
+                className={`rounded-md px-2 py-1 text-[11px] transition-colors ${f.id === inventoryFilter ? "bg-ink text-canvas" : "bg-surface-soft text-ink hover:bg-surface-strong"}`}
                 key={f.id}
                 onClick={() => setInventoryFilter(f.id)}
                 type="button"
@@ -382,7 +382,7 @@ function FilterPopover({
               <div className="flex flex-wrap gap-1">
                 {SOURCE_FILTERS.map((f) => (
                   <button
-                    className={`rounded-md px-2 py-1 text-[11px] transition-colors ${f.id === sourceFilter ? "bg-ink text-white" : "bg-surface-soft text-ink hover:bg-surface-strong"}`}
+                    className={`rounded-md px-2 py-1 text-[11px] transition-colors ${f.id === sourceFilter ? "bg-ink text-canvas" : "bg-surface-soft text-ink hover:bg-surface-strong"}`}
                     key={f.id}
                     onClick={() => setSourceFilter(f.id)}
                     type="button"
@@ -598,13 +598,13 @@ export function PluginsPage({
         <nav className="flex items-center gap-0.5">
           {TABS.map((tab) => (
             <button
-              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${tab.id === activeTab ? "bg-ink text-white" : "text-ink-muted hover:bg-surface-soft hover:text-ink"}`}
+              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${tab.id === activeTab ? "bg-ink text-canvas" : "text-ink-muted hover:bg-surface-soft hover:text-ink"}`}
               key={tab.id}
               onClick={() => { setActiveTab(tab.id); clearSelection(); }}
               type="button"
             >
               {tab.label}
-              <span className={`ml-1 ${tab.id === activeTab ? "text-white/60" : "text-ink-muted/60"}`}>{tab.count}</span>
+              <span className={`ml-1 ${tab.id === activeTab ? "text-canvas/60" : "text-ink-muted/60"}`}>{tab.count}</span>
             </button>
           ))}
         </nav>

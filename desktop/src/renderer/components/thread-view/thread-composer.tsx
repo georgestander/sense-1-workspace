@@ -231,7 +231,7 @@ function ThreadComposerInner({
 
   return (
     <div className="shrink-0" style={{ height: spacerHeight + 24 }}>
-      <div ref={floatingRef} className="fixed bottom-3 left-1/2 z-50 flex w-full max-w-3xl -translate-x-1/2 flex-col gap-3 rounded-[1.7rem] border border-line bg-surface-high p-3 shadow-[0_-12px_28px_rgba(10,15,20,0.04)]">
+      <div ref={floatingRef} className="fixed bottom-3 left-1/2 z-50 flex w-full max-w-3xl -translate-x-1/2 flex-col gap-3 rounded-[1.7rem] border border-line bg-surface-high p-3 shadow-[var(--shadow-composer)]">
         {taskError ? (
           <p className="rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft" role="alert">
             {taskError}
