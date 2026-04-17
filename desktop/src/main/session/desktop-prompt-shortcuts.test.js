@@ -6,6 +6,7 @@ import {
   replaceActivePromptShortcut,
   resolveActivePromptShortcutQuery,
   resolveInputItemPromptShortcutMatches,
+  resolveManagedExtensionPromptShortcut,
   resolvePromptShortcutInputItems,
   resolvePromptShortcutSuggestions,
 } from "./desktop-prompt-shortcuts.ts";
@@ -349,6 +350,151 @@ test("resolvePromptShortcutSuggestions avoids app tokens that still resolve to a
   assert.deepEqual(
     resolvePromptShortcutSuggestions("$g", overview).map((entry) => `${entry.kind}:${entry.token}`),
     ["plugin:gmail", "app:connector_gmail"],
+  );
+});
+
+test("resolveManagedExtensionPromptShortcut resolves bundled plugin skills and connected apps to exact mentions", () => {
+  const overview = {
+    apps: [
+      {
+        id: "linear",
+        name: "Linear",
+        description: "Project tracking",
+        installUrl: null,
+        isAccessible: true,
+        isEnabled: true,
+        pluginDisplayNames: [],
+      },
+    ],
+    plugins: [
+      {
+        id: "sentry@openai-curated",
+        name: "sentry",
+        displayName: "Sentry",
+        description: "Inspect recent issues and events",
+        appIds: [],
+        marketplaceName: "OpenAI Curated",
+        marketplacePath: "/tmp/openai-curated-marketplace.json",
+        installed: true,
+        enabled: true,
+        installPolicy: null,
+        authPolicy: null,
+        category: null,
+        capabilities: [],
+        sourcePath: "/Users/george/.codex/plugins/sentry",
+        websiteUrl: null,
+      },
+    ],
+    skills: [
+      {
+        name: "sentry:sentry",
+        description: "Inspect recent issues and events",
+        path: "/Users/george/.codex/plugins/sentry/skills/sentry/SKILL.md",
+        scope: "plugin",
+        enabled: true,
+        cwd: null,
+      },
+    ],
+  };
+
+  assert.deepEqual(
+    resolveManagedExtensionPromptShortcut(
+      {
+        id: "sentry@openai-curated",
+        kind: "plugin",
+        name: "sentry",
+        sourcePath: "/Users/george/.codex/plugins/sentry",
+      },
+      overview,
+    ),
+    {
+      item: {
+        type: "mention",
+        name: "sentry:sentry",
+        path: "/Users/george/.codex/plugins/sentry/skills/sentry/SKILL.md",
+      },
+      kind: "plugin",
+      label: "Sentry",
+      token: "sentry",
+      description: "Inspect recent issues and events",
+    },
+  );
+
+  assert.deepEqual(
+    resolveManagedExtensionPromptShortcut(
+      {
+        id: "linear",
+        kind: "app",
+        name: "Linear",
+        sourcePath: null,
+      },
+      overview,
+    ),
+    {
+      item: {
+        type: "mention",
+        name: "Linear",
+        path: "app://linear",
+      },
+      kind: "app",
+      label: "Linear",
+      token: "linear",
+      description: "Project tracking",
+    },
+  );
+});
+
+test("resolvePromptShortcutInputItems routes multi-skill plugin aliases to the router-style skill", () => {
+  const overview = {
+    apps: [],
+    plugins: [
+      {
+        id: "life-science-research@openai-curated",
+        name: "life-science-research",
+        displayName: "Life Science Research",
+        description: "General life sciences research workflows",
+        appIds: [],
+        marketplaceName: "OpenAI Curated",
+        marketplacePath: "/tmp/openai-curated-marketplace.json",
+        installed: true,
+        enabled: true,
+        installPolicy: null,
+        authPolicy: null,
+        category: null,
+        capabilities: [],
+        sourcePath: "/Users/george/.codex/plugins/life-science-research",
+        websiteUrl: null,
+      },
+    ],
+    skills: [
+      {
+        name: "life-science-research:alphafold-skill",
+        description: "AlphaFold lookups",
+        path: "/Users/george/.codex/plugins/life-science-research/skills/alphafold-skill/SKILL.md",
+        scope: "plugin",
+        enabled: true,
+        cwd: null,
+      },
+      {
+        name: "life-science-research:research-router-skill",
+        description: "Route broad or ambiguous life-sciences research requests",
+        path: "/Users/george/.codex/plugins/life-science-research/skills/research-router-skill/SKILL.md",
+        scope: "plugin",
+        enabled: true,
+        cwd: null,
+      },
+    ],
+  };
+
+  assert.deepEqual(
+    resolvePromptShortcutInputItems("Use $life-science-research for this", overview),
+    [
+      {
+        type: "mention",
+        name: "life-science-research:research-router-skill",
+        path: "/Users/george/.codex/plugins/life-science-research/skills/research-router-skill/SKILL.md",
+      },
+    ],
   );
 });
 

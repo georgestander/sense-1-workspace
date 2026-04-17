@@ -1,14 +1,17 @@
-import type { DesktopThreadSnapshot } from "../../../main/contracts";
+import type { DesktopAppServerInputItem, DesktopThreadSnapshot } from "../../../main/contracts";
+import { extractPromptShortcutTokens, resolveInputItemPromptShortcutMatches } from "../../../shared/prompt-shortcuts.ts";
 
 type DraftRunRequestParams = {
   attachedFiles: string[];
   draftPrompt: string;
+  inputItems?: DesktopAppServerInputItem[];
   workInFolder: boolean;
   workspaceFolder: string | null;
 };
 
 type SelectedThreadRunRequestParams = {
   attachedFiles: string[];
+  inputItems?: DesktopAppServerInputItem[];
   selectedThread: DesktopThreadSnapshot | null;
   threadPrompt: string;
 };
@@ -18,8 +21,29 @@ type SelectedThreadBusyActionParams = {
   effectiveThreadBusy: boolean;
 };
 
+function retainPromptShortcutInputItems(
+  prompt: string,
+  inputItems: DesktopAppServerInputItem[] | undefined,
+): DesktopAppServerInputItem[] | undefined {
+  if (!Array.isArray(inputItems) || inputItems.length === 0) {
+    return undefined;
+  }
+
+  const promptTokens = new Set(extractPromptShortcutTokens(prompt));
+  if (promptTokens.size === 0) {
+    return undefined;
+  }
+
+  const retained = resolveInputItemPromptShortcutMatches(inputItems)
+    .filter((match) => promptTokens.has(match.token))
+    .map((match) => match.item);
+
+  return retained.length > 0 ? retained : undefined;
+}
+
 export function buildSelectedThreadRunRequest({
   attachedFiles,
+  inputItems,
   selectedThread,
   threadPrompt,
 }: SelectedThreadRunRequestParams) {
@@ -28,9 +52,11 @@ export function buildSelectedThreadRunRequest({
     return null;
   }
 
+  const retainedInputItems = retainPromptShortcutInputItems(prompt, inputItems);
   return {
     attachments: attachedFiles.length > 0 ? [...attachedFiles] : undefined,
     cwd: selectedThread.cwd ?? selectedThread.workspaceRoot ?? null,
+    ...(retainedInputItems ? { inputItems: retainedInputItems } : {}),
     prompt,
     threadId: selectedThread.id,
     workspaceRoot: selectedThread.workspaceRoot,
@@ -47,6 +73,7 @@ export function shouldUseSelectedThreadBusyActions({
 export function buildDraftRunRequest({
   attachedFiles,
   draftPrompt,
+  inputItems,
   workInFolder,
   workspaceFolder,
 }: DraftRunRequestParams) {
@@ -61,8 +88,10 @@ export function buildDraftRunRequest({
     };
   }
 
+  const retainedInputItems = retainPromptShortcutInputItems(prompt, inputItems);
   return {
     attachments: attachedFiles.length > 0 ? [...attachedFiles] : undefined,
+    ...(retainedInputItems ? { inputItems: retainedInputItems } : {}),
     prompt,
     workspaceRoot: workInFolder ? workspaceFolder : null,
   };

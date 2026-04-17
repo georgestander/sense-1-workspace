@@ -17,6 +17,78 @@ function firstString(...values) {
   return null;
 }
 
+function normalizeConfigIdentifier(value) {
+  let normalized = firstString(value);
+  while (normalized && normalized.length >= 2) {
+    const first = normalized[0];
+    const last = normalized[normalized.length - 1];
+    if ((first === "\"" && last === "\"") || (first === "'" && last === "'")) {
+      normalized = normalized.slice(1, -1).trim();
+      continue;
+    }
+    break;
+  }
+  return normalized || null;
+}
+
+function quoteTomlKeyIfNeeded(key) {
+  return /^[A-Za-z0-9_-]+$/u.test(key) ? key : JSON.stringify(key);
+}
+
+const MANAGED_INVENTORY_TABLE_PATTERN =
+  /^(\s*)\[(plugins|apps|mcp_servers)\.(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9._@:-]+))\](\s*(?:#.*)?)$/u;
+const MANAGED_INVENTORY_DOTTED_PATTERN =
+  /^(\s*)(plugins|apps|mcp_servers)\.(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9._@:-]+))(.*)$/u;
+
+function canonicalizeManagedInventoryConfig(rawConfig) {
+  if (typeof rawConfig !== "string" || rawConfig.length === 0) {
+    return rawConfig;
+  }
+
+  const newline = rawConfig.includes("\r\n") ? "\r\n" : "\n";
+  const hasTrailingNewline = rawConfig.endsWith("\n");
+  let changed = false;
+  const normalizedLines = rawConfig.split(/\r?\n/u).map((line) => {
+    const tableMatch = line.match(MANAGED_INVENTORY_TABLE_PATTERN);
+    if (tableMatch) {
+      const normalizedKey = normalizeConfigIdentifier(firstString(tableMatch[3], tableMatch[4], tableMatch[5]));
+      if (!normalizedKey) {
+        return line;
+      }
+      const nextLine = `${tableMatch[1]}[${tableMatch[2]}.${quoteTomlKeyIfNeeded(normalizedKey)}]${tableMatch[6] ?? ""}`;
+      if (nextLine !== line) {
+        changed = true;
+      }
+      return nextLine;
+    }
+
+    const dottedMatch = line.match(MANAGED_INVENTORY_DOTTED_PATTERN);
+    if (!dottedMatch) {
+      return line;
+    }
+
+    const normalizedKey = normalizeConfigIdentifier(firstString(dottedMatch[3], dottedMatch[4], dottedMatch[5]));
+    if (!normalizedKey) {
+      return line;
+    }
+    const nextLine = `${dottedMatch[1]}${dottedMatch[2]}.${quoteTomlKeyIfNeeded(normalizedKey)}${dottedMatch[6] ?? ""}`;
+    if (nextLine !== line) {
+      changed = true;
+    }
+    return nextLine;
+  });
+
+  if (!changed) {
+    return rawConfig;
+  }
+
+  if (hasTrailingNewline && normalizedLines.at(-1) === "") {
+    normalizedLines.pop();
+  }
+
+  return `${normalizedLines.join(newline)}${hasTrailingNewline ? newline : ""}`;
+}
+
 async function pathExists(filePath) {
   try {
     await fs.access(filePath, fsConstants.F_OK);
@@ -45,6 +117,12 @@ export async function ensureRuntimeConfigDefaults(codexHome, defaultRuntimeConfi
   const existed = await pathExists(configPath);
   if (!existed) {
     await fs.writeFile(configPath, defaultRuntimeConfig, "utf8");
+  }
+
+  const currentConfig = await fs.readFile(configPath, "utf8");
+  const canonicalConfig = canonicalizeManagedInventoryConfig(currentConfig);
+  if (canonicalConfig !== currentConfig) {
+    await fs.writeFile(configPath, canonicalConfig, "utf8");
   }
 
   return {

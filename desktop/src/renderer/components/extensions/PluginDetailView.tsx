@@ -6,6 +6,8 @@ import type {
   DesktopManagedExtensionRecord,
   DesktopPluginRecord,
 } from "../../../main/contracts";
+import type { DesktopPromptShortcutSuggestion } from "../../../shared/prompt-shortcuts.ts";
+import { resolveManagedExtensionPromptShortcut } from "../../../shared/prompt-shortcuts.ts";
 import { Button } from "../ui/button";
 
 type PluginDetailViewProps = {
@@ -16,7 +18,7 @@ type PluginDetailViewProps = {
   onUninstall: () => void;
   onNavigateToEntity: (id: string, kind: "skill" | "app" | "mcp") => void;
   onOpen?: () => void;
-  onTryInChat?: (name: string) => void;
+  onTryInChat?: (shortcut: DesktopPromptShortcutSuggestion) => void;
   onToggleBundledItem?: (id: string, kind: "skill" | "app" | "mcp", enabled: boolean) => void;
   pendingActionKey: string | null;
   Toggle: React.ComponentType<{ checked: boolean; disabled?: boolean; onChange?: (next: boolean) => void }>;
@@ -103,6 +105,7 @@ export function PluginDetailView({
   const hasIncludes = includedSkills.length > 0 || includedApps.length > 0 || includedMcps.length > 0 || legacyAppRecords.length > 0;
   const isEnabled = managedRecord.enablementState === "enabled";
   const websiteUrl = legacyPlugin?.websiteUrl ?? null;
+  const tryInChatShortcut = resolveManagedExtensionPromptShortcut(managedRecord, overview);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -133,10 +136,10 @@ export function PluginDetailView({
               Open
             </Button>
           ) : null}
-          {onTryInChat ? (
+          {onTryInChat && tryInChatShortcut ? (
             <Button
               className="h-7 gap-1.5 rounded-lg px-2.5 text-[11px]"
-              onClick={() => onTryInChat(managedRecord.name)}
+              onClick={() => onTryInChat(tryInChatShortcut)}
               variant="secondary"
             >
               <MessageSquare className="size-3" />

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Blocks, Cable, ChevronDown, EllipsisVertical, Filter, Plus, PlugZap, RefreshCw, Search, Sparkles, Trash2 } from "lucide-react";
+import { Blocks, Cable, ChevronDown, EllipsisVertical, Filter, MessageSquare, Plus, PlugZap, RefreshCw, Search, Sparkles, Trash2 } from "lucide-react";
 
 import { Button } from "./ui/button";
 import type {
@@ -7,9 +7,12 @@ import type {
   DesktopExtensionHealth,
   DesktopExtensionOverviewResult,
   DesktopManagedExtensionKind,
+  DesktopManagedExtensionRecord,
   DesktopPluginRecord,
   DesktopSkillRecord,
 } from "../../main/contracts";
+import type { DesktopPromptShortcutSuggestion } from "../../shared/prompt-shortcuts.ts";
+import { resolveManagedExtensionPromptShortcut } from "../../shared/prompt-shortcuts.ts";
 import { PluginDetailView } from "./extensions/PluginDetailView";
 import { SkillDetailModal } from "./extensions/SkillDetailModal";
 import { AppDetailView } from "./extensions/AppDetailView";
@@ -145,7 +148,7 @@ type PluginsPageProps = {
   loading: boolean;
   onCreatePlugin: () => void;
   onCreateSkill: () => void;
-  onTryInChat?: (extensionName: string) => void;
+  onTryInChat?: (shortcut: DesktopPromptShortcutSuggestion) => void;
   openAppInstall: (request: { appId: string; installUrl: string }) => Promise<unknown>;
   onRefresh: () => void;
   overview: DesktopExtensionOverviewResult | null;
@@ -257,6 +260,14 @@ function matchesSearch(query: string, ...fields: Array<string | null | undefined
   }
   const lower = query.toLowerCase();
   return fields.some((field) => typeof field === "string" && field.toLowerCase().includes(lower));
+}
+
+function findManagedRecord(
+  overview: DesktopExtensionOverviewResult,
+  kind: DesktopManagedExtensionKind,
+  id: string,
+): DesktopManagedExtensionRecord | null {
+  return overview.managedExtensions.find((entry) => entry.kind === kind && entry.id === id) ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -690,6 +701,7 @@ export function PluginsPage({
         <AppDetailView
           managedRecord={selectedManagedRecord}
           legacyApp={overview.apps.find((a) => a.id === selectedManagedRecord.id)}
+          overview={overview}
           onBack={clearSelection}
           onToggleEnabled={(next) => void runAction(`app-enable:${selectedManagedRecord.id}`, async () => await setAppEnabled({ appId: selectedManagedRecord.id, enabled: next }))}
           onConnect={() => {
@@ -699,6 +711,7 @@ export function PluginsPage({
             }
           }}
           onRemove={() => void runAction(`app-remove:${selectedManagedRecord.id}`, async () => { await removeApp({ appId: selectedManagedRecord.id }); clearSelection(); }, `Removed ${selectedManagedRecord.displayName}.`)}
+          onTryInChat={onTryInChat}
           pendingActionKey={pendingActionKey}
           Toggle={Toggle}
         />
@@ -739,6 +752,17 @@ export function PluginsPage({
                   const uninstallKey = `plugin-uninstall:${plugin.id}`;
                   const connectKey = authApp ? `app-connect:${authApp.id}` : null;
                   const needsConnect = plugin.installed && Boolean(authApp?.installUrl);
+                  const pluginShortcut = onTryInChat
+                    ? resolveManagedExtensionPromptShortcut(
+                        findManagedRecord(overview, "plugin", plugin.id) ?? {
+                          id: plugin.id,
+                          kind: "plugin",
+                          name: plugin.name,
+                          sourcePath: plugin.sourcePath,
+                        },
+                        overview,
+                      )
+                    : null;
 
                   return (
                     <article
@@ -784,6 +808,16 @@ export function PluginsPage({
                             Connect
                           </Button>
                         ) : null}
+                        {pluginShortcut && onTryInChat ? (
+                          <Button
+                            className="h-6 gap-1 rounded-md px-2 text-[11px]"
+                            onClick={() => onTryInChat(pluginShortcut)}
+                            variant="secondary"
+                          >
+                            <MessageSquare className="size-3" />
+                            Chat
+                          </Button>
+                        ) : null}
                         {plugin.installed ? (
                           <Toggle checked={plugin.enabled} disabled={pendingActionKey === enableKey} onChange={(next) => void runAction(enableKey, async () => await setPluginEnabled({ pluginId: plugin.id, enabled: next }))} />
                         ) : null}
@@ -809,6 +843,17 @@ export function PluginsPage({
                   const enableKey = `app-enable:${app.id}`;
                   const connectKey = `app-connect:${app.id}`;
                   const needsConnect = !app.isAccessible && Boolean(app.installUrl);
+                  const appShortcut = onTryInChat
+                    ? resolveManagedExtensionPromptShortcut(
+                        findManagedRecord(overview, "app", app.id) ?? {
+                          id: app.id,
+                          kind: "app",
+                          name: app.name,
+                          sourcePath: null,
+                        },
+                        overview,
+                      )
+                    : null;
 
                   return (
                     <article
@@ -821,6 +866,7 @@ export function PluginsPage({
                         <div className="flex items-center gap-2">
                           <h3 className="truncate text-[13px] font-medium text-ink">{app.name}</h3>
                           {needsConnect ? <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-600">Auth</span> : null}
+                          {!app.runtimeStateKnown ? <span className="shrink-0 rounded bg-surface-strong px-1.5 py-0.5 text-[10px] text-muted">Fallback</span> : null}
                         </div>
                         <p className="mt-0.5 truncate text-[11px] leading-4 text-muted">{app.description ?? "App connector"}</p>
                       </div>
@@ -834,6 +880,16 @@ export function PluginsPage({
                             variant="secondary"
                           >
                             Connect
+                          </Button>
+                        ) : null}
+                        {appShortcut && onTryInChat ? (
+                          <Button
+                            className="h-6 gap-1 rounded-md px-2 text-[11px]"
+                            onClick={() => onTryInChat(appShortcut)}
+                            variant="secondary"
+                          >
+                            <MessageSquare className="size-3" />
+                            Chat
                           </Button>
                         ) : null}
                         {app.isAccessible ? (
@@ -861,7 +917,10 @@ export function PluginsPage({
                   >
                     <ExtensionIcon kind="mcp" />
                     <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-[13px] font-medium text-ink">{server.id}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="truncate text-[13px] font-medium text-ink">{server.id}</h3>
+                        {!server.runtimeStateKnown ? <span className="shrink-0 rounded bg-surface-strong px-1.5 py-0.5 text-[10px] text-muted">Fallback</span> : null}
+                      </div>
                       <p className="mt-0.5 truncate text-[11px] leading-4 text-muted">
                         {server.transport?.toUpperCase() ?? "MCP"}
                         {server.state ? ` · ${server.state}` : ""}
@@ -872,7 +931,7 @@ export function PluginsPage({
                     {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
                     <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                       {server.authStatus ? <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-600">{server.authStatus}</span> : null}
-                      <Toggle checked={server.enabled} onChange={(next) => void setMcpServerEnabled({ serverId: server.id, enabled: next })} />
+                      <Toggle checked={server.enabled} disabled={!server.runtimeStateKnown || Boolean(server.invalidReason)} onChange={(next) => void setMcpServerEnabled({ serverId: server.id, enabled: next })} />
                     </div>
                   </article>
                 ))}
@@ -925,6 +984,7 @@ export function PluginsPage({
         <SkillDetailModal
           managedRecord={selectedManagedRecord}
           legacySkill={overview?.skills.find((s) => s.path === selectedManagedRecord.id)}
+          overview={overview ?? { apps: [], plugins: [], skills: [] }}
           onClose={clearSelection}
           onToggleEnabled={(next) => {
             const legacySkill = overview?.skills.find((s) => s.path === selectedManagedRecord.id);
