@@ -47,64 +47,64 @@
 }
 
 [data-theme="dark"] {
-  --color-canvas: oklch(0.12 0 0);
-  --color-surface: oklch(0.14 0 0);
-  --color-surface-soft: oklch(0.10 0 0);
-  --color-surface-low: oklch(0.10 0 0);
-  --color-surface-strong: oklch(0.18 0 0);
-  --color-surface-high: oklch(0.18 0 0);
-  --color-surface-glass: oklch(0.15 0 0 / 80%);
-  --color-ink: oklch(0.96 0 0);
-  --color-ink-soft: oklch(0.75 0 0);
+  --color-canvas: oklch(0.06 0 0);
+  --color-surface: oklch(0.08 0 0);
+  --color-surface-soft: oklch(0.04 0 0);
+  --color-surface-low: oklch(0.04 0 0);
+  --color-surface-strong: oklch(0.12 0 0);
+  --color-surface-high: oklch(0.12 0 0);
+  --color-surface-glass: oklch(0.09 0 0 / 82%);
+  --color-ink: oklch(0.97 0 0);
+  --color-ink-soft: oklch(0.78 0 0);
   --color-ink-faint: oklch(0.62 0 0);
   --color-ink-muted: oklch(0.48 0 0);
   --color-muted: oklch(0.48 0 0);
-  --color-line: oklch(0.35 0 0 / 50%);
+  --color-line: oklch(0.30 0 0 / 55%);
   --color-accent: oklch(0.72 0.04 243);
-  --color-accent-faint: oklch(0.72 0.04 243 / 12%);
+  --color-accent-faint: oklch(0.72 0.04 243 / 14%);
   --color-on-accent: oklch(1 0 0);
   --color-danger: oklch(0.65 0.18 25);
-  --color-danger-faint: oklch(0.65 0.18 25 / 14%);
+  --color-danger-faint: oklch(0.65 0.18 25 / 16%);
   --color-warning: oklch(0.78 0.15 75);
-  --color-warning-faint: oklch(0.78 0.15 75 / 14%);
+  --color-warning-faint: oklch(0.78 0.15 75 / 16%);
   --color-success: oklch(0.70 0.14 150);
-  --color-success-faint: oklch(0.70 0.14 150 / 12%);
+  --color-success-faint: oklch(0.70 0.14 150 / 14%);
 
-  --shadow-raised: 0 4px 12px rgb(0 0 0 / 0.45);
-  --shadow-menu: 0 20px 40px -10px rgb(0 0 0 / 0.55);
-  --shadow-overlay: 0 20px 60px rgb(0 0 0 / 0.65);
-  --shadow-composer: 0 -12px 28px rgb(0 0 0 / 0.5);
+  --shadow-raised: 0 4px 12px rgb(0 0 0 / 0.55);
+  --shadow-menu: 0 20px 40px -10px rgb(0 0 0 / 0.65);
+  --shadow-overlay: 0 20px 60px rgb(0 0 0 / 0.75);
+  --shadow-composer: 0 -12px 28px rgb(0 0 0 / 0.6);
 }
 
 @media (prefers-color-scheme: dark) {
   [data-theme="system"] {
-    --color-canvas: oklch(0.12 0 0);
-    --color-surface: oklch(0.14 0 0);
-    --color-surface-soft: oklch(0.10 0 0);
-    --color-surface-low: oklch(0.10 0 0);
-    --color-surface-strong: oklch(0.18 0 0);
-    --color-surface-high: oklch(0.18 0 0);
-    --color-surface-glass: oklch(0.15 0 0 / 80%);
-    --color-ink: oklch(0.96 0 0);
-    --color-ink-soft: oklch(0.75 0 0);
+    --color-canvas: oklch(0.06 0 0);
+    --color-surface: oklch(0.08 0 0);
+    --color-surface-soft: oklch(0.04 0 0);
+    --color-surface-low: oklch(0.04 0 0);
+    --color-surface-strong: oklch(0.12 0 0);
+    --color-surface-high: oklch(0.12 0 0);
+    --color-surface-glass: oklch(0.09 0 0 / 82%);
+    --color-ink: oklch(0.97 0 0);
+    --color-ink-soft: oklch(0.78 0 0);
     --color-ink-faint: oklch(0.62 0 0);
     --color-ink-muted: oklch(0.48 0 0);
     --color-muted: oklch(0.48 0 0);
-    --color-line: oklch(0.35 0 0 / 50%);
+    --color-line: oklch(0.30 0 0 / 55%);
     --color-accent: oklch(0.72 0.04 243);
-    --color-accent-faint: oklch(0.72 0.04 243 / 12%);
+    --color-accent-faint: oklch(0.72 0.04 243 / 14%);
     --color-on-accent: oklch(1 0 0);
     --color-danger: oklch(0.65 0.18 25);
-    --color-danger-faint: oklch(0.65 0.18 25 / 14%);
+    --color-danger-faint: oklch(0.65 0.18 25 / 16%);
     --color-warning: oklch(0.78 0.15 75);
-    --color-warning-faint: oklch(0.78 0.15 75 / 14%);
+    --color-warning-faint: oklch(0.78 0.15 75 / 16%);
     --color-success: oklch(0.70 0.14 150);
-    --color-success-faint: oklch(0.70 0.14 150 / 12%);
+    --color-success-faint: oklch(0.70 0.14 150 / 14%);
 
-    --shadow-raised: 0 4px 12px rgb(0 0 0 / 0.45);
-    --shadow-menu: 0 20px 40px -10px rgb(0 0 0 / 0.55);
-    --shadow-overlay: 0 20px 60px rgb(0 0 0 / 0.65);
-    --shadow-composer: 0 -12px 28px rgb(0 0 0 / 0.5);
+    --shadow-raised: 0 4px 12px rgb(0 0 0 / 0.55);
+    --shadow-menu: 0 20px 40px -10px rgb(0 0 0 / 0.65);
+    --shadow-overlay: 0 20px 60px rgb(0 0 0 / 0.75);
+    --shadow-composer: 0 -12px 28px rgb(0 0 0 / 0.6);
   }
 }
 
