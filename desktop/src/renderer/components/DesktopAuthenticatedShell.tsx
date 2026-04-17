@@ -40,7 +40,7 @@ export function DesktopAuthenticatedShell({
 }: DesktopAuthenticatedShellProps) {
   return (
     <div className="flex h-screen overflow-hidden flex-col bg-canvas text-ink">
-      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between bg-white/90 px-3 backdrop-blur-sm">
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between bg-surface-glass px-3 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           {showInstallUpdateAction ? (
             <Button
@@ -90,7 +90,7 @@ export function DesktopAuthenticatedShell({
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
         <LeftSidebar {...leftSidebarProps} />
 
-        <main className="min-w-0 flex-1 overflow-hidden bg-white">
+        <main className="min-w-0 flex-1 overflow-hidden bg-canvas">
           <div className="fade-up flex h-full min-h-0 flex-col">{mainContent}</div>
         </main>
 

@@ -1,8 +1,17 @@
+import { Monitor, Moon, Sun } from "lucide-react";
+
 import { Button } from "../ui/button";
 import { cn } from "../../lib/cn";
 import { resolveSettingsUpdateSummary } from "../../features/updates/update-presentation.js";
+import { useTheme, type ThemePreference } from "../../lib/theme";
 import type { DesktopModelEntry, DesktopSettings, DesktopUpdateState } from "../../../main/contracts";
 import { matchesSkillApprovalPath, parseSkillApprovalKey } from "../../../shared/skill-approval-key.js";
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; icon: typeof Monitor }[] = [
+  { value: "system", label: "System", icon: Monitor },
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+];
 
 const REASONING_LABELS: Record<string, string> = {
   none: "None",
@@ -51,6 +60,7 @@ export function GeneralSettingsSection({
 }: GeneralSettingsSectionProps) {
   const updateSummary = resolveSettingsUpdateSummary(updateState);
   const trustedSkillApprovals = settingsData?.trustedSkillApprovals ?? [];
+  const [theme, setTheme] = useTheme();
 
   function removeTrustedSkillApproval(skillPath: string) {
     void saveSettings({
@@ -65,13 +75,38 @@ export function GeneralSettingsSection({
       {settingsData ? (
         <div className="mt-[1.25rem] flex flex-col gap-[1.25rem]">
           <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.85rem]">
+            <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Appearance</p>
+            <div className="mt-[0.55rem] inline-flex rounded-lg bg-surface p-[0.2rem]">
+              {THEME_OPTIONS.map(({ value, label, icon: Icon }) => {
+                const isActive = theme === value;
+                return (
+                  <button
+                    aria-pressed={isActive}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-md px-[0.65rem] py-[0.35rem] text-[0.8125rem] font-medium leading-[1.4] transition-colors",
+                      isActive ? "bg-surface-high text-ink shadow-[0_1px_0_color-mix(in_oklch,var(--color-ink)_6%,transparent)]" : "text-ink-muted hover:text-ink",
+                    )}
+                    key={value}
+                    onClick={() => setTheme(value)}
+                    type="button"
+                  >
+                    <Icon aria-hidden className="size-3.5" strokeWidth={1.75} />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-[0.4rem] text-[0.8125rem] leading-[1.52] text-ink-muted">System follows your operating system. Choose Light or Dark to override.</p>
+          </div>
+
+          <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.85rem]">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Current version</p>
                 <p className="mt-[0.35rem] text-[1rem] font-medium leading-[1.45] text-ink">
                   {currentVersion ? `v${currentVersion}` : "Version unavailable"}
                 </p>
-                <p className={cn("mt-[0.55rem] text-[0.875rem] font-medium leading-[1.6]", updateSummary.isError ? "text-[oklch(65%_0.15_25)]" : "text-ink")}>
+                <p className={cn("mt-[0.55rem] text-[0.875rem] font-medium leading-[1.6]", updateSummary.isError ? "text-danger" : "text-ink")}>
                   {updateSummary.title}
                 </p>
                 <p className="mt-[0.15rem] text-[0.8125rem] leading-[1.52] text-ink-muted">
@@ -123,7 +158,7 @@ export function GeneralSettingsSection({
               )}
             </select>
             {settingsError?.key === "model" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : null}
           </label>
 
@@ -146,7 +181,7 @@ export function GeneralSettingsSection({
               )}
             </select>
             {settingsError?.key === "reasoningEffort" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : (
               <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">Higher reasoning uses more tokens but produces more thorough analysis.</p>
             )}
@@ -177,7 +212,7 @@ export function GeneralSettingsSection({
                   const skillPath = parseSkillApprovalKey(entry).path ?? entry;
                   const skillName = skillPath.split("/").slice(-2, -1)[0] ?? skillPath;
                   return (
-                    <div className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2" key={entry}>
+                    <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-high px-3 py-2" key={entry}>
                       <div className="min-w-0">
                         <p className="truncate text-[0.875rem] font-medium leading-[1.45] text-ink">{skillName}</p>
                         <p className="truncate text-[0.75rem] leading-[1.5] text-ink-muted">{skillPath}</p>
@@ -198,7 +233,7 @@ export function GeneralSettingsSection({
               <p className="mt-3 text-[0.8125rem] leading-[1.52] text-ink-muted">No skill approvals have been trusted for this profile yet.</p>
             )}
             {settingsError?.key === "trustedSkillApprovals" ? (
-              <p className="mt-[0.65rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+              <p className="mt-[0.65rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : null}
           </div>
           <label className="flex flex-col gap-[0.4rem]">
@@ -212,7 +247,7 @@ export function GeneralSettingsSection({
               <option value="fast">Fast</option>
             </select>
             {settingsError?.key === "serviceTier" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-[oklch(65%_0.15_25)]">{settingsError.message}</p>
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : (
               <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">Fast mode prefers the low-latency service tier for new runs.</p>
             )}

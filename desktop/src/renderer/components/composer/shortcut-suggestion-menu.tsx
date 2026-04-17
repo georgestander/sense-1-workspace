@@ -19,7 +19,7 @@ export function ShortcutSuggestionMenu({
   }
 
   return (
-    <div className="rounded-2xl border border-line/60 bg-white/96 p-2 shadow-[0_16px_36px_rgba(10,15,20,0.08)] backdrop-blur-sm">
+    <div className="rounded-2xl border border-line bg-surface-glass p-2 shadow-[var(--shadow-menu)] backdrop-blur-sm">
       <p className="px-2 pb-1 text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-muted">
         Profile shortcuts
       </p>
@@ -31,7 +31,7 @@ export function ShortcutSuggestionMenu({
             <button
               className={cn(
                 "flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left text-[0.6875rem] transition-colors",
-                isActive ? "bg-ink text-white" : "bg-transparent text-ink hover:bg-surface-soft",
+                isActive ? "bg-ink text-canvas" : "bg-transparent text-ink hover:bg-surface-soft",
               )}
               key={`${suggestion.token}:${suggestion.item.path}`}
               onMouseDown={(event) => {
@@ -41,10 +41,10 @@ export function ShortcutSuggestionMenu({
               onClick={(event) => event.preventDefault()}
               type="button"
             >
-              <Icon className={cn("size-3.5 shrink-0", isActive ? "text-white" : "text-ink-muted")} />
+              <Icon className={cn("size-3.5 shrink-0", isActive ? "text-canvas" : "text-ink-muted")} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold">{suggestion.label}</span>
-                <span className={cn("block truncate", isActive ? "text-white/70" : "text-ink-muted")}>
+                <span className={cn("block truncate", isActive ? "text-canvas/70" : "text-ink-muted")}>
                   ${suggestion.token}
                   {suggestion.description ? ` · ${suggestion.description}` : ""}
                 </span>

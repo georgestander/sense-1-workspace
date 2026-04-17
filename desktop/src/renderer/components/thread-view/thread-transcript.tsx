@@ -61,7 +61,7 @@ function ApprovalsPanel({
       {selectedThreadApprovals.map((approval) => {
         const isProcessing = processingApprovalIds.includes(approval.id);
         return (
-          <article className="rounded-2xl border border-line/15 bg-surface-strong px-4 py-3" key={approval.id}>
+          <article className="rounded-2xl border border-line bg-surface-strong px-4 py-3" key={approval.id}>
             <p className="text-xs font-semibold uppercase tracking-[0.1em] text-accent">
               {approval.kind === "command"
                 ? "Command approval"
@@ -284,7 +284,7 @@ export function ThreadTranscript({
       {showScrollToBottom ? (
         <div className="pointer-events-none sticky bottom-52 z-50 flex justify-center">
           <button
-            className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-ink px-3 py-1.5 text-xs font-medium text-white shadow-[0_4px_12px_rgba(10,15,20,0.2)] transition-opacity hover:opacity-90"
+            className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-ink px-3 py-1.5 text-xs font-medium text-canvas shadow-[var(--shadow-raised)] transition-opacity hover:opacity-90"
             onClick={() => transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" })}
             type="button"
           >

@@ -123,17 +123,17 @@ export function LeftSidebar({
 
   return (
     <aside
-      className={cn("z-20 min-h-0 bg-surface-soft transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] max-lg:absolute max-lg:inset-y-0 max-lg:left-0", leftRailOpen ? "w-72 pb-3 pl-3 pt-3 max-lg:shadow-2xl" : "w-0 overflow-hidden p-0 max-lg:hidden")}
+      className={cn("z-20 min-h-0 bg-surface-soft transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] max-lg:absolute max-lg:inset-y-0 max-lg:left-0", leftRailOpen ? "w-64 pb-2 pl-2 pt-2 max-lg:shadow-2xl" : "w-0 overflow-hidden p-0 max-lg:hidden")}
     >
       <div className="flex h-full min-h-0 flex-col overflow-hidden">
-        <div className="sticky top-0 z-10 shrink-0 bg-surface-soft pb-4 pr-3">
+        <div className="sticky top-0 z-10 shrink-0 bg-surface-soft pb-3 pr-2">
           <Button className="w-full justify-start" onClick={resetToStartSurface} variant="default">
             <Plus />
             New chat
           </Button>
           <div className="mt-3 grid gap-2">
             <button
-              className={cn("flex items-center gap-2 rounded-2xl px-3 py-2 text-sm transition-colors", activeView === "plugins" ? "bg-ink text-white" : "bg-surface-strong text-ink hover:bg-surface-high")}
+              className={cn("flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors", activeView === "plugins" ? "bg-ink text-canvas" : "text-ink hover:bg-surface-high")}
               onClick={openPlugins}
               type="button"
             >
@@ -141,7 +141,7 @@ export function LeftSidebar({
               Plugins
             </button>
             <button
-              className={cn("flex items-center gap-2 rounded-2xl px-3 py-2 text-sm transition-colors", activeView === "automations" ? "bg-ink text-white" : "bg-surface-strong text-ink hover:bg-surface-high")}
+              className={cn("flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors", activeView === "automations" ? "bg-ink text-canvas" : "text-ink hover:bg-surface-high")}
               onClick={openAutomations}
               type="button"
             >
@@ -208,7 +208,7 @@ export function LeftSidebar({
                   <div className="space-y-1">
                     <div className="flex items-center justify-between px-1 pt-2">
                       <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.11em] text-muted">Threads</p>
-                      <button className="rounded-full bg-ink px-2 py-0.5 text-[0.5625rem] font-medium text-on-accent transition-opacity hover:opacity-80" onClick={resetToStartSurface} type="button">
+                      <button className="rounded-full bg-ink px-2 py-0.5 text-[0.5625rem] font-medium text-canvas transition-opacity hover:opacity-80" onClick={resetToStartSurface} type="button">
                         New thread
                       </button>
                     </div>
@@ -247,7 +247,7 @@ export function LeftSidebar({
           </div>
         </div>
 
-        <div className="mr-3 mt-4 shrink-0 rounded-2xl bg-surface-strong p-3">
+        <div className="mr-2 mt-3 shrink-0 rounded-lg border border-line bg-surface-high p-2.5">
           <button className="flex w-full items-center gap-2 text-left" onClick={() => setAccountMenuOpen((value) => !value)} type="button">
             <UserCircle2 className="text-muted" />
             <div className="min-w-0 flex-1">

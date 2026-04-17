@@ -8,11 +8,11 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-ink text-white hover:bg-ink-soft",
-        secondary: "border border-line/80 bg-white text-ink hover:bg-surface-strong",
-        destructive: "bg-red-600 text-white hover:bg-red-700",
-        ghost: "text-muted hover:bg-surface-strong hover:text-ink",
-        subtle: "bg-surface-strong text-ink hover:bg-surface-soft",
+        default: "bg-ink text-canvas hover:opacity-90",
+        secondary: "border border-line bg-surface-high text-ink hover:bg-surface-soft",
+        destructive: "bg-danger text-on-danger hover:opacity-90",
+        ghost: "text-muted hover:bg-surface-soft hover:text-ink",
+        subtle: "bg-surface-soft text-ink hover:bg-surface",
       },
       size: {
         sm: "h-8 px-3 text-xs",
@@ -34,4 +34,3 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> &
 export function Button({ className, variant, size, type = "button", ...props }: ButtonProps) {
   return <button className={cn(buttonVariants({ variant, size }), className)} type={type} {...props} />;
 }
-

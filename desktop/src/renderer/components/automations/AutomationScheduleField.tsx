@@ -57,7 +57,7 @@ export function AutomationScheduleField({ disabled = false, value, onChange }: A
   return (
     <div className="flex flex-col gap-2">
       <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Schedule</span>
-      <div className={cn("rounded-2xl border border-line/40 bg-canvas p-3", disabled && "opacity-80")}>
+      <div className={cn("rounded-2xl border border-line bg-canvas p-3", disabled && "opacity-80")}>
         <p className="text-sm font-medium text-ink">{summary}</p>
         <p className="mt-1 text-xs leading-5 text-ink-muted">Use the schedule controls below instead of editing RRULE text directly.</p>
         {disabled ? (
@@ -70,7 +70,7 @@ export function AutomationScheduleField({ disabled = false, value, onChange }: A
           <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <label className="flex flex-col gap-2">
               <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Repeat</span>
-              <div className="flex items-center gap-2 rounded-xl border border-line/40 bg-white px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
+              <div className="flex items-center gap-2 rounded-xl border border-line bg-surface-high px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
                 <Clock3 className="size-4 shrink-0 text-muted" />
                 <select
                   disabled={disabled}
@@ -142,7 +142,7 @@ export function AutomationScheduleField({ disabled = false, value, onChange }: A
                   <Button
                     aria-pressed={selected}
                     disabled={disabled}
-                    className={cn("h-8 px-3 text-xs", selected ? "bg-ink text-white hover:bg-ink-soft" : "")}
+                    className={cn("h-8 px-3 text-xs", selected ? "bg-ink text-canvas hover:opacity-90" : "")}
                     key={option.code}
                     onClick={() => {
                       const nextDays = selected

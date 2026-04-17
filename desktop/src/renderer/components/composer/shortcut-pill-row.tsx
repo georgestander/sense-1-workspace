@@ -22,11 +22,11 @@ export function ShortcutPillRow({ className, overview, prompt }: ShortcutPillRow
         const Icon = match.kind === "app" ? Blocks : match.kind === "plugin" ? PlugZap : Sparkles;
         return (
           <span
-            className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white shadow-[0_8px_20px_rgba(10,15,20,0.12)]"
+            className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-xs font-semibold text-canvas shadow-[var(--shadow-raised)]"
             key={match.item.path}
             title={`$${match.token} -> ${match.item.name ?? match.label}`}
           >
-            <Icon className="size-3.5 text-white/80" />
+            <Icon className="size-3.5 text-canvas/80" />
             <span className="font-bold">{match.label}</span>
           </span>
         );

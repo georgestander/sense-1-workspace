@@ -215,7 +215,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
               <p className="text-[0.75rem] font-semibold uppercase tracking-[0.11em] text-muted">{teamIdentity.statusTitle}</p>
               <p className="mt-2 text-sm leading-6 text-ink-soft">{teamIdentity.statusBody}</p>
               {teamIdentity.canCreateFirstTeam ? (
-                <div className="mt-4 rounded-xl bg-white p-3 shadow-[0_10px_24px_rgba(10,15,20,0.05)]">
+                <div className="mt-4 rounded-xl border border-line bg-surface-high p-3">
                   <p className="text-sm font-medium text-ink">Create your first team</p>
                   <p className="mt-1 text-xs leading-5 text-ink-muted">
                     This creates a desktop-local team record and makes you the admin for this profile.
@@ -235,7 +235,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
                       {teamPending ? "Creating..." : "Create team"}
                     </Button>
                   </div>
-                  {teamError ? <p className="mt-2 text-xs text-[oklch(65%_0.15_25)]">{teamError}</p> : null}
+                  {teamError ? <p className="mt-2 text-xs text-danger">{teamError}</p> : null}
                 </div>
               ) : null}
             </div>
@@ -261,7 +261,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
         </article>
       ) : null}
 
-      <section className="relative z-20 isolate mx-auto mt-8 w-full max-w-3xl shrink-0 rounded-2xl bg-white p-3 shadow-[0_14px_32px_rgba(10,15,20,0.06)]">
+      <section className="relative z-20 isolate mx-auto mt-8 w-full max-w-3xl shrink-0 rounded-2xl border border-line bg-surface-high p-3">
         {taskError ? <p className="mb-3 rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft" role="alert">{taskError}</p> : null}
         {!(workInFolder && workspaceFolder) ? (
           <div className="mb-3 flex flex-wrap gap-2">
@@ -370,7 +370,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {selectedServiceTier === "fast" ? (
             <button
-              className="inline-flex items-center gap-1.5 rounded-full bg-[oklch(18%_0.03_55)] px-3 py-1 text-xs font-semibold text-white shadow-[0_8px_20px_rgba(10,15,20,0.12)]"
+              className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-xs font-semibold text-canvas shadow-[var(--shadow-raised)]"
               onClick={() => handleServiceTierSelection("flex")}
               type="button"
             >
@@ -379,10 +379,10 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
           ) : null}
           <ShortcutPillRow className="flex-1" overview={extensionOverview} prompt={draftPrompt} />
         </div>
-        {dictation.error ? <p className="mt-2 text-[0.5rem] leading-tight text-black">{dictation.error}</p> : null}
-        {dictation.hint ? <p className="mt-2 text-[0.5rem] leading-tight text-black">{dictation.hint}</p> : null}
+        {dictation.error ? <p className="mt-2 text-[0.5rem] leading-tight text-ink">{dictation.error}</p> : null}
+        {dictation.hint ? <p className="mt-2 text-[0.5rem] leading-tight text-ink">{dictation.hint}</p> : null}
         {dictation.statusText || dictation.liveTranscript?.assistant ? (
-          <div className="mt-2 text-[0.5rem] leading-tight text-black" role="status">
+          <div className="mt-2 text-[0.5rem] leading-tight text-ink" role="status">
             {dictation.statusText ? <p>{dictation.statusText}</p> : null}
             {dictation.liveTranscript?.assistant ? <p>Codex: {dictation.liveTranscript.assistant}</p> : null}
           </div>
@@ -403,11 +403,11 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
         ) : null}
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <Button aria-label="Add local files" disabled={!canStartWork} onClick={async () => { const paths = await pickFiles(); if (paths.length > 0) setAttachedFiles((current) => [...new Set([...current, ...paths])]); }} size="icon" variant="secondary"><Paperclip /></Button>
-          <label className="inline-flex items-center gap-2 rounded-xl border border-line/40 px-2.5 py-1.5 text-xs text-muted">
+          <label className="inline-flex items-center gap-2 rounded-xl border border-line px-2.5 py-1.5 text-xs text-muted">
             <input checked={workInFolder} className="size-3.5 accent-ink" disabled={!canStartWork} onChange={(event) => { const checked = event.target.checked; setWorkInFolder(checked); setFolderMenuOpen(checked); }} type="checkbox" />
             Keep this task bound to a folder
           </label>
-          <div className="inline-flex items-center gap-2 rounded-xl border border-line/40 px-2 py-1.5 text-xs text-muted">
+          <div className="inline-flex items-center gap-2 rounded-xl border border-line px-2 py-1.5 text-xs text-muted">
             <span>Model</span>
             <select className="bg-transparent text-ink outline-none" disabled={!canStartWork || modelOptions.length === 0} onChange={(event) => handleModelSelection(event.target.value)} value={selectedModel || ""}>
               {modelOptions.length > 0 ? modelOptions.map((option) => (
@@ -416,7 +416,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
             </select>
           </div>
           <button
-            className={`inline-flex items-center gap-2 rounded-xl border px-2 py-1.5 text-xs ${selectedServiceTier === "fast" ? "border-[oklch(76%_0.17_75)] bg-[oklch(95%_0.04_85)] text-ink" : "border-line/40 text-muted"}`}
+            className={`inline-flex items-center gap-2 rounded-xl border px-2 py-1.5 text-xs ${selectedServiceTier === "fast" ? "border-warning bg-warning-faint text-ink" : "border-line text-muted"}`}
             disabled={!canStartWork}
             onClick={() => handleServiceTierSelection(selectedServiceTier === "fast" ? "flex" : "fast")}
             type="button"
@@ -438,7 +438,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
               <ChevronDown className={cn("size-4 text-muted transition-transform", folderMenuOpen ? "rotate-180" : "")} />
             </button>
             {folderMenuOpen ? (
-              <div className="relative z-40 mt-2 rounded-xl bg-white p-2 shadow-[0_20px_40px_-10px_rgba(10,15,20,0.1)]" id="folder-menu-options">
+              <div className="relative z-40 mt-2 rounded-xl border border-line bg-surface-high p-2 shadow-[var(--shadow-menu)]" id="folder-menu-options">
                 <button className="mb-1 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-ink outline-none transition-all hover:bg-surface-soft focus-visible:ring-[3px] focus-visible:ring-accent/30 motion-reduce:transition-none" onClick={chooseDifferentFolder} type="button">
                   <FolderOpen className="size-4 text-muted" />
                   Choose a different folder
@@ -469,13 +469,13 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
                 <p className="mt-1 truncate text-sm font-medium text-ink">{workspaceDisplayName(activeWorkspaceProjection)}</p>
                 <p className="mt-1 text-xs text-muted">Resume a saved session below or keep typing to start a fresh thread in this folder.</p>
               </div>
-              <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] text-muted">{activeWorkspaceProjection.session_count} {activeWorkspaceProjection.session_count === 1 ? "session" : "sessions"}</span>
+              <span className="shrink-0 rounded-full bg-surface-high px-2.5 py-1 text-[11px] text-muted">{activeWorkspaceProjection.session_count} {activeWorkspaceProjection.session_count === 1 ? "session" : "sessions"}</span>
             </div>
             {workspaceSessionsLoading ? (
-              <p className="mt-3 rounded-xl bg-white px-3 py-2 text-sm text-muted">Loading saved workspace sessions...</p>
+              <p className="mt-3 rounded-xl bg-surface-high px-3 py-2 text-sm text-muted">Loading saved workspace sessions...</p>
             ) : primaryWorkspaceSession ? (
               <div className="mt-3 space-y-2">
-                <button className="flex w-full items-start justify-between gap-3 rounded-xl bg-white px-3 py-3 text-left outline-none transition-all hover:bg-surface-strong focus-visible:ring-[3px] focus-visible:ring-accent/30 motion-reduce:transition-none" onClick={() => void resumeWorkspaceSession(primaryWorkspaceSession, activeWorkspaceProjection.root_path)} type="button">
+                <button className="flex w-full items-start justify-between gap-3 rounded-xl bg-surface-high px-3 py-3 text-left outline-none transition-all hover:bg-surface-soft focus-visible:ring-[3px] focus-visible:ring-accent/30 motion-reduce:transition-none" onClick={() => void resumeWorkspaceSession(primaryWorkspaceSession, activeWorkspaceProjection.root_path)} type="button">
                   <span className="min-w-0">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.11em] text-muted">Resume latest session</p>
                     <p className="mt-1 truncate text-sm font-medium text-ink">{primaryWorkspaceSession.title || "Untitled session"}</p>
@@ -489,7 +489,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
                 {resumableWorkspaceSessions.length > 1 ? (
                   <div className="space-y-1.5">
                     {resumableWorkspaceSessions.slice(1, 4).map((session) => (
-                      <button className="flex w-full items-start gap-2 rounded-xl bg-white/70 px-3 py-2 text-left outline-none transition-all hover:bg-white focus-visible:ring-[3px] focus-visible:ring-accent/30 motion-reduce:transition-none" key={session.session_id} onClick={() => void resumeWorkspaceSession(session, activeWorkspaceProjection.root_path)} type="button">
+                      <button className="flex w-full items-start gap-2 rounded-xl bg-surface-soft px-3 py-2 text-left outline-none transition-all hover:bg-surface-high focus-visible:ring-[3px] focus-visible:ring-accent/30 motion-reduce:transition-none" key={session.session_id} onClick={() => void resumeWorkspaceSession(session, activeWorkspaceProjection.root_path)} type="button">
                         <Clock3 className="mt-0.5 size-4 shrink-0 text-muted" />
                         <span className="min-w-0">
                           <p className="truncate text-sm text-ink">{session.title || "Untitled session"}</p>
@@ -501,7 +501,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
                 ) : null}
               </div>
             ) : (
-              <p className="mt-3 rounded-xl bg-white px-3 py-2 text-sm text-muted">No saved sessions for this workspace yet. Your next prompt will start one here.</p>
+              <p className="mt-3 rounded-xl bg-surface-high px-3 py-2 text-sm text-muted">No saved sessions for this workspace yet. Your next prompt will start one here.</p>
             )}
           </div>
         ) : null}

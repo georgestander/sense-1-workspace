@@ -170,8 +170,8 @@ export function AutomationsPage({
 
   return (
     <div className="flex h-full min-h-0 bg-canvas">
-      <aside className="flex w-[320px] shrink-0 flex-col border-r border-line/50 bg-white">
-        <div className="border-b border-line/40 px-5 py-5">
+      <aside className="flex w-[320px] shrink-0 flex-col border-r border-line bg-surface-soft">
+        <div className="border-b border-line px-5 py-5">
           <p className="text-xs font-semibold uppercase tracking-[0.11em] text-muted">Automations</p>
           <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-ink">Scheduled work</h1>
           <p className="mt-2 text-sm leading-6 text-ink-muted">
@@ -190,7 +190,7 @@ export function AutomationsPage({
           <div className="space-y-2">
             {automations.map((automation) => (
               <button
-                className={`w-full rounded-2xl px-4 py-3 text-left transition-colors ${selectedAutomationId === automation.id ? "bg-ink text-white" : "bg-surface-soft text-ink hover:bg-surface-strong"}`}
+                className={`w-full rounded-2xl px-4 py-3 text-left transition-colors ${selectedAutomationId === automation.id ? "bg-ink text-canvas" : "bg-surface-soft text-ink hover:bg-surface-strong"}`}
                 key={automation.id}
                 onClick={() => {
                   setComposerVisible(true);
@@ -199,7 +199,7 @@ export function AutomationsPage({
                 type="button"
               >
                 <p className="text-sm font-medium">{automation.name}</p>
-                <p className={`mt-1 text-xs ${selectedAutomationId === automation.id ? "text-white/75" : "text-ink-muted"}`}>
+                <p className={`mt-1 text-xs ${selectedAutomationId === automation.id ? "text-canvas/75" : "text-ink-muted"}`}>
                   {automation.status} · {automation.nextRunAt ? `Next ${new Date(automation.nextRunAt).toLocaleString()}` : "No upcoming run"}
                 </p>
               </button>
@@ -213,7 +213,7 @@ export function AutomationsPage({
 
         {!showComposer ? (
           <section className="flex min-h-[calc(100%-1.5rem)] items-center justify-center">
-            <div className="max-w-2xl rounded-[2rem] bg-white p-8 shadow-[0_12px_30px_rgba(10,15,20,0.05)]">
+            <div className="max-w-2xl rounded-[2rem] border border-line bg-surface-high p-8">
               <div className="inline-flex size-12 items-center justify-center rounded-2xl bg-surface-soft text-ink">
                 <CalendarClock className="size-6" />
               </div>
@@ -232,7 +232,7 @@ export function AutomationsPage({
           </section>
         ) : (
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-            <section className="rounded-[2rem] bg-white p-6 shadow-[0_12px_30px_rgba(10,15,20,0.05)]">
+            <section className="rounded-[2rem] border border-line bg-surface-high p-6">
               {isLoadingSelection ? (
                 <div className="flex min-h-[420px] items-center justify-center rounded-[1.75rem] bg-surface-soft">
                   <div className="flex items-center gap-3 text-sm text-ink-muted">
@@ -271,7 +271,7 @@ export function AutomationsPage({
                     <label className="flex flex-col gap-2">
                       <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Title</span>
                       <input
-                        className="rounded-2xl border border-line/40 bg-canvas px-3 py-2 text-sm text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
+                        className="rounded-2xl border border-line bg-canvas px-3 py-2 text-sm text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
                         onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
                         value={draft.name}
                       />
@@ -279,7 +279,7 @@ export function AutomationsPage({
 
                     <label className="flex flex-col gap-2">
                       <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Run target</span>
-                      <div className="flex items-center gap-2 rounded-2xl border border-line/40 bg-canvas px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
+                      <div className="flex items-center gap-2 rounded-2xl border border-line bg-canvas px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
                         <Clock3 className="size-4 shrink-0 text-muted" />
                         <select
                           className="min-w-0 flex-1 bg-transparent outline-none"
@@ -306,7 +306,7 @@ export function AutomationsPage({
                     <label className="md:col-span-2 mt-1 flex flex-col gap-2">
                       <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Prompt</span>
                       <textarea
-                        className="min-h-[280px] rounded-[1.5rem] border border-line/40 bg-canvas px-4 py-3 text-sm leading-6 text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
+                        className="min-h-[280px] rounded-[1.5rem] border border-line bg-canvas px-4 py-3 text-sm leading-6 text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
                         onChange={(event) => setDraft((current) => ({ ...current, prompt: event.target.value }))}
                         placeholder="Describe the recurring task clearly enough that it can run without more setup."
                         value={draft.prompt}
@@ -321,7 +321,7 @@ export function AutomationsPage({
                       />
                     </div>
 
-                    <details className="md:col-span-2 rounded-2xl border border-line/40 bg-canvas px-4 py-3">
+                    <details className="md:col-span-2 rounded-2xl border border-line bg-canvas px-4 py-3">
                       <summary className="cursor-pointer select-none text-sm font-medium text-ink">
                         Advanced settings
                       </summary>
@@ -332,7 +332,7 @@ export function AutomationsPage({
                         <label className="flex flex-col gap-2">
                           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Template</span>
                           <input
-                            className="rounded-2xl border border-line/40 bg-white px-3 py-2 text-sm text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
+                            className="rounded-2xl border border-line bg-surface-high px-3 py-2 text-sm text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
                             onChange={(event) => setDraft((current) => ({ ...current, template: event.target.value }))}
                             placeholder="Daily brief, inbox triage, release review..."
                             value={draft.template}
@@ -341,7 +341,7 @@ export function AutomationsPage({
 
                         <label className="flex flex-col gap-2">
                           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Status</span>
-                          <div className="flex items-center gap-2 rounded-2xl border border-line/40 bg-white px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
+                          <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface-high px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
                             <select
                               className="min-w-0 flex-1 bg-transparent outline-none"
                               onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value as "ACTIVE" | "PAUSED" }))}
@@ -356,7 +356,7 @@ export function AutomationsPage({
                         <label className="flex flex-col gap-2">
                           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Model</span>
                           <input
-                            className="rounded-2xl border border-line/40 bg-white px-3 py-2 text-sm text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
+                            className="rounded-2xl border border-line bg-surface-high px-3 py-2 text-sm text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
                             onChange={(event) => setDraft((current) => ({ ...current, model: event.target.value }))}
                             value={draft.model}
                           />
@@ -364,7 +364,7 @@ export function AutomationsPage({
 
                         <label className="flex flex-col gap-2">
                           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Reasoning</span>
-                          <div className="flex items-center gap-2 rounded-2xl border border-line/40 bg-white px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
+                          <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface-high px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
                             <select
                               className="min-w-0 flex-1 bg-transparent outline-none"
                               onChange={(event) => setDraft((current) => ({ ...current, reasoningEffort: event.target.value }))}
@@ -385,7 +385,7 @@ export function AutomationsPage({
               )}
             </section>
 
-            <aside className="rounded-[2rem] bg-white p-6 shadow-[0_12px_30px_rgba(10,15,20,0.05)]">
+            <aside className="rounded-[2rem] border border-line bg-surface-high p-6">
               <h2 className="text-lg font-semibold text-ink">Recent runs</h2>
               {selectedAutomation?.runs.length ? (
                 <div className="mt-4 space-y-3">

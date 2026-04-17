@@ -53,7 +53,7 @@ export function AppDetailView({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-line/40 px-4 py-3">
+      <div className="flex items-center gap-3 border-b border-line px-4 py-3">
         <button
           className="flex size-7 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-soft hover:text-ink"
           onClick={onBack}
@@ -109,14 +109,14 @@ export function AppDetailView({
                 </p>
               ) : isConnected ? (
                 <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-1 rounded-md bg-green-50 px-2 py-1 text-[11px] font-medium text-green-700">
+                  <span className="flex items-center gap-1 rounded-md bg-success-faint px-2 py-1 text-[11px] font-medium text-success">
                     <Check className="size-3" />
                     Connected
                   </span>
                 </div>
               ) : needsConnect ? (
                 <div className="flex items-center gap-3">
-                  <span className="rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-600">Auth required</span>
+                  <span className="rounded bg-warning-faint px-2 py-1 text-[11px] text-warning">Auth required</span>
                   <Button
                     className="h-7 rounded-lg px-3 text-[11px]"
                     disabled={pendingActionKey === connectKey}

@@ -34,10 +34,10 @@ function MetadataRow({ label, value }: { label: string; value: string | number |
 function HealthBadge({ state }: { state: string }) {
   const color =
     state === "healthy"
-      ? "bg-green-50 text-green-700"
+      ? "bg-success-faint text-success"
       : state === "warning"
-        ? "bg-amber-50 text-amber-600"
-        : "bg-red-50 text-red-600";
+        ? "bg-warning-faint text-warning"
+        : "bg-danger-faint text-danger";
   return <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${color}`}>{state}</span>;
 }
 
@@ -64,7 +64,7 @@ export function McpDetailView({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-line/40 px-4 py-3">
+      <div className="flex items-center gap-3 border-b border-line px-4 py-3">
         <button
           className="flex size-7 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-soft hover:text-ink"
           onClick={onBack}
@@ -112,21 +112,17 @@ export function McpDetailView({
             <SectionHeading>Status</SectionHeading>
             <div className="flex items-center gap-3 rounded-xl bg-surface-soft px-3 py-3">
               <HealthBadge state={managedRecord.healthState} />
-              {!runtimeStateKnown ? (
-                <span className="rounded bg-amber-50 px-2 py-0.5 text-[11px] text-amber-600">
-                  Runtime status unavailable
-                </span>
-              ) : isConnected ? (
-                <span className="flex items-center gap-1 rounded-md bg-green-50 px-2 py-1 text-[11px] font-medium text-green-700">
+              {isConnected ? (
+                <span className="flex items-center gap-1 rounded-md bg-success-faint px-2 py-1 text-[11px] font-medium text-success">
                   <Check className="size-3" />
                   Connected
                 </span>
               ) : needsConnect ? (
-                <span className="rounded bg-amber-50 px-2 py-0.5 text-[11px] text-amber-600">
+                <span className="rounded bg-warning-faint px-2 py-0.5 text-[11px] text-warning">
                   Auth required
                 </span>
               ) : authState !== "not-required" ? (
-                <span className="rounded bg-amber-50 px-2 py-0.5 text-[11px] text-amber-600">
+                <span className="rounded bg-warning-faint px-2 py-0.5 text-[11px] text-warning">
                   Auth: {authState}
                 </span>
               ) : null}
@@ -138,7 +134,7 @@ export function McpDetailView({
             <section>
               <SectionHeading>Authentication</SectionHeading>
               <div className="flex items-center gap-3 rounded-xl bg-surface-soft px-3 py-3">
-                <span className="rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-600">Auth required</span>
+                <span className="rounded bg-warning-faint px-2 py-1 text-[11px] text-warning">Auth required</span>
                 <Button
                   className="h-7 rounded-lg px-3 text-[11px]"
                   disabled={pendingActionKey === authKey}
