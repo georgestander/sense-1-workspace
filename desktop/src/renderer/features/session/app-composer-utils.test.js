@@ -181,3 +181,40 @@ test("buildSelectedThreadRunRequest keeps seeded shortcut mentions only while th
     },
   );
 });
+
+test("buildSelectedThreadRunRequest retains seeded plugin mentions when the prompt token differs from the mention name", () => {
+  assert.deepEqual(
+    buildSelectedThreadRunRequest({
+      attachedFiles: [],
+      inputItems: [
+        {
+          type: "mention",
+          name: "life-science-research:research-router-skill",
+          path: "/Users/georgestander/.codex/plugins/life-science-research/skills/research-router-skill/SKILL.md",
+          token: "life-science-research",
+        },
+      ],
+      selectedThread: {
+        cwd: "/tmp/workspace",
+        id: "thread-1",
+        workspaceRoot: "/tmp/workspace",
+      },
+      threadPrompt: "  $life-science-research find pathway evidence for STAT3  ",
+    }),
+    {
+      attachments: undefined,
+      cwd: "/tmp/workspace",
+      inputItems: [
+        {
+          type: "mention",
+          name: "life-science-research:research-router-skill",
+          path: "/Users/georgestander/.codex/plugins/life-science-research/skills/research-router-skill/SKILL.md",
+          token: "life-science-research",
+        },
+      ],
+      prompt: "$life-science-research find pathway evidence for STAT3",
+      threadId: "thread-1",
+      workspaceRoot: "/tmp/workspace",
+    },
+  );
+});

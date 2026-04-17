@@ -651,6 +651,19 @@ function buildFallbackAppsFromPluginMetadata(
   appConfig: Record<string, unknown>,
 ): DesktopAppRecord[] {
   const recordByKey = new Map<string, DesktopAppRecord>();
+  const configByCanonicalKey = new Map<string, Record<string, unknown>>();
+
+  for (const [configAppId, rawConfig] of Object.entries(appConfig)) {
+    const key = canonicalAppKey(configAppId);
+    if (!key) {
+      continue;
+    }
+    configByCanonicalKey.set(key, {
+      ...(configByCanonicalKey.get(key) ?? {}),
+      ...asRecord(rawConfig),
+    });
+  }
+
   for (const app of apps) {
     const key = canonicalAppKey(app.id);
     if (!key || recordByKey.has(key)) {
@@ -673,7 +686,7 @@ function buildFallbackAppsFromPluginMetadata(
       if (!key || recordByKey.has(key)) {
         continue;
       }
-      const config = asRecord(appConfig[appId]);
+      const config = configByCanonicalKey.get(key) ?? asRecord(appConfig[appId]);
       recordByKey.set(key, {
         id: appId,
         name: humanizeAppId(appId),
@@ -694,7 +707,7 @@ function buildFallbackAppsFromPluginMetadata(
     if (!key || recordByKey.has(key)) {
       continue;
     }
-    const config = asRecord(rawConfig);
+    const config = configByCanonicalKey.get(key) ?? asRecord(rawConfig);
     recordByKey.set(key, {
       id: appId,
       name: humanizeAppId(appId),

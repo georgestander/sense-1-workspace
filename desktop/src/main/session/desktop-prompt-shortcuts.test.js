@@ -412,6 +412,7 @@ test("resolveManagedExtensionPromptShortcut resolves bundled plugin skills and c
         type: "mention",
         name: "sentry:sentry",
         path: "/Users/george/.codex/plugins/sentry/skills/sentry/SKILL.md",
+        token: "sentry",
       },
       kind: "plugin",
       label: "Sentry",
@@ -435,6 +436,7 @@ test("resolveManagedExtensionPromptShortcut resolves bundled plugin skills and c
         type: "mention",
         name: "Linear",
         path: "app://linear",
+        token: "linear",
       },
       kind: "app",
       label: "Linear",
@@ -493,6 +495,32 @@ test("resolvePromptShortcutInputItems routes multi-skill plugin aliases to the r
         type: "mention",
         name: "life-science-research:research-router-skill",
         path: "/Users/george/.codex/plugins/life-science-research/skills/research-router-skill/SKILL.md",
+      },
+    ],
+  );
+});
+
+test("resolveInputItemPromptShortcutMatches prefers explicit seeded shortcut tokens over derived mention names", () => {
+  assert.deepEqual(
+    resolveInputItemPromptShortcutMatches([
+      {
+        type: "mention",
+        name: "life-science-research:research-router-skill",
+        path: "/Users/george/.codex/plugins/life-science-research/skills/research-router-skill/SKILL.md",
+        token: "life-science-research",
+      },
+    ]),
+    [
+      {
+        item: {
+          type: "mention",
+          name: "life-science-research:research-router-skill",
+          path: "/Users/george/.codex/plugins/life-science-research/skills/research-router-skill/SKILL.md",
+          token: "life-science-research",
+        },
+        kind: "skill",
+        label: "research-router-skill",
+        token: "life-science-research",
       },
     ],
   );

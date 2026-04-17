@@ -2742,6 +2742,76 @@ test("getOverview synthesizes plugin-owned apps from local metadata when app/lis
   }
 });
 
+test("getOverview applies canonical app toggle keys to synthesized fallback plugin apps", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const pluginRoot = await createInstalledPluginFixture();
+  try {
+    const service = new DesktopExtensionService({
+      env,
+      manager: createManager(async (method) => {
+        if (method === "config/read") {
+          return {
+            config: {
+              apps: {
+                gmail: {
+                  enabled: false,
+                },
+              },
+              plugins: {
+                gmail: {
+                  enabled: true,
+                },
+              },
+            },
+          };
+        }
+        if (method === "plugin/list") {
+          return {
+            marketplaces: [
+              {
+                name: "OpenAI Curated",
+                path: "/tmp/curated.json",
+                plugins: [
+                  {
+                    id: "gmail",
+                    name: "gmail",
+                    installed: true,
+                    enabled: true,
+                    source: { path: pluginRoot },
+                    interface: { displayName: "Gmail" },
+                  },
+                ],
+              },
+            ],
+          };
+        }
+        if (method === "app/list") {
+          throw new Error("failed to list apps: 403 Forbidden");
+        }
+        if (method === "mcpServerStatus/list") return { data: [] };
+        if (method === "skills/list") return { data: [] };
+        if (method === "account/read") return createAccountReadResult();
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.getOverview({ forceRefetch: true });
+
+    assert.equal(overview.apps[0]?.id, "connector_gmail");
+    assert.equal(overview.apps[0]?.isEnabled, false);
+    assert.equal(findManagedExtension(overview, "app", "connector_gmail")?.enablementState, "disabled");
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+    await fs.rm(pluginRoot, { force: true, recursive: true });
+  }
+});
+
 test("getOverview keeps standalone configured apps visible when app/list fails", async () => {
   const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
   const env = {

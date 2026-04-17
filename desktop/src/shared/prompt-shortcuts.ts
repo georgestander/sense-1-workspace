@@ -768,6 +768,7 @@ export function resolveManagedExtensionPromptShortcut(
           type: "mention",
           name: pluginSkillMatch.skill.name,
           path: pluginSkillMatch.skill.path,
+          token,
         },
         kind: "plugin",
         label: plugin.displayName,
@@ -786,6 +787,7 @@ export function resolveManagedExtensionPromptShortcut(
         type: "mention",
         name: plugin.displayName,
         path: `app://${pluginAppMatch.appId}`,
+        token,
       },
       kind: "app",
       label: plugin.displayName,
@@ -812,6 +814,7 @@ export function resolveManagedExtensionPromptShortcut(
         type: "mention",
         name: app.name,
         path: `app://${app.id}`,
+        token,
       },
       kind: "app",
       label: app.name,
@@ -840,6 +843,7 @@ export function resolveManagedExtensionPromptShortcut(
         type: "mention",
         name: skill.name,
         path: skill.path,
+        token,
       },
       kind: skill.scope === "plugin" ? "plugin" : "skill",
       label: buildSkillLabel(skill),
@@ -899,6 +903,7 @@ export function resolveInputItemPromptShortcutMatches(
 
     const itemName = firstString(item.name);
     const normalizedName = normalizeShortcutKey(itemName);
+    const explicitToken = normalizeShortcutKey(item.token);
     const parts = normalizedName?.split(":").filter(Boolean) ?? [];
     const namespace = parts[0] ?? null;
     const localName = parts.at(-1) ?? null;
@@ -914,7 +919,7 @@ export function resolveInputItemPromptShortcutMatches(
         : parts.length >= 2 && namespace === localName
           ? "plugin"
           : "skill";
-    const token = localName ?? normalizedName ?? fallbackToken;
+    const token = explicitToken ?? localName ?? normalizedName ?? fallbackToken;
     if (!token) {
       continue;
     }
