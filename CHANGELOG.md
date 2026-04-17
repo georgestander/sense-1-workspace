@@ -4,21 +4,25 @@ All notable changes to Sense-1 Workspace are recorded here.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-04-17
+
 ### Added
 
-- Dark mode. `data-theme` attribute on `<html>` with light / dark / system values, persisted in `localStorage` and applied pre-paint via an inline script in `index.html` to avoid FOUC. System follows `prefers-color-scheme`. Picker in Settings → General → Appearance.
-- Semantic status tokens: `--color-danger`, `--color-warning`, `--color-success` (and `-faint` variants) for error, attention, and confirmed states.
-- Theme-aware shadow tokens: `--shadow-raised`, `--shadow-menu`, `--shadow-overlay`, `--shadow-composer`. Deeper alphas in dark mode so shadows remain visible.
-- Richer Lucide file icons covering code, JSON, shell, config, archive, media, and font types, plus special filenames (package.json, Dockerfile, .lockb, etc.).
-- Right-rail Progress section now shows an N/M badge in the header and a percent progress bar.
+- Appearance settings with light, dark, and system themes, applied before paint so Sense-1 avoids theme-flash on launch.
+- Richer extension management with dedicated detail views, healthier activation state handling, and clearer runtime feedback when plugins or MCP entries go bad.
+- Expanded file icons and a clearer right-rail Progress section with an item count badge and percent bar.
 
 ### Changed
 
-- Rebuilt the token palette on neutral chroma. Light canvas is pure white (`oklch(1 0 0)`), dark canvas is near-black (`oklch(0.06 0 0)`). Killed the blue-gray body gradient.
-- Rebuilt `ui/button` and `ui/input` primitives on tokens only — no more `bg-white` / `bg-red-600` / `text-white`.
-- Purged ~90 hardcoded color leaks across 20+ files (`bg-white`, `bg-red-50`, `bg-amber-50`, `bg-green-50`, inline `text-[oklch(...)]`, `text-black`, `text-emerald-600`) in favor of tokens. Fixed `text-white` on `bg-ink` buttons to `text-canvas` so text stays readable when `bg-ink` flips in dark mode.
-- Compact rails: left `w-72` → `w-64`, right `w-80` → `w-72`. Tighter padding (`p-3/4` → `p-2/3`) and smaller radii (`rounded-2xl` → `rounded-lg`) on nav buttons and section cards.
-- `DESIGN.md`: token tables rewritten to match implemented palette; no-line rule amended to permit ghost hairlines via `--color-line` on menus / modals / inputs where tonal shifts are insufficient on near-white or near-black canvas; added Shadow Tokens and Theming API sections.
+- Rebuilt the visual token system around true light and near-black dark surfaces, including theme-aware shadow tokens and fully token-driven button and input primitives.
+- Tightened the shell layout with more compact side rails, denser section cards, and cleaner thread chrome so more of the workspace stays visible at once.
+- Hardened extension lifecycle handling so activation follows native runtime truth, invalid plugin MCP entries are quarantined instead of poisoning the backend, and management state stays recoverable across restarts.
+
+### Fixed
+
+- Guarded theme persistence against `localStorage` security errors so appearance setup fails safely in restricted environments.
+- Reduced noisy connector and MCP failure states by validating transport and renderable URLs more carefully before surfacing extension actions in the UI.
+- Kept Sense-1 auth handoff, seeded mentions, fallback app toggles, and extension reload behavior aligned with the desktop runtime contract.
 
 ## [0.10.0] - 2026-04-15
 
