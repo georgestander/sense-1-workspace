@@ -6,27 +6,105 @@
   --font-display: 'Manrope', system-ui, -apple-system, sans-serif;
   --radius: 1rem;
 
-  --color-canvas: oklch(0.98 0.005 200);
-  --color-surface: oklch(0.96 0.01 200);
-  --color-surface-soft: oklch(0.955 0.008 200);
-  --color-surface-low: oklch(0.955 0.008 200);
+  --color-canvas: oklch(1 0 0);
+  --color-surface: oklch(0.99 0 0);
+  --color-surface-soft: oklch(0.975 0 0);
+  --color-surface-low: oklch(0.975 0 0);
   --color-surface-strong: oklch(1 0 0);
   --color-surface-high: oklch(1 0 0);
-  --color-surface-glass: oklch(1 0 0 / 70%);
-  --color-ink: oklch(0.25 0.01 200);
-  --color-ink-soft: oklch(0.45 0.01 200);
-  --color-ink-faint: oklch(0.45 0.01 200);
-  --color-ink-muted: oklch(0.55 0.008 200);
-  --color-muted: oklch(0.55 0.008 200);
-  --color-line: oklch(0.75 0.008 200 / 15%);
+  --color-surface-glass: oklch(1 0 0 / 85%);
+  --color-ink: oklch(0.12 0 0);
+  --color-ink-soft: oklch(0.32 0 0);
+  --color-ink-faint: oklch(0.48 0 0);
+  --color-ink-muted: oklch(0.58 0 0);
+  --color-muted: oklch(0.58 0 0);
+  --color-line: oklch(0.85 0 0 / 60%);
   --color-accent: oklch(0.625 0.038 243);
   --color-accent-faint: oklch(0.625 0.038 243 / 10%);
   --color-on-accent: oklch(1 0 0);
+  --color-danger: oklch(0.55 0.18 25);
+  --color-danger-faint: oklch(0.55 0.18 25 / 10%);
+  --color-on-danger: oklch(1 0 0);
+  --color-warning: oklch(0.72 0.15 75);
+  --color-warning-faint: oklch(0.72 0.15 75 / 12%);
+  --color-success: oklch(0.62 0.14 150);
+  --color-success-faint: oklch(0.62 0.14 150 / 10%);
+}
+
+/* Dark theme token overrides.
+ * Applied when [data-theme="dark"] is set explicitly, OR when
+ * [data-theme="system"] / no explicit theme is set AND the user's OS is dark. */
+[data-theme="dark"],
+:root:not([data-theme="light"]):not([data-theme="dark"]) {
+  /* no-op placeholder; specificity target for system-mode override below */
+}
+
+[data-theme="dark"] {
+  --color-canvas: oklch(0.12 0 0);
+  --color-surface: oklch(0.14 0 0);
+  --color-surface-soft: oklch(0.10 0 0);
+  --color-surface-low: oklch(0.10 0 0);
+  --color-surface-strong: oklch(0.18 0 0);
+  --color-surface-high: oklch(0.18 0 0);
+  --color-surface-glass: oklch(0.15 0 0 / 80%);
+  --color-ink: oklch(0.96 0 0);
+  --color-ink-soft: oklch(0.75 0 0);
+  --color-ink-faint: oklch(0.62 0 0);
+  --color-ink-muted: oklch(0.48 0 0);
+  --color-muted: oklch(0.48 0 0);
+  --color-line: oklch(0.35 0 0 / 50%);
+  --color-accent: oklch(0.72 0.04 243);
+  --color-accent-faint: oklch(0.72 0.04 243 / 12%);
+  --color-on-accent: oklch(1 0 0);
+  --color-danger: oklch(0.65 0.18 25);
+  --color-danger-faint: oklch(0.65 0.18 25 / 14%);
+  --color-warning: oklch(0.78 0.15 75);
+  --color-warning-faint: oklch(0.78 0.15 75 / 14%);
+  --color-success: oklch(0.70 0.14 150);
+  --color-success-faint: oklch(0.70 0.14 150 / 12%);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] {
+    --color-canvas: oklch(0.12 0 0);
+    --color-surface: oklch(0.14 0 0);
+    --color-surface-soft: oklch(0.10 0 0);
+    --color-surface-low: oklch(0.10 0 0);
+    --color-surface-strong: oklch(0.18 0 0);
+    --color-surface-high: oklch(0.18 0 0);
+    --color-surface-glass: oklch(0.15 0 0 / 80%);
+    --color-ink: oklch(0.96 0 0);
+    --color-ink-soft: oklch(0.75 0 0);
+    --color-ink-faint: oklch(0.62 0 0);
+    --color-ink-muted: oklch(0.48 0 0);
+    --color-muted: oklch(0.48 0 0);
+    --color-line: oklch(0.35 0 0 / 50%);
+    --color-accent: oklch(0.72 0.04 243);
+    --color-accent-faint: oklch(0.72 0.04 243 / 12%);
+    --color-on-accent: oklch(1 0 0);
+    --color-danger: oklch(0.65 0.18 25);
+    --color-danger-faint: oklch(0.65 0.18 25 / 14%);
+    --color-warning: oklch(0.78 0.15 75);
+    --color-warning-faint: oklch(0.78 0.15 75 / 14%);
+    --color-success: oklch(0.70 0.14 150);
+    --color-success-faint: oklch(0.70 0.14 150 / 12%);
+  }
 }
 
 :root {
   color: var(--color-ink);
   background-color: var(--color-canvas);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] {
+    color-scheme: dark;
+  }
 }
 
 html,
@@ -40,12 +118,11 @@ body {
   margin: 0;
   font-family: var(--font-sans);
   color: var(--color-ink);
-  background: radial-gradient(1200px 700px at 84% -6%, rgba(76, 94, 125, 0.08), transparent 58%),
-    linear-gradient(180deg, var(--color-canvas) 0%, oklch(0.968 0.003 224) 100%);
+  background: var(--color-canvas);
 }
 
 ::selection {
-  background: color-mix(in oklch, var(--color-accent) 32%, white);
+  background: var(--color-accent-faint);
   color: var(--color-ink);
 }
 
@@ -59,12 +136,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.25 0.01 200);
+  background: color-mix(in oklch, var(--color-ink) 20%, transparent);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.15 0.01 200);
+  background: color-mix(in oklch, var(--color-ink) 35%, transparent);
 }
 
 .fade-up {
@@ -225,7 +302,7 @@ body {
   margin: 0.5rem 0 0.25rem;
   overflow-x: auto;
   border-radius: 0;
-  background: var(--color-canvas);
+  background: var(--color-surface-soft);
   padding: 0.6rem 0.85rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.75rem;
