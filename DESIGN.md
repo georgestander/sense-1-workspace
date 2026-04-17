@@ -14,51 +14,87 @@ We move away from hex-based thinking toward **Perceptual Uniformity**. All color
 
 ### The "No-Line" Rule
 
-**Explicit Mandate:** 1px solid borders are prohibited for sectioning.
+**Mandate:** Full-opacity 1px borders are prohibited for sectioning. Solid grey/black borders are not a legitimate separation tool in this system.
 
-Structure is defined through:
+Structure is defined, in order of preference:
 
-1. **Background Shifts:** Moving from `surface` to `surface-container-low`.
+1. **Background Shifts:** Moving from `canvas` to `surface-low` (rails, recessed) or `surface-high` (elevated cards, menus).
 2. **Negative Space:** Using the Spacing Scale to create "islands" of content.
 3. **Tonal Transitions:** Subtle value shifts that imply a boundary without drawing a line.
+4. **Elevation via Shadow:** `--shadow-raised` / `--shadow-menu` / `--shadow-overlay` on cards that float above the canvas.
+
+**Permitted exception — ghost hairlines via `--color-line`.** When canvas and surface tiers are both near-white (light) or near-black (dark), tonal layering alone cannot make the boundary of a floating menu, modal, or card unambiguous. In those cases, apply a single `border border-line` hairline. `--color-line` is always a low-opacity token (~15–60% alpha depending on mode), never a raw grey/black. Do not use `border-line/40`, `border-line/60` as differentiator knobs — the token already carries the correct opacity. Never replace a missing background shift with a dark solid border.
+
+**Applies to:** modal cards, dropdown/popover menus, composer panels, form inputs (where the border is the primary visual affordance), rename forms. **Does not apply to:** body text dividers, section headers, list separators — those continue to rely on spacing and tonal shifts only.
 
 ### CSS Token Mapping
 
 Every color in the system is referenced by its semantic token. Implementations must use these tokens, never raw values.
 
+The palette is **neutral** (chroma = 0) across all greys and neutrals so that "white" reads as true white and "black" as true black. Only accent, danger, warning, and success carry chroma. Light mode canvas is pure white; dark mode canvas is near-black (≈6% lightness, not 0 — 0 is harsh on OLED). Surfaces step tonally around canvas.
+
 #### Light Mode
 
 | Semantic Token | UI Role | Value |
 | :--- | :--- | :--- |
-| `--color-canvas` | Base background | `oklch(98% 0.005 200)` |
-| `--color-surface` | Default containers | `oklch(96% 0.01 200)` |
-| `--color-surface-low` | Recessed sections / sidebars | `oklch(95.5% 0.008 200)` |
-| `--color-surface-high` | Elevated cards | `oklch(100% 0 0)` |
-| `--color-surface-glass` | Floating elements | `oklch(100% 0 0 / 70%)` + `backdrop-blur(12px)` |
-| `--color-ink` | Primary text | `oklch(25% 0.01 200)` |
-| `--color-ink-faint` | Secondary text / labels | `oklch(45% 0.01 200)` |
-| `--color-ink-muted` | Timestamps / shortcuts | `oklch(55% 0.008 200)` |
-| `--color-accent` | Key actions / links / focus | `oklch(62.5% 0.038 243)` |
-| `--color-accent-faint` | Governed badges / accent bg | `oklch(62.5% 0.038 243 / 10%)` |
-| `--color-line` | Ghost borders (accessibility) | `oklch(75% 0.008 200 / 15%)` |
-| `--color-on-accent` | Text on accent backgrounds | `oklch(100% 0 0)` |
+| `--color-canvas` | Base background | `oklch(1 0 0)` — pure white |
+| `--color-surface` | Default containers sitting on canvas | `oklch(0.99 0 0)` |
+| `--color-surface-soft` / `-low` | Recessed sections / sidebars | `oklch(0.975 0 0)` |
+| `--color-surface-high` / `-strong` | Elevated cards, inputs, menus | `oklch(1 0 0)` |
+| `--color-surface-glass` | Floating elements | `oklch(1 0 0 / 85%)` + `backdrop-blur(12px)` |
+| `--color-ink` | Primary text | `oklch(0.12 0 0)` — near-black |
+| `--color-ink-soft` | Body secondary | `oklch(0.32 0 0)` |
+| `--color-ink-faint` | Labels | `oklch(0.48 0 0)` |
+| `--color-ink-muted` | Timestamps / shortcuts | `oklch(0.58 0 0)` |
+| `--color-accent` | Key actions / links / focus | `oklch(0.625 0.038 243)` — soft blue |
+| `--color-accent-faint` | Accent badges / accent bg | `oklch(0.625 0.038 243 / 10%)` |
+| `--color-line` | Ghost hairline (exception only) | `oklch(0.85 0 0 / 60%)` |
+| `--color-on-accent` | Text on accent backgrounds | `oklch(1 0 0)` |
+| `--color-danger` / `-faint` | Destructive / error state | `oklch(0.55 0.18 25)` / 10% |
+| `--color-warning` / `-faint` | Warning / attention state | `oklch(0.72 0.15 75)` / 12% |
+| `--color-success` / `-faint` | Confirmed / connected state | `oklch(0.62 0.14 150)` / 10% |
 
 #### Dark Mode
 
 | Semantic Token | UI Role | Value |
 | :--- | :--- | :--- |
-| `--color-canvas` | Base background | `oklch(13% 0.01 248)` |
-| `--color-surface` | Default containers | `oklch(16% 0.012 248)` |
-| `--color-surface-low` | Recessed sections / sidebars | `oklch(14.5% 0.011 248)` |
-| `--color-surface-high` | Elevated cards | `oklch(20% 0.015 248)` |
-| `--color-surface-glass` | Floating elements | `oklch(18% 0.012 248 / 60%)` + `backdrop-blur(12px)` |
-| `--color-ink` | Primary text | `oklch(90% 0.01 220)` |
-| `--color-ink-faint` | Secondary text / labels | `oklch(70% 0.012 220)` |
-| `--color-ink-muted` | Timestamps / shortcuts | `oklch(55% 0.008 220)` |
-| `--color-accent` | Key actions / links / focus | `oklch(72% 0.04 220)` |
-| `--color-accent-faint` | Governed badges / accent bg | `oklch(72% 0.04 220 / 10%)` |
-| `--color-line` | Ghost borders (accessibility) | `oklch(40% 0.01 248 / 15%)` |
-| `--color-on-accent` | Text on accent backgrounds | `oklch(15% 0.01 248)` |
+| `--color-canvas` | Base background | `oklch(0.06 0 0)` — near-black |
+| `--color-surface` | Default containers | `oklch(0.08 0 0)` |
+| `--color-surface-soft` / `-low` | Recessed sections / sidebars | `oklch(0.04 0 0)` (darker than canvas) |
+| `--color-surface-high` / `-strong` | Elevated cards, inputs, menus | `oklch(0.12 0 0)` |
+| `--color-surface-glass` | Floating elements | `oklch(0.09 0 0 / 82%)` + `backdrop-blur(12px)` |
+| `--color-ink` | Primary text | `oklch(0.97 0 0)` — near-white |
+| `--color-ink-soft` | Body secondary | `oklch(0.78 0 0)` |
+| `--color-ink-faint` | Labels | `oklch(0.62 0 0)` |
+| `--color-ink-muted` | Timestamps / shortcuts | `oklch(0.48 0 0)` |
+| `--color-accent` | Key actions / links / focus | `oklch(0.72 0.04 243)` |
+| `--color-accent-faint` | Accent badges / accent bg | `oklch(0.72 0.04 243 / 14%)` |
+| `--color-line` | Ghost hairline (exception only) | `oklch(0.30 0 0 / 55%)` |
+| `--color-on-accent` | Text on accent backgrounds | `oklch(1 0 0)` |
+| `--color-danger` / `-faint` | Destructive / error state | `oklch(0.65 0.18 25)` / 16% |
+| `--color-warning` / `-faint` | Warning / attention state | `oklch(0.78 0.15 75)` / 16% |
+| `--color-success` / `-faint` | Confirmed / connected state | `oklch(0.70 0.14 150)` / 14% |
+
+#### Shadow Tokens
+
+Shadows use pure black with alpha — deeper in dark mode so they remain visible against dark surfaces.
+
+| Token | Light | Dark | Use |
+| :--- | :--- | :--- | :--- |
+| `--shadow-raised` | `0 4px 12px rgb(0 0 0 / 0.08)` | `0 4px 12px rgb(0 0 0 / 0.55)` | Small lift: pills, toasts, raised buttons |
+| `--shadow-menu` | `0 20px 40px -10px rgb(0 0 0 / 0.12)` | same @ 0.65 | Dropdowns, popovers, rename forms |
+| `--shadow-overlay` | `0 20px 60px rgb(0 0 0 / 0.10)` | same @ 0.75 | Modals, auth cards |
+| `--shadow-composer` | `0 -12px 28px rgb(0 0 0 / 0.05)` | same @ 0.6 | Floating composer (upward shadow) |
+
+#### Theming
+
+The active theme is selected by a `data-theme` attribute on `<html>`:
+
+- `data-theme="light"` — forces light palette
+- `data-theme="dark"` — forces dark palette
+- `data-theme="system"` (default) — follows the OS via `prefers-color-scheme`
+
+The preference is stored in `localStorage` under `sense1-theme` and applied pre-paint via a small inline script in `index.html` to avoid FOUC.
 
 ### Surface Hierarchy & Nesting
 
