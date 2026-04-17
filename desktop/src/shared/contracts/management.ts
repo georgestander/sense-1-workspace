@@ -40,7 +40,7 @@ export interface DesktopPluginRecord {
 export type DesktopManagedExtensionKind = "plugin" | "skill" | "app" | "mcp";
 export type DesktopManagedExtensionInstallState = "discoverable" | "installed";
 export type DesktopManagedExtensionEnablementState = "enabled" | "disabled";
-export type DesktopManagedExtensionAuthState = "not-required" | "required" | "connected" | "failed";
+export type DesktopManagedExtensionAuthState = "not-required" | "required" | "connected" | "failed" | "unknown";
 export type DesktopManagedExtensionHealthState = "healthy" | "warning" | "error";
 export type DesktopManagedExtensionOwnership = "built-in" | "profile-owned" | "plugin-owned" | "marketplace-installed";
 
@@ -79,6 +79,8 @@ export interface DesktopAppRecord {
   readonly isEnabled: boolean;
   readonly pluginDisplayNames: string[];
   readonly logoUrl: string | null;
+  readonly source: "runtime" | "local-fallback";
+  readonly runtimeStateKnown: boolean;
 }
 
 export interface DesktopMcpServerRecord {
@@ -91,6 +93,9 @@ export interface DesktopMcpServerRecord {
   readonly transport: string | null;
   readonly command: string | null;
   readonly url: string | null;
+  readonly source: "runtime" | "local-fallback";
+  readonly runtimeStateKnown: boolean;
+  readonly invalidReason: string | null;
 }
 
 export interface DesktopSkillRecord {

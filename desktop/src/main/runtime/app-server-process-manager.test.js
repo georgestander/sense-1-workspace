@@ -347,6 +347,51 @@ test("start preserves an existing profile config and keeps runtime behavior pinn
   }
 });
 
+test("start canonicalizes malformed managed inventory keys in profile config before runtime boot", async () => {
+  const tempBase = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-app-server-config-canonicalize-"));
+  const codexHome = path.join(tempBase, "profiles", "test-profile", "codex-home");
+  const profileConfigPath = path.join(codexHome, "config.toml");
+  const malformedProfileConfig = [
+    'approval_policy = "never"',
+    'sandbox_mode = "danger-full-access"',
+    "",
+    `[plugins.'"sentry@openai-curated"']`,
+    "enabled = true",
+    `apps.'"connector_test"'.enabled = true`,
+    `[mcp_servers.'"cloudflare-api"']`,
+    "enabled = false",
+  ].join("\n");
+  const canonicalProfileConfig = [
+    'approval_policy = "never"',
+    'sandbox_mode = "danger-full-access"',
+    "",
+    '[plugins."sentry@openai-curated"]',
+    "enabled = true",
+    'apps.connector_test.enabled = true',
+    "[mcp_servers.cloudflare-api]",
+    "enabled = false",
+  ].join("\n");
+  const manager = createManager(["--report-config-context"], { codexHome });
+
+  try {
+    await fs.mkdir(path.dirname(profileConfigPath), { recursive: true });
+    await fs.writeFile(profileConfigPath, malformedProfileConfig, "utf8");
+
+    await manager.start();
+
+    assert.equal(await fs.readFile(profileConfigPath, "utf8"), canonicalProfileConfig);
+    const context = await manager.request("runtimeContext");
+    assert.deepEqual(context.configContext, {
+      contents: canonicalProfileConfig,
+      path: profileConfigPath,
+      source: "profile",
+    });
+  } finally {
+    await manager.stop().catch(() => {});
+    await fs.rm(tempBase, { force: true, recursive: true });
+  }
+});
+
 test("start seeds a profile config when one does not exist yet", async () => {
   const tempBase = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-app-server-config-seed-"));
   const codexHome = path.join(tempBase, "profiles", "test-profile", "codex-home");

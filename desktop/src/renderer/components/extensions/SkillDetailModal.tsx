@@ -1,16 +1,19 @@
 import { ExternalLink, MessageSquare, Sparkles, Trash2, X } from "lucide-react";
 
-import type { DesktopManagedExtensionRecord, DesktopSkillRecord } from "../../../main/contracts";
+import type { DesktopExtensionOverviewResult, DesktopManagedExtensionRecord, DesktopSkillRecord } from "../../../main/contracts";
+import type { DesktopPromptShortcutSuggestion } from "../../../shared/prompt-shortcuts.ts";
+import { resolveManagedExtensionPromptShortcut } from "../../../shared/prompt-shortcuts.ts";
 import { Button } from "../ui/button";
 
 type SkillDetailModalProps = {
   managedRecord: DesktopManagedExtensionRecord;
   legacySkill: DesktopSkillRecord | undefined;
+  overview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills">;
   onClose: () => void;
   onToggleEnabled: (next: boolean) => void;
   onUninstall: () => void;
   onOpen: () => void;
-  onTryInChat?: (name: string) => void;
+  onTryInChat?: (shortcut: DesktopPromptShortcutSuggestion) => void;
   pendingActionKey: string | null;
   Toggle: React.ComponentType<{ checked: boolean; disabled?: boolean; onChange?: (next: boolean) => void }>;
 };
@@ -18,6 +21,7 @@ type SkillDetailModalProps = {
 export function SkillDetailModal({
   managedRecord,
   legacySkill,
+  overview,
   onClose,
   onToggleEnabled,
   onUninstall,
@@ -30,6 +34,7 @@ export function SkillDetailModal({
   const enableKey = `skill-enable:${managedRecord.id}`;
   const uninstallKey = `skill-uninstall:${managedRecord.id}`;
   const scope = legacySkill?.scope ?? (managedRecord.ownership === "plugin-owned" ? "plugin" : null);
+  const tryInChatShortcut = resolveManagedExtensionPromptShortcut(managedRecord, overview);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -89,10 +94,10 @@ export function SkillDetailModal({
             ) : null}
           </div>
           <div className="flex items-center gap-2">
-            {onTryInChat ? (
+            {onTryInChat && tryInChatShortcut ? (
               <Button
                 className="h-7 gap-1.5 rounded-lg px-2.5 text-[11px]"
-                onClick={() => onTryInChat(managedRecord.name)}
+                onClick={() => onTryInChat(tryInChatShortcut)}
                 variant="secondary"
               >
                 <MessageSquare className="size-3" />

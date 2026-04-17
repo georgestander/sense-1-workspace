@@ -1,18 +1,23 @@
-import { ArrowLeft, Blocks, Check, Trash2 } from "lucide-react";
+import { ArrowLeft, Blocks, Check, MessageSquare, Trash2 } from "lucide-react";
 
 import type {
   DesktopAppRecord,
+  DesktopExtensionOverviewResult,
   DesktopManagedExtensionRecord,
 } from "../../../main/contracts";
+import type { DesktopPromptShortcutSuggestion } from "../../../shared/prompt-shortcuts.ts";
+import { resolveManagedExtensionPromptShortcut } from "../../../shared/prompt-shortcuts.ts";
 import { Button } from "../ui/button";
 
 type AppDetailViewProps = {
   managedRecord: DesktopManagedExtensionRecord;
   legacyApp: DesktopAppRecord | undefined;
+  overview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills">;
   onBack: () => void;
   onToggleEnabled: (next: boolean) => void;
   onConnect: () => void;
   onRemove: () => void;
+  onTryInChat?: (shortcut: DesktopPromptShortcutSuggestion) => void;
   pendingActionKey: string | null;
   Toggle: React.ComponentType<{ checked: boolean; disabled?: boolean; onChange?: (next: boolean) => void }>;
 };
@@ -24,10 +29,12 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 export function AppDetailView({
   managedRecord,
   legacyApp,
+  overview,
   onBack,
   onToggleEnabled,
   onConnect,
   onRemove,
+  onTryInChat,
   pendingActionKey,
   Toggle,
 }: AppDetailViewProps) {
@@ -40,6 +47,8 @@ export function AppDetailView({
   const needsConnect = authState === "required" || authState === "failed";
   const isConnected = authState === "connected";
   const pluginNames = legacyApp?.pluginDisplayNames ?? [];
+  const runtimeStateKnown = legacyApp?.runtimeStateKnown ?? true;
+  const tryInChatShortcut = resolveManagedExtensionPromptShortcut(managedRecord, overview);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -67,6 +76,16 @@ export function AppDetailView({
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {onTryInChat && tryInChatShortcut ? (
+            <Button
+              className="h-7 gap-1.5 rounded-lg px-2.5 text-[11px]"
+              onClick={() => onTryInChat(tryInChatShortcut)}
+              variant="secondary"
+            >
+              <MessageSquare className="size-3" />
+              Try in chat
+            </Button>
+          ) : null}
           {managedRecord.canDisable ? (
             <Toggle
               checked={isEnabled}
@@ -84,7 +103,11 @@ export function AppDetailView({
           <section>
             <SectionHeading>Authentication</SectionHeading>
             <div className="rounded-xl bg-surface-soft px-3 py-3">
-              {isConnected ? (
+              {!runtimeStateKnown ? (
+                <p className="text-[11px] text-muted">
+                  Live app auth state is unavailable right now. Sense-1 is showing the plugin-linked fallback record until the runtime recovers.
+                </p>
+              ) : isConnected ? (
                 <div className="flex items-center gap-2">
                   <span className="flex items-center gap-1 rounded-md bg-success-faint px-2 py-1 text-[11px] font-medium text-success">
                     <Check className="size-3" />
@@ -140,11 +163,17 @@ export function AppDetailView({
                   <span className="text-[11px] text-ink">{managedRecord.healthState}</span>
                 </div>
               ) : null}
+              {!runtimeStateKnown ? (
+                <div className="flex items-baseline gap-2 py-1">
+                  <span className="shrink-0 text-[11px] text-muted">Source</span>
+                  <span className="text-[11px] text-ink">local fallback</span>
+                </div>
+              ) : null}
             </div>
           </section>
 
           {/* Remove */}
-          {legacyApp?.isAccessible || managedRecord.enablementState === "enabled" ? (
+          {runtimeStateKnown && (legacyApp?.isAccessible || managedRecord.enablementState === "enabled") ? (
             <section>
               <Button
                 className="h-8 gap-1.5 rounded-lg px-3 text-xs"

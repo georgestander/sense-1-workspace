@@ -59,6 +59,7 @@ export function McpDetailView({
   const authState = managedRecord.authState;
   const needsConnect = authState === "required" || authState === "failed";
   const isConnected = authState === "connected";
+  const runtimeStateKnown = legacyMcp?.runtimeStateKnown ?? true;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -157,6 +158,8 @@ export function McpDetailView({
                 <MetadataRow label="State" value={legacyMcp.state} />
                 <MetadataRow label="Command" value={legacyMcp.command} />
                 <MetadataRow label="URL" value={legacyMcp.url} />
+                <MetadataRow label="Source" value={legacyMcp.runtimeStateKnown ? "runtime" : "local fallback"} />
+                <MetadataRow label="Issue" value={legacyMcp.invalidReason} />
               </div>
             </section>
           ) : null}

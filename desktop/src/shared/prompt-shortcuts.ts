@@ -1,4 +1,10 @@
-import type { DesktopAppRecord, DesktopExtensionOverviewResult, DesktopPluginRecord, DesktopSkillRecord } from "./contracts/management.js";
+import type {
+  DesktopAppRecord,
+  DesktopExtensionOverviewResult,
+  DesktopManagedExtensionRecord,
+  DesktopPluginRecord,
+  DesktopSkillRecord,
+} from "./contracts/management.js";
 import type { DesktopAppServerInputItem } from "./contracts/thread-core.js";
 
 export type DesktopPromptShortcutMatch = {
@@ -207,12 +213,22 @@ function resolvePluginShortcut(
   });
 
   const selectedSkill =
-    candidates.length === 1
-      ? candidates[0]
-      : candidates.find((skill) => {
-          const [namespace, localName] = normalizeShortcutKey(skill.name)?.split(":") ?? [];
-          return namespace === normalizedToken && localName === normalizedToken;
-        }) ?? null;
+    candidates.find((skill) => {
+      const [namespace, localName] = normalizeShortcutKey(skill.name)?.split(":") ?? [];
+      return namespace === normalizedToken && localName === normalizedToken;
+    })
+    ?? candidates.find((skill) => {
+      const [, localName] = normalizeShortcutKey(skill.name)?.split(":") ?? [];
+      const normalizedDescription = normalizeShortcutKey(skill.description);
+      return Boolean(
+        localName?.includes("router")
+        || localName?.includes("default")
+        || normalizedDescription?.includes("router")
+        || normalizedDescription?.includes("default"),
+      );
+    })
+    ?? candidates[0]
+    ?? null;
 
   if (!selectedSkill) {
     return null;
@@ -730,6 +746,115 @@ export function resolvePromptShortcutSuggestions(
     });
 }
 
+export function resolveManagedExtensionPromptShortcut(
+  managedRecord: Pick<DesktopManagedExtensionRecord, "id" | "kind" | "name" | "sourcePath">,
+  overview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills">,
+): DesktopPromptShortcutSuggestion | null {
+  if (managedRecord.kind === "plugin") {
+    const plugin = overview.plugins.find((entry) => entry.id === managedRecord.id) ?? null;
+    if (!plugin || !plugin.enabled || !plugin.installed) {
+      return null;
+    }
+
+    const token = choosePluginToken(plugin);
+    if (!token) {
+      return null;
+    }
+
+    const pluginSkillMatch = resolvePluginShortcut(token, overview.plugins, overview.skills);
+    if (pluginSkillMatch) {
+      return {
+        item: {
+          type: "mention",
+          name: pluginSkillMatch.skill.name,
+          path: pluginSkillMatch.skill.path,
+          token,
+        },
+        kind: "plugin",
+        label: plugin.displayName,
+        token,
+        description: plugin.description,
+      };
+    }
+
+    const pluginAppMatch = resolvePluginAppShortcut(token, overview.plugins, overview.apps);
+    if (!pluginAppMatch) {
+      return null;
+    }
+
+    return {
+      item: {
+        type: "mention",
+        name: plugin.displayName,
+        path: `app://${pluginAppMatch.appId}`,
+        token,
+      },
+      kind: "app",
+      label: plugin.displayName,
+      token,
+      description: plugin.description,
+    };
+  }
+
+  if (managedRecord.kind === "app") {
+    const app = resolveAppShortcut(managedRecord.name, overview.apps)
+      ?? overview.apps.find((entry) => entry.id === managedRecord.id)
+      ?? null;
+    if (!app || !app.isEnabled || !app.isAccessible) {
+      return null;
+    }
+
+    const token = chooseSuggestionAppToken(app, overview);
+    if (!token) {
+      return null;
+    }
+
+    return {
+      item: {
+        type: "mention",
+        name: app.name,
+        path: `app://${app.id}`,
+        token,
+      },
+      kind: "app",
+      label: app.name,
+      token,
+      description: app.description,
+    };
+  }
+
+  if (managedRecord.kind === "skill") {
+    const skill = overview.skills.find((entry) =>
+      entry.path === managedRecord.id
+      || entry.path === managedRecord.sourcePath
+      || normalizeShortcutKey(entry.name) === normalizeShortcutKey(managedRecord.name),
+    ) ?? null;
+    if (!skill || !skill.enabled) {
+      return null;
+    }
+
+    const token = chooseSkillToken(skill);
+    if (!token) {
+      return null;
+    }
+
+    return {
+      item: {
+        type: "mention",
+        name: skill.name,
+        path: skill.path,
+        token,
+      },
+      kind: skill.scope === "plugin" ? "plugin" : "skill",
+      label: buildSkillLabel(skill),
+      token,
+      description: skill.description,
+    };
+  }
+
+  return null;
+}
+
 export function replaceActivePromptShortcut(
   prompt: string,
   token: string,
@@ -778,6 +903,7 @@ export function resolveInputItemPromptShortcutMatches(
 
     const itemName = firstString(item.name);
     const normalizedName = normalizeShortcutKey(itemName);
+    const explicitToken = normalizeShortcutKey(item.token);
     const parts = normalizedName?.split(":").filter(Boolean) ?? [];
     const namespace = parts[0] ?? null;
     const localName = parts.at(-1) ?? null;
@@ -793,7 +919,7 @@ export function resolveInputItemPromptShortcutMatches(
         : parts.length >= 2 && namespace === localName
           ? "plugin"
           : "skill";
-    const token = localName ?? normalizedName ?? fallbackToken;
+    const token = explicitToken ?? localName ?? normalizedName ?? fallbackToken;
     if (!token) {
       continue;
     }
