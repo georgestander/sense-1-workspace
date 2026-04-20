@@ -288,7 +288,7 @@ function ThreadComposerInner({
             setThreadPrompt(event.target.value);
             setShortcutCursorIndex(event.target.selectionStart ?? event.target.value.length);
           }}
-          placeholder={composerDisabled ? "Sign in with ChatGPT before continuing this thread." : "Continue this thread..."}
+          placeholder={composerDisabled ? "Sign in before continuing this thread." : "Continue this thread..."}
           ref={composerRef}
           value={threadPrompt}
         />

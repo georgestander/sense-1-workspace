@@ -411,6 +411,7 @@ export async function getDesktopBootstrap(
     tenant: toDesktopBootstrapTenant(tenant),
     teamSetup: buildDesktopTeamSetupState({
       accountEmail: auth.email,
+      isSignedIn: auth.isSignedIn,
       tenant,
     }),
     runContext,

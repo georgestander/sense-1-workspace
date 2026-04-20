@@ -9,6 +9,7 @@ import {
 } from "./bootstrap/desktop-bootstrap.js";
 import { resolveSignedInDesktopProfile } from "./bootstrap/bootstrap-profile.js";
 import { completeDesktopDisplayName as persistDesktopDisplayName } from "./bootstrap/bootstrap-identity.js";
+import { resolveSignedInAccount } from "./session/desktop-run-start-settings.ts";
 import {
   DEFAULT_DESKTOP_SETTINGS,
   applyDesktopSettingsPatch,
@@ -255,7 +256,12 @@ export class DesktopSessionController {
     this.#desktopTenant = new DesktopTenantService({
       env: this.#env,
       resolveProfile: this.#resolveProfile,
-      resolveSignedInEmail: async (profileId) => await this.#runStart.resolveSignedInEmail(profileId),
+      resolveSignedInAccount: async (profileId) =>
+        await resolveSignedInAccount({
+          env: this.#env,
+          manager: this.#manager,
+          profileId,
+        }),
     });
     this.#desktopAutomations = new DesktopAutomationService({
       env: this.#env,

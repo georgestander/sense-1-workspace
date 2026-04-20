@@ -123,3 +123,34 @@ test("buildThreadComposerIdentity keeps local mode threads available", () => {
     message: "Local mode keeps this thread on this Mac until you create or join a team.",
   });
 });
+
+test("signed-out identity copy stays provider-neutral", () => {
+  assert.deepEqual(
+    buildStartSurfaceIdentity({
+      accountEmail: null,
+      tenant: null,
+      teamSetup: DEFAULT_TEAM_SETUP_IDENTITY,
+      recentFolderCount: 0,
+      threadCount: 0,
+    }),
+    {
+      canStartWork: false,
+      mode: "local",
+      heading: "Sign in to start working locally.",
+      supportingCopy: "Sense-1 will keep your work on this Mac and can attach a team later when one exists.",
+      statusTitle: "Sign-in required",
+      statusBody: "Local chat and folder work unlock after sign-in succeeds.",
+      canCreateFirstTeam: false,
+      roleLabel: null,
+      scopeLabel: null,
+    },
+  );
+  assert.deepEqual(buildSidebarIdentity(null, DEFAULT_TEAM_SETUP_IDENTITY), {
+    summary: "Sign in required",
+    detail: "Sign-in unlocks local chats, folder work, and team setup.",
+  });
+  assert.deepEqual(buildThreadComposerIdentity(null, DEFAULT_TEAM_SETUP_IDENTITY), {
+    canContinueThread: false,
+    message: "Sign in before continuing this thread.",
+  });
+});

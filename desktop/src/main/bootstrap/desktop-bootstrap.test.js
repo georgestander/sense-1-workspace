@@ -2103,6 +2103,13 @@ test("getDesktopBootstrap treats apiKey auth as signed in even when no email is 
   assert.equal(bootstrap.auth.isSignedIn, true);
   assert.equal(bootstrap.auth.email, null);
   assert.equal(bootstrap.auth.accountType, "apiKey");
+  assert.deepEqual(bootstrap.teamSetup, {
+    mode: "local",
+    source: "desktopLocal",
+    canWorkLocally: true,
+    canCreateFirstTeam: false,
+    canManageTeam: false,
+  });
 });
 
 test("getDesktopBootstrap blocks startup when recent thread restore fails", async () => {

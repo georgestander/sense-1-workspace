@@ -6,6 +6,7 @@ import type {
   DesktopTeamMemberRecord,
   DesktopTeamStateResult,
 } from "../contracts.ts";
+import type { ResolvedDesktopSignIn } from "../session/desktop-run-start-settings.ts";
 import {
   addTenantMember,
   createTenant,
@@ -20,7 +21,7 @@ import {
 type DesktopTenantServiceOptions = {
   env?: NodeJS.ProcessEnv;
   resolveProfile: () => Promise<{ id: string }>;
-  resolveSignedInEmail: (profileId: string) => Promise<string | null>;
+  resolveSignedInAccount: (profileId: string) => Promise<ResolvedDesktopSignIn>;
 };
 
 function fallbackActorDisplayName(email: string | null): string {
@@ -47,19 +48,21 @@ export function toDesktopBootstrapTenant(
 
 export function buildDesktopTeamSetupState({
   accountEmail,
+  isSignedIn,
   tenant,
 }: {
   accountEmail: string | null;
+  isSignedIn: boolean;
   tenant: TenantMembershipRecord | null;
 }): DesktopBootstrapTeamSetup {
-  const signedIn = typeof accountEmail === "string" && accountEmail.trim().length > 0;
+  const hasEmail = typeof accountEmail === "string" && accountEmail.trim().length > 0;
   const hasTenant = tenant !== null;
 
   return {
     mode: hasTenant ? "team" : "local",
     source: "desktopLocal",
-    canWorkLocally: signedIn,
-    canCreateFirstTeam: signedIn && !hasTenant,
+    canWorkLocally: isSignedIn,
+    canCreateFirstTeam: isSignedIn && hasEmail && !hasTenant,
     canManageTeam: tenant?.role === "admin",
   };
 }
@@ -82,21 +85,23 @@ function toDesktopTeamMemberRecord(membership: TenantMembershipRecord): DesktopT
 export class DesktopTenantService {
   readonly #env: NodeJS.ProcessEnv;
   readonly #resolveProfile: () => Promise<{ id: string }>;
-  readonly #resolveSignedInEmail: (profileId: string) => Promise<string | null>;
+  readonly #resolveSignedInAccount: (profileId: string) => Promise<ResolvedDesktopSignIn>;
 
   constructor(options: DesktopTenantServiceOptions) {
     this.#env = options.env ?? process.env;
     this.#resolveProfile = options.resolveProfile;
-    this.#resolveSignedInEmail = options.resolveSignedInEmail;
+    this.#resolveSignedInAccount = options.resolveSignedInAccount;
   }
 
   async #resolveIdentity(): Promise<{
     profileId: string;
     accountEmail: string | null;
+    isSignedIn: boolean;
     membership: TenantMembershipRecord | null;
   }> {
     const profile = await this.#resolveProfile();
-    const accountEmail = await this.#resolveSignedInEmail(profile.id);
+    const signIn = await this.#resolveSignedInAccount(profile.id);
+    const accountEmail = signIn.email;
     const membership = await resolveTenantMembershipForProfile({
       profileId: profile.id,
       email: accountEmail,
@@ -105,6 +110,7 @@ export class DesktopTenantService {
     return {
       profileId: profile.id,
       accountEmail,
+      isSignedIn: signIn.isSignedIn,
       membership,
     };
   }
@@ -127,6 +133,7 @@ export class DesktopTenantService {
 
   async #buildState(
     accountEmail: string | null,
+    isSignedIn: boolean,
     membership: TenantMembershipRecord | null,
   ): Promise<DesktopTeamStateResult> {
     const members = membership
@@ -137,6 +144,7 @@ export class DesktopTenantService {
       accountEmail,
       teamSetup: buildDesktopTeamSetupState({
         accountEmail,
+        isSignedIn,
         tenant: membership,
       }),
       tenant: toDesktopBootstrapTenant(membership),
@@ -145,12 +153,12 @@ export class DesktopTenantService {
   }
 
   async getTeamState(): Promise<DesktopTeamStateResult> {
-    const { accountEmail, membership } = await this.#resolveIdentity();
-    return await this.#buildState(accountEmail, membership);
+    const { accountEmail, isSignedIn, membership } = await this.#resolveIdentity();
+    return await this.#buildState(accountEmail, isSignedIn, membership);
   }
 
   async createFirstTeam(request: DesktopCreateFirstTeamRequest): Promise<DesktopTeamStateResult> {
-    const { profileId, accountEmail, membership } = await this.#resolveIdentity();
+    const { profileId, accountEmail, isSignedIn, membership } = await this.#resolveIdentity();
     if (!accountEmail) {
       throw new Error("Sign in with ChatGPT before creating a team.");
     }
@@ -178,7 +186,7 @@ export class DesktopTenantService {
     });
     await persistActiveTenantMembership(profileId, createdMembership, this.#env);
 
-    return await this.#buildState(accountEmail, createdMembership);
+    return await this.#buildState(accountEmail, isSignedIn, createdMembership);
   }
 
   async saveTeamMember(request: DesktopSaveTeamMemberRequest): Promise<DesktopTeamStateResult> {

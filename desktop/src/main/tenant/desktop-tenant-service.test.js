@@ -22,7 +22,13 @@ test("DesktopTenantService returns local mode for signed-in profiles with no tea
   const service = new DesktopTenantService({
     env,
     resolveProfile: async () => ({ id: "default" }),
-    resolveSignedInEmail: async () => "george@example.com",
+    resolveSignedInAccount: async () => ({
+      accountType: "chatgpt",
+      authMode: "chatgpt",
+      email: "george@example.com",
+      isSignedIn: true,
+      requiresOpenaiAuth: false,
+    }),
   });
 
   const result = await service.getTeamState();
@@ -38,6 +44,34 @@ test("DesktopTenantService returns local mode for signed-in profiles with no tea
   });
 });
 
+test("DesktopTenantService unlocks local mode for api-key sessions without allowing team creation", async () => {
+  const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-runtime-"));
+  const tenantRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-cloud-"));
+  const env = createEnv(runtimeRoot, tenantRoot);
+  const service = new DesktopTenantService({
+    env,
+    resolveProfile: async () => ({ id: "default" }),
+    resolveSignedInAccount: async () => ({
+      accountType: "apiKey",
+      authMode: "apikey",
+      email: null,
+      isSignedIn: true,
+      requiresOpenaiAuth: false,
+    }),
+  });
+
+  const result = await service.getTeamState();
+
+  assert.equal(result.accountEmail, null);
+  assert.deepEqual(result.teamSetup, {
+    mode: "local",
+    source: "desktopLocal",
+    canWorkLocally: true,
+    canCreateFirstTeam: false,
+    canManageTeam: false,
+  });
+});
+
 test("DesktopTenantService can create the first team and promote the creator to admin", async () => {
   const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-runtime-"));
   const tenantRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-cloud-"));
@@ -45,7 +79,13 @@ test("DesktopTenantService can create the first team and promote the creator to 
   const service = new DesktopTenantService({
     env,
     resolveProfile: async () => ({ id: "default" }),
-    resolveSignedInEmail: async () => "george@example.com",
+    resolveSignedInAccount: async () => ({
+      accountType: "chatgpt",
+      authMode: "chatgpt",
+      email: "george@example.com",
+      isSignedIn: true,
+      requiresOpenaiAuth: false,
+    }),
   });
 
   const result = await service.createFirstTeam({ name: "Sense-1" });
@@ -88,7 +128,13 @@ test("DesktopTenantService lets admins add local team members", async () => {
   const service = new DesktopTenantService({
     env,
     resolveProfile: async () => ({ id: "default" }),
-    resolveSignedInEmail: async () => "george@example.com",
+    resolveSignedInAccount: async () => ({
+      accountType: "chatgpt",
+      authMode: "chatgpt",
+      email: "george@example.com",
+      isSignedIn: true,
+      requiresOpenaiAuth: false,
+    }),
   });
 
   const result = await service.saveTeamMember({
