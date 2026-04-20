@@ -145,6 +145,6 @@ export function buildThreadComposerIdentity(tenant: TenantIdentity, teamSetup: T
 
   return {
     canContinueThread: true,
-    message: tenant ? null : "Local mode keeps this thread on this Mac until you create or join a team.",
+    message: null,
   };
 }

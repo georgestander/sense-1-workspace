@@ -244,11 +244,6 @@ function ThreadComposerInner({
             {teamIdentity.message}
           </p>
         ) : null}
-        {teamIdentity.canContinueThread && !tenant && teamIdentity.message ? (
-          <p className="rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft" role="status">
-            {teamIdentity.message}
-          </p>
-        ) : null}
         {dictation.error ? (
           <p className="px-1 text-[0.5rem] leading-tight text-ink">{dictation.error}</p>
         ) : null}

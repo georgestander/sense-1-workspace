@@ -120,7 +120,7 @@ test("buildThreadComposerIdentity keeps local mode threads available", () => {
   });
   assert.deepEqual(buildThreadComposerIdentity(null, localTeamSetup), {
     canContinueThread: true,
-    message: "Local mode keeps this thread on this Mac until you create or join a team.",
+    message: null,
   });
 });
 
