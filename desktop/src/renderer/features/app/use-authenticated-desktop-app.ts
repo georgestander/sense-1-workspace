@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { DesktopExtensionOverviewResult } from "../../../main/contracts";
 import type { useDesktopSessionState } from "../../use-desktop-session-state.js";
 import type { useSettingsController } from "../settings/use-settings-controller.js";
+import type { ReportBugController } from "../bug-report/use-report-bug-controller.js";
 import { shouldShowHeaderUpdateAction } from "../updates/update-presentation.js";
 import { buildStartSurfaceProps, buildThreadViewProps } from "./app-main-content-props.js";
 import { perfCount } from "../../lib/perf-debug.ts";
@@ -21,6 +22,7 @@ type UseAuthenticatedDesktopAppArgs = {
   extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
   sessionState: SessionState;
   settingsController: SettingsControllerState;
+  reportBug: ReportBugController;
   ui: {
     accountMenuOpen: boolean;
     folderMenuOpen: boolean;
@@ -47,6 +49,7 @@ export function useAuthenticatedDesktopApp({
   extensionOverview,
   sessionState,
   settingsController,
+  reportBug,
   ui,
 }: UseAuthenticatedDesktopAppArgs) {
   perfCount("render.useAuthenticatedDesktopApp");
@@ -80,6 +83,9 @@ export function useAuthenticatedDesktopApp({
       setAccountMenuOpen: ui.setAccountMenuOpen,
       teamSetup: sessionState.teamSetup,
       tenant: sessionState.tenant,
+    },
+    reportBug: {
+      openReportBug: reportBug.openModal,
     },
     search: {
       filteredThreads: content.filteredThreads,
@@ -161,6 +167,9 @@ export function useAuthenticatedDesktopApp({
     sessionState,
     ui: {
       setReasoning: ui.setReasoning,
+    },
+    reportBug: {
+      onReportBug: reportBug.openModal,
     },
     composer: {
       attachedFiles: content.composer.attachedFiles,

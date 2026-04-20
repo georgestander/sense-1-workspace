@@ -1,5 +1,5 @@
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from "react";
-import { BrainCircuit, Mic, Paperclip, Send, Square, Zap } from "lucide-react";
+import { BrainCircuit, Bug, Mic, Paperclip, Send, Square, Zap } from "lucide-react";
 
 import { Button } from "../ui/button";
 import { FastModeSuggestionMenu } from "../composer/fast-mode-suggestion-menu.js";
@@ -40,6 +40,7 @@ type ThreadComposerProps = {
   effectiveThreadBusy: boolean;
   interruptTurn: () => Promise<void>;
   submitSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
+  onReportBug: () => void;
 };
 
 function ThreadComposerInner({
@@ -67,6 +68,7 @@ function ThreadComposerInner({
   effectiveThreadBusy,
   interruptTurn,
   submitSelectedThreadPrompt,
+  onReportBug,
 }: ThreadComposerProps) {
   const teamIdentity = buildThreadComposerIdentity(tenant, teamSetup);
   const [threadPrompt, setThreadPrompt] = useState(threadPromptOverride);
@@ -371,6 +373,16 @@ function ThreadComposerInner({
               <Zap className="size-3" />
               Fast
             </button>
+            <Button
+              aria-label="Report a bug"
+              className="ml-1"
+              onClick={onReportBug}
+              size="icon-sm"
+              type="button"
+              variant="ghost"
+            >
+              <Bug />
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             {dictation.recordingIndicator ? (
