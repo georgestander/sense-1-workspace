@@ -32,6 +32,10 @@ import { resolveDesktopInteractionState } from "./session/interaction-state.ts";
 import { ThreadInputQueueService } from "./session/thread-input-queue-service.ts";
 import { resolveBootstrapVisibleThreadId, shouldRestoreQueuedFollowUp } from "./session/thread-runtime-behavior.ts";
 import { RuntimeFileChangeTracker } from "./session/runtime-file-change-tracker.ts";
+import { DesktopBugReportingService } from "./bug-reporting/desktop-bug-reporting-service.ts";
+import { redactSensitivePath } from "./bug-reporting/redaction.ts";
+import { captureDesktopManualBugReport } from "./bug-reporting/sentry-reporting.ts";
+import { createDesktopLogBuffer, installDesktopLogBuffer } from "./logging/desktop-log-buffer.ts";
 import {
   coalesceRuntimeNotifications,
   type RuntimeNotification,
@@ -67,6 +71,8 @@ const runtimeInfo = {
 const SHOULD_LOG_RUNTIME_EVENTS = process.env.SENSE1_DEBUG_RUNTIME_EVENTS === "1";
 const SHOULD_DEBUG_RUNTIME_PERF = process.env.SENSE1_DEBUG_PERF === "1";
 const ACCUMULATOR_STREAM_FLUSH_MS = 16;
+const desktopLogBuffer = createDesktopLogBuffer();
+installDesktopLogBuffer(desktopLogBuffer);
 const threadAccumulator = new ThreadStateAccumulator();
 const threadInputQueue = new ThreadInputQueueService();
 const workspaceFileActivity = new WorkspaceFileActivityTracker();
@@ -167,6 +173,9 @@ function processAccumulatorNotification(
   const threadId = typeof params?.threadId === "string" ? params.threadId.trim() : "";
   if (threadId && deltas.length > 0) {
     touchedThreadIds.add(threadId);
+    if (threadId === currentVisibleThreadId) {
+      syncSentryThreadScope();
+    }
   }
 }
 
@@ -267,6 +276,9 @@ function initializeActiveThread(result: {
   }
   emitThreadInputStateDelta(result.threadId, threadInputQueue.markThreadStarted(result.threadId));
   syncUpdaterBusyState();
+  if (currentVisibleThreadId === result.threadId) {
+    syncSentryThreadScope();
+  }
   void persistInteractionState(result.threadId).catch(() => {});
 }
 
@@ -354,8 +366,74 @@ function emitThreadInputStateDelta(threadId: string, threadInputState: DesktopTh
   emitDesktopThreadDelta(threadAccumulator.setThreadInputState(threadId, threadInputState));
 }
 
+function redactSentryScopePath(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  return redactSensitivePath(value, process.env.HOME ?? null);
+}
+
+function syncSentryThreadScope(): void {
+  const threadId = currentVisibleThreadId;
+  const threadState = threadId ? threadAccumulator.getThreadState(threadId) : null;
+  const workspaceRoot = redactSentryScopePath(threadState?.workspaceRoot ?? null);
+  const cwd = redactSentryScopePath(threadState?.cwd ?? null);
+
+  if (threadId) {
+    Sentry.setTag("sense1.thread.id", threadId);
+  } else {
+    Sentry.setTag("sense1.thread.id", "none");
+  }
+
+  if (workspaceRoot) {
+    Sentry.setTag("sense1.workspace.root", workspaceRoot);
+  } else {
+    Sentry.setTag("sense1.workspace.root", "none");
+  }
+
+  Sentry.setContext("sense1DesktopThread", {
+    id: threadId,
+    title: threadState?.title ?? null,
+    workspaceRoot,
+    cwd,
+    interactionState: threadState?.interactionState ?? null,
+    state: threadState?.state ?? null,
+  });
+}
+
+function getVisibleThreadBugContext(): {
+  readonly id: string | null;
+  readonly title: string | null;
+  readonly workspaceRoot: string | null;
+  readonly cwd: string | null;
+} | null {
+  const threadId = firstString(currentVisibleThreadId);
+  if (!threadId) {
+    return null;
+  }
+
+  const threadState = threadAccumulator.getThreadState(threadId);
+  if (!threadState) {
+    return {
+      id: threadId,
+      title: null,
+      workspaceRoot: null,
+      cwd: null,
+    };
+  }
+
+  return {
+    id: threadId,
+    title: threadState.title ?? null,
+    workspaceRoot: threadState.workspaceRoot ?? null,
+    cwd: threadState.cwd ?? null,
+  };
+}
+
 function updateVisibleThread(threadId: string | null): void {
   currentVisibleThreadId = firstString(threadId);
+  syncSentryThreadScope();
   if (!currentVisibleThreadId) {
     return;
   }
@@ -505,6 +583,14 @@ const desktopSessionController = new DesktopSessionController(appServerManager, 
     });
   },
   runtimeInfo,
+});
+const bugReportingService = new DesktopBugReportingService({
+  env: process.env,
+  runtimeInfo,
+  getBootstrap: async () => await desktopSessionController.getBootstrap(),
+  getVisibleThreadContext: () => getVisibleThreadBugContext(),
+  getRecentLogs: (limit) => desktopLogBuffer.list(limit),
+  captureManualBugReport: captureDesktopManualBugReport,
 });
 let runtimeStartInFlight: Promise<void> | null = null;
 let isGracefulQuitInProgress = false;
@@ -723,6 +809,8 @@ async function bootstrapMainProcess(): Promise<void> {
       updateVisibleThread(resolveBootstrapVisibleThreadId(bootstrap));
       return decorateBootstrap(bootstrap);
     },
+    submitDesktopBugReport: async (request) => await bugReportingService.submitReport(request),
+    getDesktopBugReportingStatus: async () => bugReportingService.getStatus(),
     rememberLastSelectedThread: async (request) => {
       await desktopSessionController.rememberLastSelectedThread(request);
       updateVisibleThread(request.threadId ?? null);
@@ -753,6 +841,9 @@ async function bootstrapMainProcess(): Promise<void> {
         const snapshotDelta = threadAccumulator.loadSnapshot(threadId, decoratedResult.thread);
         threadAccumulator.setActiveThread(threadId);
         emitDesktopThreadDelta(snapshotDelta);
+        if (currentVisibleThreadId === threadId) {
+          syncSentryThreadScope();
+        }
         syncUpdaterBusyState();
         void persistInteractionState(threadId).catch(() => {});
       }

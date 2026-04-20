@@ -34,6 +34,8 @@ export const IPC_CHANNELS = {
   startDesktopVoice: "sense1:desktop:voice:start",
   appendDesktopVoiceAudio: "sense1:desktop:voice:append-audio",
   stopDesktopVoice: "sense1:desktop:voice:stop",
+  submitDesktopBugReport: "sense1:desktop:reports:submit-bug-report",
+  getDesktopBugReportingStatus: "sense1:desktop:reports:get-status",
   runtimeEvent: "sense1:desktop:runtime:event",
   threadDelta: "sense1:desktop:thread:delta",
   listModels: "sense1:desktop:models:list",

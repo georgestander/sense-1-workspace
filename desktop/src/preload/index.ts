@@ -10,6 +10,7 @@ import { createManagementBridge } from "./bridge/management";
 import { createSystemBridge } from "./bridge/system";
 import { createTeamBridge } from "./bridge/tenant";
 import { createWorkspaceBridge } from "./bridge/workspace";
+import { createReportsBridge } from "./bridge/reports";
 
 Sentry.init();
 
@@ -20,6 +21,7 @@ const desktopBridge: DesktopBridge = {
   ...createTeamBridge(ipcRenderer),
   ...createWorkspaceBridge(ipcRenderer),
   ...createSystemBridge(ipcRenderer),
+  ...createReportsBridge(ipcRenderer),
 };
 
 contextBridge.exposeInMainWorld(
@@ -41,6 +43,7 @@ contextBridge.exposeInMainWorld(
     settings: Object.freeze(desktopBridge.settings),
     management: Object.freeze(desktopBridge.management),
     team: Object.freeze(desktopBridge.team),
+    reports: Object.freeze(desktopBridge.reports),
     automations: Object.freeze(desktopBridge.automations),
     projections: Object.freeze(desktopBridge.projections),
     substrate: Object.freeze(desktopBridge.substrate),
