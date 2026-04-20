@@ -47,64 +47,68 @@
 }
 
 [data-theme="dark"] {
-  --color-canvas: oklch(0.06 0 0);
-  --color-surface: oklch(0.08 0 0);
-  --color-surface-soft: oklch(0.04 0 0);
-  --color-surface-low: oklch(0.04 0 0);
-  --color-surface-strong: oklch(0.12 0 0);
-  --color-surface-high: oklch(0.12 0 0);
-  --color-surface-glass: oklch(0.09 0 0 / 82%);
-  --color-ink: oklch(0.97 0 0);
-  --color-ink-soft: oklch(0.78 0 0);
-  --color-ink-faint: oklch(0.62 0 0);
-  --color-ink-muted: oklch(0.48 0 0);
-  --color-muted: oklch(0.48 0 0);
-  --color-line: oklch(0.30 0 0 / 55%);
-  --color-accent: oklch(0.72 0.04 243);
-  --color-accent-faint: oklch(0.72 0.04 243 / 14%);
-  --color-on-accent: oklch(1 0 0);
-  --color-danger: oklch(0.65 0.18 25);
-  --color-danger-faint: oklch(0.65 0.18 25 / 16%);
-  --color-warning: oklch(0.78 0.15 75);
-  --color-warning-faint: oklch(0.78 0.15 75 / 16%);
-  --color-success: oklch(0.70 0.14 150);
-  --color-success-faint: oklch(0.70 0.14 150 / 14%);
+  /* Cool Atelier — cool-tinted slate canvas (hue 245, chroma 0.005)
+   * with a muted indigo accent. Greys stay near-neutral; do not round
+   * chroma to 0. surface-low is darker than canvas (recessed), surface-high
+   * is lighter (elevated). */
+  --color-canvas: oklch(0.075 0.005 245);
+  --color-surface: oklch(0.102 0.005 245);
+  --color-surface-soft: oklch(0.054 0.005 245);
+  --color-surface-low: oklch(0.054 0.005 245);
+  --color-surface-high: oklch(0.126 0.005 245);
+  --color-surface-strong: oklch(0.151 0.005 245);
+  --color-surface-glass: oklch(0.102 0.005 245 / 0.82);
+  --color-ink: oklch(0.960 0.0015 245);
+  --color-ink-soft: oklch(0.832 0.0015 245);
+  --color-ink-faint: oklch(0.678 0.0015 245);
+  --color-ink-muted: oklch(0.508 0.0015 245);
+  --color-muted: oklch(0.508 0.0015 245);
+  --color-line: oklch(0.295 0.005 245 / 0.50);
+  --color-accent: oklch(0.730 0.090 262);
+  --color-accent-faint: oklch(0.730 0.090 262 / 0.18);
+  --color-on-accent: oklch(0.98 0 0);
+  --color-danger: oklch(0.640 0.180 25);
+  --color-danger-faint: oklch(0.640 0.180 25 / 0.18);
+  --color-warning: oklch(0.780 0.150 72);
+  --color-warning-faint: oklch(0.780 0.150 72 / 0.18);
+  --color-success: oklch(0.700 0.130 158);
+  --color-success-faint: oklch(0.700 0.130 158 / 0.18);
 
-  --shadow-raised: 0 4px 12px rgb(0 0 0 / 0.55);
-  --shadow-menu: 0 20px 40px -10px rgb(0 0 0 / 0.65);
-  --shadow-overlay: 0 20px 60px rgb(0 0 0 / 0.75);
-  --shadow-composer: 0 -12px 28px rgb(0 0 0 / 0.6);
+  --shadow-raised: 0 4px 12px oklch(0 0 0 / 0.45);
+  --shadow-menu: 0 20px 40px -10px oklch(0 0 0 / 0.57);
+  --shadow-overlay: 0 30px 80px oklch(0 0 0 / 0.66);
+  --shadow-composer: 0 -12px 28px oklch(0 0 0 / 0.51);
 }
 
 @media (prefers-color-scheme: dark) {
   [data-theme="system"] {
-    --color-canvas: oklch(0.06 0 0);
-    --color-surface: oklch(0.08 0 0);
-    --color-surface-soft: oklch(0.04 0 0);
-    --color-surface-low: oklch(0.04 0 0);
-    --color-surface-strong: oklch(0.12 0 0);
-    --color-surface-high: oklch(0.12 0 0);
-    --color-surface-glass: oklch(0.09 0 0 / 82%);
-    --color-ink: oklch(0.97 0 0);
-    --color-ink-soft: oklch(0.78 0 0);
-    --color-ink-faint: oklch(0.62 0 0);
-    --color-ink-muted: oklch(0.48 0 0);
-    --color-muted: oklch(0.48 0 0);
-    --color-line: oklch(0.30 0 0 / 55%);
-    --color-accent: oklch(0.72 0.04 243);
-    --color-accent-faint: oklch(0.72 0.04 243 / 14%);
-    --color-on-accent: oklch(1 0 0);
-    --color-danger: oklch(0.65 0.18 25);
-    --color-danger-faint: oklch(0.65 0.18 25 / 16%);
-    --color-warning: oklch(0.78 0.15 75);
-    --color-warning-faint: oklch(0.78 0.15 75 / 16%);
-    --color-success: oklch(0.70 0.14 150);
-    --color-success-faint: oklch(0.70 0.14 150 / 14%);
+    --color-canvas: oklch(0.075 0.005 245);
+    --color-surface: oklch(0.102 0.005 245);
+    --color-surface-soft: oklch(0.054 0.005 245);
+    --color-surface-low: oklch(0.054 0.005 245);
+    --color-surface-high: oklch(0.126 0.005 245);
+    --color-surface-strong: oklch(0.151 0.005 245);
+    --color-surface-glass: oklch(0.102 0.005 245 / 0.82);
+    --color-ink: oklch(0.960 0.0015 245);
+    --color-ink-soft: oklch(0.832 0.0015 245);
+    --color-ink-faint: oklch(0.678 0.0015 245);
+    --color-ink-muted: oklch(0.508 0.0015 245);
+    --color-muted: oklch(0.508 0.0015 245);
+    --color-line: oklch(0.295 0.005 245 / 0.50);
+    --color-accent: oklch(0.730 0.090 262);
+    --color-accent-faint: oklch(0.730 0.090 262 / 0.18);
+    --color-on-accent: oklch(0.98 0 0);
+    --color-danger: oklch(0.640 0.180 25);
+    --color-danger-faint: oklch(0.640 0.180 25 / 0.18);
+    --color-warning: oklch(0.780 0.150 72);
+    --color-warning-faint: oklch(0.780 0.150 72 / 0.18);
+    --color-success: oklch(0.700 0.130 158);
+    --color-success-faint: oklch(0.700 0.130 158 / 0.18);
 
-    --shadow-raised: 0 4px 12px rgb(0 0 0 / 0.55);
-    --shadow-menu: 0 20px 40px -10px rgb(0 0 0 / 0.65);
-    --shadow-overlay: 0 20px 60px rgb(0 0 0 / 0.75);
-    --shadow-composer: 0 -12px 28px rgb(0 0 0 / 0.6);
+    --shadow-raised: 0 4px 12px oklch(0 0 0 / 0.45);
+    --shadow-menu: 0 20px 40px -10px oklch(0 0 0 / 0.57);
+    --shadow-overlay: 0 30px 80px oklch(0 0 0 / 0.66);
+    --shadow-composer: 0 -12px 28px oklch(0 0 0 / 0.51);
   }
 }
 
@@ -492,6 +496,20 @@ body {
 
 .thread-reasoning-toggle summary {
   list-style: none;
+}
+
+/* User message bubble — always white with dark text so user input stays
+ * visually distinct from assistant output, in both light and dark themes.
+ * Establishes a local light-token island so nested markdown inherits
+ * dark inks regardless of the outer theme. */
+.user-bubble {
+  --color-ink: oklch(0.12 0 0);
+  --color-ink-soft: oklch(0.32 0 0);
+  --color-ink-faint: oklch(0.48 0 0);
+  --color-ink-muted: oklch(0.58 0 0);
+  --color-muted: oklch(0.58 0 0);
+  background: oklch(1 0 0);
+  color: var(--color-ink);
 }
 
 .thread-markdown-user,
