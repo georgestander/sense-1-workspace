@@ -2,6 +2,8 @@ import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 
 import type {
   DesktopApprovalResponseRequest,
+  DesktopAuthLoginMethod,
+  DesktopAuthLoginRequest,
   DesktopBootstrap,
   DesktopBridge,
   DesktopOperatingMode,
@@ -63,6 +65,7 @@ export type DesktopSessionActionDependencies = {
   setActiveTurnIdsByThread: Dispatch<SetStateAction<Record<string, string>>>;
   setBootstrapError: (value: string | null) => void;
   setContinuePending: (value: boolean) => void;
+  setAuthPendingMethod: (value: DesktopAuthLoginMethod | null) => void;
   setLogoutPending: (value: boolean) => void;
   setPendingPermission: Dispatch<SetStateAction<PendingPermissionState>>;
   setPerThreadSidebar: Dispatch<SetStateAction<Record<string, SidebarState>>>;
@@ -101,7 +104,7 @@ export type DesktopSessionActionHandlers = {
   deleteWorkspace: (workspaceId: string, options?: { workspaceRoot?: string | null }) => Promise<boolean>;
   grantWorkspacePermission: (mode: "once" | "always") => Promise<void>;
   handleContinueWithProfile: () => Promise<void>;
-  handleLaunchSignIn: () => Promise<void>;
+  handleStartAuthLogin: (request: DesktopAuthLoginRequest) => Promise<void>;
   handleLogout: () => Promise<void>;
   hydrateWorkspace: (rootPath: string) => Promise<DesktopWorkspaceHydrateResult | null>;
   installReadyUpdate: () => Promise<void>;

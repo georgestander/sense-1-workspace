@@ -802,8 +802,8 @@ async function bootstrapMainProcess(): Promise<void> {
     openLatestRelease: async () => {
       await shell.openExternal(LATEST_RELEASE_URL);
     },
-    launchChatgptSignIn: async () => await desktopSessionController.launchChatgptSignIn(),
-    logoutChatgpt: async () => await desktopSessionController.logoutChatgpt(),
+    startDesktopAuthLogin: async (request) => await desktopSessionController.startAuthLogin(request),
+    logoutDesktopAuth: async () => await desktopSessionController.logoutDesktopAuth(),
     getBootstrap: async () => {
       const bootstrap = await desktopSessionController.getBootstrap();
       updateVisibleThread(resolveBootstrapVisibleThreadId(bootstrap));

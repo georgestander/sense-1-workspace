@@ -121,7 +121,8 @@ export default function App() {
         runtimeSetup={sessionState.runtimeSetup}
         isSignedIn={sessionState.isSignedIn}
         accountEmail={sessionState.accountEmail ?? ""}
-        handleLaunchSignIn={sessionState.handleLaunchSignIn}
+        handleStartAuthLogin={sessionState.handleStartAuthLogin}
+        authPendingMethod={sessionState.authPendingMethod}
         signInPending={sessionState.signInPending}
         bootstrapError={sessionState.bootstrapError}
         runtimeStatus={sessionState.runtimeStatus}

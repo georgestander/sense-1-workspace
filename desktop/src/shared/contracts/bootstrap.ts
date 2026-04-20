@@ -70,14 +70,22 @@ export type SelectDesktopProfileResult =
   | SelectDesktopProfileSuccess
   | SelectDesktopProfileFailure;
 
-export interface LaunchChatgptSignInResult {
+export type DesktopAuthLoginMethod = "chatgpt" | "apiKey";
+
+export interface DesktopAuthLoginRequest {
+  readonly method: DesktopAuthLoginMethod;
+  readonly apiKey?: string;
+}
+
+export interface DesktopAuthStartResult {
   readonly success: boolean;
-  readonly url: string;
+  readonly method: DesktopAuthLoginMethod;
+  readonly url: string | null;
   readonly reason?: string;
   readonly completed?: boolean;
 }
 
-export interface LogoutChatgptResult {
+export interface DesktopAuthLogoutResult {
   readonly success: boolean;
   readonly reason?: string;
 }

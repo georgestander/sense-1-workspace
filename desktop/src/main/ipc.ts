@@ -6,6 +6,9 @@ import {
   type DesktopAppRemoveRequest,
   type DesktopAppInstallRequest,
   type DesktopAppEnabledRequest,
+  type DesktopAuthLoginRequest,
+  type DesktopAuthLogoutResult,
+  type DesktopAuthStartResult,
   type DesktopBugReportDraft,
   type DesktopBugReportResult,
   type DesktopBugReportingStatus,
@@ -67,8 +70,6 @@ import {
   type DesktopWorkspacePolicyResult,
   type DesktopWorkspaceRestoreRequest,
   type DesktopWorkspaceSidebarOrderRequest,
-  type LaunchChatgptSignInResult,
-  type LogoutChatgptResult,
   type ProjectedWorkspacesRequest,
   type ProjectedWorkspacesResult,
   type ProjectedWorkspaceByRootRequest,
@@ -106,8 +107,8 @@ type DesktopIpcServices = {
   checkForUpdates(): Promise<DesktopUpdateState>;
   installUpdate(): Promise<void>;
   openLatestRelease(): Promise<void>;
-  launchChatgptSignIn(): Promise<LaunchChatgptSignInResult>;
-  logoutChatgpt(): Promise<LogoutChatgptResult>;
+  startDesktopAuthLogin(request: DesktopAuthLoginRequest): Promise<DesktopAuthStartResult>;
+  logoutDesktopAuth(): Promise<DesktopAuthLogoutResult>;
   rememberLastSelectedThread(request: DesktopLastSelectedThreadRequest): Promise<void>;
   renameDesktopThread(request: DesktopThreadRenameRequest): Promise<void>;
   archiveDesktopThread(request: DesktopThreadArchiveRequest): Promise<void>;
@@ -313,16 +314,16 @@ export function registerDesktopIpcHandlers(services: DesktopIpcServices): void {
   );
 
   ipcMain.handle(
-    IPC_CHANNELS.launchChatgptSignIn,
-    async (): Promise<LaunchChatgptSignInResult> => {
-      return await services.launchChatgptSignIn();
+    IPC_CHANNELS.startDesktopAuthLogin,
+    async (_event, request: DesktopAuthLoginRequest): Promise<DesktopAuthStartResult> => {
+      return await services.startDesktopAuthLogin(request);
     },
   );
 
   ipcMain.handle(
-    IPC_CHANNELS.logoutChatgpt,
-    async (): Promise<LogoutChatgptResult> => {
-      return await services.logoutChatgpt();
+    IPC_CHANNELS.logoutDesktopAuth,
+    async (): Promise<DesktopAuthLogoutResult> => {
+      return await services.logoutDesktopAuth();
     },
   );
 

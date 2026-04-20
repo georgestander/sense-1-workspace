@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import fs from "node:fs/promises";
 
-import { launchDesktopChatgptSignIn, logoutDesktopChatgpt } from "./desktop-auth.ts";
+import { logoutDesktopAuth, startDesktopAuthLogin } from "./desktop-auth.ts";
 import { getDesktopBootstrap, selectDesktopProfile } from "../bootstrap/desktop-bootstrap.js";
 import { DEFAULT_PROFILE_ID } from "../profile/profile-state.js";
 
@@ -45,9 +45,10 @@ function createManager(overrides = {}) {
   };
 }
 
-test("launchDesktopChatgptSignIn uses runtime-provided authUrl when available", async () => {
+test("startDesktopAuthLogin uses runtime-provided authUrl when available", async () => {
   const opened = [];
-  const result = await launchDesktopChatgptSignIn(createManager(), {
+  const result = await startDesktopAuthLogin(createManager(), {
+    request: { method: "chatgpt" },
     appStartedAt: "2026-03-19T10:00:00.000Z",
     runtimeInfo: {
       apiVersion: "1.0.0",
@@ -61,13 +62,14 @@ test("launchDesktopChatgptSignIn uses runtime-provided authUrl when available", 
   });
 
   assert.equal(result.success, true);
+  assert.equal(result.method, "chatgpt");
   assert.equal(result.url, "https://example.com/login");
   assert.deepEqual(opened, ["https://example.com/login"]);
 });
 
-test("launchDesktopChatgptSignIn falls back to ChatGPT login URL when login/start fails", async () => {
+test("startDesktopAuthLogin falls back to the direct ChatGPT login URL when login/start fails", async () => {
   const opened = [];
-  const result = await launchDesktopChatgptSignIn(
+  const result = await startDesktopAuthLogin(
     createManager({
       request: async (method) => {
         if (method === "account/read") {
@@ -94,6 +96,7 @@ test("launchDesktopChatgptSignIn falls back to ChatGPT login URL when login/star
       },
     }),
     {
+      request: { method: "chatgpt" },
       env: {
         ...process.env,
         SENSE1_CHATGPT_SIGNIN_URL: "https://chatgpt.com/auth/login",
@@ -105,12 +108,13 @@ test("launchDesktopChatgptSignIn falls back to ChatGPT login URL when login/star
   );
 
   assert.equal(result.success, true);
+  assert.equal(result.method, "chatgpt");
   assert.equal(result.url, "https://chatgpt.com/auth/login");
   assert.match(result.reason ?? "", /Fell back to direct ChatGPT login/);
   assert.deepEqual(opened, ["https://chatgpt.com/auth/login"]);
 });
 
-test("launchDesktopChatgptSignIn completes immediately in the e2e auth fixture for the selected profile", async () => {
+test("startDesktopAuthLogin completes immediately in the e2e auth fixture for the selected profile", async () => {
   const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-desktop-auth-"));
   const env = {
     ...process.env,
@@ -120,7 +124,8 @@ test("launchDesktopChatgptSignIn completes immediately in the e2e auth fixture f
     SENSE1_RUNTIME_STATE_ROOT: runtimeRoot,
   };
 
-  const result = await launchDesktopChatgptSignIn(createManager(), {
+  const result = await startDesktopAuthLogin(createManager(), {
+    request: { method: "chatgpt" },
     env,
     openExternal: async () => {
       throw new Error("fixture sign-in should not open an external browser");
@@ -128,6 +133,7 @@ test("launchDesktopChatgptSignIn completes immediately in the e2e auth fixture f
   });
 
   assert.equal(result.success, true);
+  assert.equal(result.method, "chatgpt");
   assert.equal(result.completed, true);
 
   const bootstrap = await getDesktopBootstrap(createManager(), {
@@ -146,7 +152,70 @@ test("launchDesktopChatgptSignIn completes immediately in the e2e auth fixture f
   assert.equal(bootstrap.profileId, DEFAULT_PROFILE_ID);
 });
 
-test("logoutDesktopChatgpt clears the e2e auth fixture for the active profile", async () => {
+test("startDesktopAuthLogin submits apiKey logins directly to app-server", async () => {
+  const calls = [];
+  const result = await startDesktopAuthLogin(
+    createManager({
+      request: async (method, params) => {
+        calls.push([method, params]);
+        if (method === "account/read") {
+          return {
+            account: {
+              email: null,
+              type: "chatgpt",
+            },
+            requiresOpenaiAuth: true,
+          };
+        }
+
+        if (method === "thread/list") {
+          return {
+            data: [],
+          };
+        }
+
+        if (method === "account/login/start") {
+          return {
+            type: "apiKey",
+          };
+        }
+
+        throw new Error(`Unexpected method: ${method}`);
+      },
+    }),
+    {
+      request: { method: "apiKey", apiKey: "sk-test-123" },
+      openExternal: async () => {
+        throw new Error("apiKey sign-in should not open an external browser");
+      },
+    },
+  );
+
+  assert.equal(result.success, true);
+  assert.equal(result.method, "apiKey");
+  assert.equal(result.completed, true);
+  assert.equal(result.url, null);
+  assert.deepEqual(
+    calls.find(([method]) => method === "account/login/start"),
+    ["account/login/start", { type: "apiKey", apiKey: "sk-test-123" }],
+  );
+});
+
+test("startDesktopAuthLogin rejects empty apiKey requests before calling app-server", async () => {
+  const result = await startDesktopAuthLogin(createManager(), {
+    request: { method: "apiKey", apiKey: "   " },
+    openExternal: async () => {
+      throw new Error("empty apiKey sign-in should not open an external browser");
+    },
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.method, "apiKey");
+  assert.equal(result.url, null);
+  assert.match(result.reason ?? "", /OpenAI API key/i);
+});
+
+test("logoutDesktopAuth clears the e2e auth fixture for the active profile", async () => {
   const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-desktop-auth-"));
   const env = {
     ...process.env,
@@ -157,12 +226,13 @@ test("logoutDesktopChatgpt clears the e2e auth fixture for the active profile", 
   };
 
   await selectDesktopProfile("qa-logout", env);
-  await launchDesktopChatgptSignIn(createManager(), {
+  await startDesktopAuthLogin(createManager(), {
+    request: { method: "chatgpt" },
     env,
     openExternal: async () => {},
   });
 
-  const result = await logoutDesktopChatgpt(createManager(), { env });
+  const result = await logoutDesktopAuth(createManager(), { env });
   assert.equal(result.success, true);
 
   const bootstrap = await getDesktopBootstrap(createManager(), {

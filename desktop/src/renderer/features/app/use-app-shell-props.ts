@@ -14,6 +14,7 @@ type BuildAppShellPropsArgs = {
   };
   account: {
     accountEmail: LeftSidebarProps["accountEmail"];
+    accountType: LeftSidebarProps["accountType"];
     accountMenuOpen: boolean;
     handleLogout: LeftSidebarProps["handleLogout"];
     logoutPending: LeftSidebarProps["logoutPending"];
@@ -171,6 +172,7 @@ export function useAppShellProps({
     accountMenuOpen: account.accountMenuOpen,
     setAccountMenuOpen: account.setAccountMenuOpen,
     accountEmail: account.accountEmail,
+    accountType: account.accountType,
     tenant: account.tenant,
     teamSetup: account.teamSetup,
     openSettings: handleOpenSettings,

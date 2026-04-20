@@ -3,6 +3,9 @@ import type { IpcRenderer } from "electron";
 import {
   IPC_CHANNELS,
   type DesktopApprovalResponseRequest,
+  type DesktopAuthLoginRequest,
+  type DesktopAuthLogoutResult,
+  type DesktopAuthStartResult,
   type DesktopBootstrap,
   type DesktopBridge,
   type DesktopInputResponseRequest,
@@ -20,8 +23,6 @@ import {
   type DesktopThreadRenameRequest,
   type DesktopThreadRestoreRequest,
   type DesktopSteerTurnRequest,
-  type LaunchChatgptSignInResult,
-  type LogoutChatgptResult,
   type RuntimeInfo,
   type SelectDesktopProfileResult,
   type DesktopVoiceAppendAudioRequest,
@@ -85,11 +86,11 @@ export function createSessionBridge(ipcRenderer: IpcRenderer): SessionBridge {
       },
     },
     auth: {
-      launchChatgptSignIn: async (): Promise<LaunchChatgptSignInResult> => {
-        return ipcRenderer.invoke(IPC_CHANNELS.launchChatgptSignIn) as Promise<LaunchChatgptSignInResult>;
+      startLogin: async (request: DesktopAuthLoginRequest): Promise<DesktopAuthStartResult> => {
+        return ipcRenderer.invoke(IPC_CHANNELS.startDesktopAuthLogin, request) as Promise<DesktopAuthStartResult>;
       },
-      logoutChatgpt: async (): Promise<LogoutChatgptResult> => {
-        return ipcRenderer.invoke(IPC_CHANNELS.logoutChatgpt) as Promise<LogoutChatgptResult>;
+      logout: async (): Promise<DesktopAuthLogoutResult> => {
+        return ipcRenderer.invoke(IPC_CHANNELS.logoutDesktopAuth) as Promise<DesktopAuthLogoutResult>;
       },
     },
     profiles: {

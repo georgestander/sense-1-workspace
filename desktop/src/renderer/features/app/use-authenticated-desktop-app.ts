@@ -77,6 +77,7 @@ export function useAuthenticatedDesktopApp({
     navigation,
     account: {
       accountEmail: sessionState.accountEmail,
+      accountType: sessionState.accountType,
       accountMenuOpen: ui.accountMenuOpen,
       handleLogout: sessionState.handleLogout,
       logoutPending: sessionState.logoutPending,

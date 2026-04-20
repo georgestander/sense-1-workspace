@@ -87,11 +87,12 @@ export function normalizeAuthState(result) {
   const email = firstString(account?.email);
   const name = firstString(account?.name);
   const accountType = firstString(account?.type);
+  const normalizedAccountType = accountType?.toLowerCase() ?? null;
   const requiresOpenaiAuth =
     typeof result?.requiresOpenaiAuth === "boolean" ? result.requiresOpenaiAuth : email === null;
 
   return {
-    isSignedIn: email !== null,
+    isSignedIn: email !== null || normalizedAccountType === "apikey",
     email,
     name,
     accountType,

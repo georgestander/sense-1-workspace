@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
+  DesktopAuthLoginMethod,
   DesktopBootstrap,
   DesktopModelEntry,
   DesktopRunContext,
@@ -99,6 +100,7 @@ export function useDesktopSessionState({
   const [bootstrapLoading, setBootstrapLoading] = useState(true);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [taskError, setTaskError] = useState<string | null>(null);
+  const [authPendingMethod, setAuthPendingMethod] = useState<DesktopAuthLoginMethod | null>(null);
   const [signInPending, setSignInPending] = useState(false);
   const [logoutPending, setLogoutPending] = useState(false);
   const [continuePending, setContinuePending] = useState(false);
@@ -345,6 +347,7 @@ export function useDesktopSessionState({
     setActiveTurnIdsByThread,
     setBootstrapError,
     setContinuePending,
+    setAuthPendingMethod,
     setLogoutPending,
     setPendingPermission,
     setPerThreadSidebar,
@@ -366,6 +369,7 @@ export function useDesktopSessionState({
   return {
     accountEmail,
     accountType,
+    authPendingMethod,
     availableModels,
     bootstrapError,
     bootstrapLoading,

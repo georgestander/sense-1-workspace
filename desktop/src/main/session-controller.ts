@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import type { AppServerProcessManager } from "./runtime/app-server-process-manager.js";
-import { launchDesktopChatgptSignIn, logoutDesktopChatgpt } from "./auth/desktop-auth.ts";
+import { logoutDesktopAuth, startDesktopAuthLogin } from "./auth/desktop-auth.ts";
 import {
   getDesktopBootstrap,
   selectDesktopProfile,
@@ -18,6 +18,9 @@ import type {
   DesktopAppRemoveRequest,
   DesktopAppInstallRequest,
   DesktopAppEnabledRequest,
+  DesktopAuthLoginRequest,
+  DesktopAuthLogoutResult,
+  DesktopAuthStartResult,
   DesktopAutomationDeleteRequest,
   DesktopAutomationDetailResult,
   DesktopAutomationListResult,
@@ -67,7 +70,6 @@ import type {
   DesktopWorkspacePolicyResult,
   DesktopWorkspaceRestoreRequest,
   DesktopWorkspaceOperatingModeRequest,
-  LaunchChatgptSignInResult,
   SelectDesktopProfileResult,
   RuntimeInfo,
   DesktopSettings,
@@ -487,8 +489,9 @@ export class DesktopSessionController {
     });
   }
 
-  async launchChatgptSignIn(): Promise<LaunchChatgptSignInResult> {
-    const result = await launchDesktopChatgptSignIn(this.#manager, {
+  async startAuthLogin(request: DesktopAuthLoginRequest): Promise<DesktopAuthStartResult> {
+    const result = await startDesktopAuthLogin(this.#manager, {
+      request,
       appStartedAt: this.#appStartedAt,
       env: this.#env,
       runtimeInfo: this.#runtimeInfo,
@@ -498,9 +501,9 @@ export class DesktopSessionController {
     return result;
   }
 
-  async logoutChatgpt() {
+  async logoutDesktopAuth(): Promise<DesktopAuthLogoutResult> {
     await this.#desktopVoice.dispose();
-    const result = await logoutDesktopChatgpt(this.#manager, {
+    const result = await logoutDesktopAuth(this.#manager, {
       env: this.#env,
     });
     this.#invalidateResolvedProfile();

@@ -62,6 +62,7 @@ export type LeftSidebarProps = {
   accountMenuOpen: boolean;
   setAccountMenuOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
   accountEmail: string | null | undefined;
+  accountType: string | null | undefined;
   tenant: DesktopBootstrapTenant | null;
   teamSetup: DesktopBootstrapTeamSetup;
   openSettings: () => Promise<void> | void;
@@ -69,6 +70,21 @@ export type LeftSidebarProps = {
   handleLogout: () => Promise<void> | void;
   logoutPending: boolean;
 };
+
+function resolveAccountLabel(accountEmail: string | null | undefined, accountType: string | null | undefined): string {
+  if (accountEmail) {
+    return accountEmail;
+  }
+
+  const normalizedAccountType = accountType?.toLowerCase() ?? null;
+  if (normalizedAccountType === "chatgpt") {
+    return "Signed in with ChatGPT";
+  }
+  if (normalizedAccountType === "apikey") {
+    return "Signed in with OpenAI API key";
+  }
+  return "Signed in";
+}
 
 export function LeftSidebar({
   activeView,
@@ -114,6 +130,7 @@ export function LeftSidebar({
   accountMenuOpen,
   setAccountMenuOpen,
   accountEmail,
+  accountType,
   tenant,
   teamSetup,
   openSettings,
@@ -122,6 +139,7 @@ export function LeftSidebar({
   logoutPending,
 }: LeftSidebarProps) {
   const tenantIdentity = buildSidebarIdentity(tenant, teamSetup);
+  const accountLabel = resolveAccountLabel(accountEmail, accountType);
 
   return (
     <aside
@@ -253,7 +271,7 @@ export function LeftSidebar({
           <button className="flex w-full items-center gap-2 text-left" onClick={() => setAccountMenuOpen((value) => !value)} type="button">
             <UserCircle2 className="text-muted" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{accountEmail ?? "Signed in with ChatGPT"}</p>
+              <p className="truncate text-sm font-medium">{accountLabel}</p>
               <p className="truncate text-xs text-muted">{tenantIdentity.summary}</p>
               <p className="truncate text-[11px] text-muted/80">{tenantIdentity.detail}</p>
             </div>
