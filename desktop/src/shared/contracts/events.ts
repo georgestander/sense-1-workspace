@@ -152,4 +152,12 @@ export type DesktopRuntimeEvent =
       readonly kind: "voiceError";
       readonly threadId: string;
       readonly message: string;
+    }
+  | {
+      readonly kind: "crashReportSuggested";
+      readonly reason: "runtime-crashed" | "runtime-errored" | "bootstrap-blocked" | "renderer-gone";
+      readonly detail: string | null;
+      readonly setupCode: string | null;
+      readonly restartCount: number | null;
+      readonly occurredAt: string;
     };

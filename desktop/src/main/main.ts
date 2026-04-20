@@ -38,6 +38,15 @@ import {
   isApiKeyAccountType,
 } from "./session/api-key-credits-notification.ts";
 import { DesktopBugReportingService } from "./bug-reporting/desktop-bug-reporting-service.ts";
+import {
+  classifyBootstrapSetup,
+  classifyRenderProcessGone,
+  classifyRuntimeCrash,
+  classifyRuntimeErrored,
+  isRuntimeStateUsable,
+  type CrashClassSignal,
+} from "./bug-reporting/crash-class-detector.ts";
+import { CrashRecoveryTracker } from "./bug-reporting/crash-recovery-tracker.ts";
 import { redactSensitivePath, resolveRedactionHomeDir } from "./bug-reporting/redaction.ts";
 import { captureDesktopManualBugReport } from "./bug-reporting/sentry-reporting.ts";
 import { createDesktopLogBuffer, installDesktopLogBuffer } from "./logging/desktop-log-buffer.ts";
@@ -93,6 +102,48 @@ const workspaceState = new DesktopWorkspaceStateService({
 let updateService = createDisabledUpdateService();
 let currentVisibleThreadId: string | null = null;
 let currentAccountType: string | null = null;
+let lastBlockingBootstrapSetupCode: string | null = null;
+let openBrowserWindowCount = 0;
+const crashRecoveryTracker = new CrashRecoveryTracker((signal) => {
+  emitCrashReportSuggestedEvent(signal);
+});
+
+function emitCrashReportSuggestedEvent(signal: CrashClassSignal): void {
+  const setupCode = signal.reason === "bootstrap-blocked" ? signal.setupCode : null;
+  const restartCount =
+    signal.reason === "runtime-crashed" || signal.reason === "runtime-errored"
+      ? signal.restartCount
+      : null;
+  emitDesktopRuntimeEvent({
+    kind: "crashReportSuggested",
+    reason: signal.reason,
+    detail: signal.detail,
+    setupCode,
+    restartCount,
+    occurredAt: new Date().toISOString(),
+  });
+}
+
+function attachCrashWatcherToWindow(window: BrowserWindow): void {
+  openBrowserWindowCount += 1;
+  crashRecoveryTracker.setWindowOpen(true);
+
+  window.webContents.on("render-process-gone", (_event, details) => {
+    crashRecoveryTracker.setWindowOpen(false);
+    const signal = classifyRenderProcessGone({
+      reason: details?.reason ?? null,
+      exitCode: typeof details?.exitCode === "number" ? details.exitCode : null,
+    });
+    if (signal) {
+      crashRecoveryTracker.recordSignal(signal);
+    }
+  });
+
+  window.on("closed", () => {
+    openBrowserWindowCount = Math.max(0, openBrowserWindowCount - 1);
+    crashRecoveryTracker.setWindowOpen(openBrowserWindowCount > 0);
+  });
+}
 const runtimePerfCounters = new Map<string, number>();
 let runtimePerfLastFlushAt = Date.now();
 let pendingAccumulatorNotifications: RuntimeNotification[] = [];
@@ -607,16 +658,28 @@ const bugReportingService = new DesktopBugReportingService({
 let runtimeStartInFlight: Promise<void> | null = null;
 let isGracefulQuitInProgress = false;
 
+appServerManager.on("state", (summary) => {
+  crashRecoveryTracker.setRuntimeUsable(isRuntimeStateUsable(summary?.state));
+});
+
 appServerManager.on("state:crashed", (summary) => {
   console.error(
     `[desktop:runtime] App-server crashed (restartCount=${summary.restartCount}, lastError=${summary.lastError ?? "none"}).`,
   );
+  const signal = classifyRuntimeCrash(summary);
+  if (signal) {
+    crashRecoveryTracker.recordSignal(signal);
+  }
 });
 
 appServerManager.on("state:errored", (summary) => {
   console.error(
     `[desktop:runtime] App-server entered errored state (lastError=${summary.lastError ?? "unknown"}).`,
   );
+  const signal = classifyRuntimeErrored(summary);
+  if (signal) {
+    crashRecoveryTracker.recordSignal(signal);
+  }
 });
 
 appServerManager.on("transport:error", (error) => {
@@ -837,6 +900,13 @@ async function bootstrapMainProcess(): Promise<void> {
       if (typeof bootstrap.auth?.accountType === "string" && bootstrap.auth.accountType.trim()) {
         currentAccountType = bootstrap.auth.accountType;
       }
+      const setup = bootstrap.runtimeSetup ?? null;
+      const setupSignal = classifyBootstrapSetup(setup);
+      if (setupSignal && setupSignal.setupCode !== lastBlockingBootstrapSetupCode) {
+        crashRecoveryTracker.recordSignal(setupSignal);
+      }
+      lastBlockingBootstrapSetupCode = setupSignal ? setupSignal.setupCode : null;
+      crashRecoveryTracker.setBootstrapUsable(!setup?.blocked);
       return decorateBootstrap(bootstrap);
     },
     submitDesktopBugReport: async (request) => await bugReportingService.submitReport(request),
@@ -960,7 +1030,8 @@ async function bootstrapMainProcess(): Promise<void> {
     deleteDesktopAutomation: async (request) => await desktopSessionController.deleteDesktopAutomation(request),
     runDesktopAutomationNow: async (request) => await desktopSessionController.runDesktopAutomationNow(request),
   });
-  createMainWindow();
+  const mainWindow = createMainWindow();
+  attachCrashWatcherToWindow(mainWindow);
   syncUpdaterBusyState();
   updateService.start();
 }
@@ -985,7 +1056,8 @@ app.on("second-instance", () => {
 app.on("activate", () => {
   const windows = BrowserWindow.getAllWindows();
   if (windows.length === 0) {
-    createMainWindow();
+    const mainWindow = createMainWindow();
+    attachCrashWatcherToWindow(mainWindow);
   } else {
     focusMainWindow();
   }
