@@ -33,7 +33,7 @@ import { ThreadInputQueueService } from "./session/thread-input-queue-service.ts
 import { resolveBootstrapVisibleThreadId, shouldRestoreQueuedFollowUp } from "./session/thread-runtime-behavior.ts";
 import { RuntimeFileChangeTracker } from "./session/runtime-file-change-tracker.ts";
 import { DesktopBugReportingService } from "./bug-reporting/desktop-bug-reporting-service.ts";
-import { redactSensitivePath } from "./bug-reporting/redaction.ts";
+import { redactSensitivePath, resolveRedactionHomeDir } from "./bug-reporting/redaction.ts";
 import { captureDesktopManualBugReport } from "./bug-reporting/sentry-reporting.ts";
 import { createDesktopLogBuffer, installDesktopLogBuffer } from "./logging/desktop-log-buffer.ts";
 import {
@@ -371,7 +371,7 @@ function redactSentryScopePath(value: string | null): string | null {
     return null;
   }
 
-  return redactSensitivePath(value, process.env.HOME ?? null);
+  return redactSensitivePath(value, resolveRedactionHomeDir(process.env));
 }
 
 function syncSentryThreadScope(): void {

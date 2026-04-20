@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { redactLogEntries, redactSensitivePath, redactSensitiveText } from "./redaction.ts";
+import { redactLogEntries, redactSensitivePath, redactSensitiveText, resolveRedactionHomeDir } from "./redaction.ts";
 
 test("redactSensitiveText strips common secret patterns", () => {
   assert.equal(
@@ -33,4 +33,13 @@ test("redactLogEntries applies text and path redaction together", () => {
       timestamp: "2026-04-20T00:00:00.000Z",
     },
   ]);
+});
+
+test("resolveRedactionHomeDir falls back to USERPROFILE on Windows-like environments", () => {
+  assert.equal(
+    resolveRedactionHomeDir({
+      USERPROFILE: "C:\\Users\\George",
+    }),
+    "C:\\Users\\George",
+  );
 });

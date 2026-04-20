@@ -9,7 +9,7 @@ import type { RuntimeInfoResult } from "../../shared/contracts/runtime.ts";
 import type { DesktopLogEntry } from "../logging/desktop-log-buffer.ts";
 import { decideDesktopBugPromotion } from "./bug-promotion-service.ts";
 import { LinearIssueAdapter } from "./linear-issue-adapter.ts";
-import { redactLogEntries, redactSensitivePath, redactSensitiveText } from "./redaction.ts";
+import { redactLogEntries, redactSensitivePath, redactSensitiveText, resolveRedactionHomeDir } from "./redaction.ts";
 
 export interface DesktopBugReportingThreadContext {
   readonly id: string | null;
@@ -106,7 +106,7 @@ export class DesktopBugReportingService {
 
   async submitReport(report: DesktopBugReportDraft): Promise<DesktopBugReportResult> {
     const bootstrap = await this.#getBootstrap();
-    const homeDir = firstNonEmptyString(this.#env.HOME) ?? null;
+    const homeDir = resolveRedactionHomeDir(this.#env);
     const thread = normalizeThreadContext(this.#getVisibleThreadContext(), homeDir);
     const sanitizedReport: DesktopBugReportDraft = {
       ...report,
@@ -146,17 +146,31 @@ export class DesktopBugReportingService {
       };
     }
 
-    const linearIssue = await this.#linearIssueAdapter.createIssue({
-      title: sanitizedReport.title,
-      severity: promotionDecision.severity,
-      description: this.#buildLinearIssueDescription({
-        bootstrap,
-        recentLogs,
-        report: sanitizedReport,
+    let linearIssue;
+    try {
+      linearIssue = await this.#linearIssueAdapter.createIssue({
+        title: sanitizedReport.title,
+        severity: promotionDecision.severity,
+        description: this.#buildLinearIssueDescription({
+          bootstrap,
+          recentLogs,
+          report: sanitizedReport,
+          sentryEventId,
+          thread,
+        }),
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`[desktop:bug-reporting] Failed to create Linear issue after Sentry capture: ${errorMessage}`);
+      return {
         sentryEventId,
-        thread,
-      }),
-    });
+        sentryIssueUrl: null,
+        promotionDisposition: "deferred",
+        promotionReason: "Sentry captured the report, but Linear ticket creation failed and was deferred.",
+        linearIssueId: null,
+        linearIssueUrl: null,
+      };
+    }
 
     return {
       sentryEventId,
