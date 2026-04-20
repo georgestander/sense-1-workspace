@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import * as Sentry from "@sentry/electron/renderer";
 
 import {
   DESKTOP_BRIDGE_API_VERSION,
@@ -9,6 +10,8 @@ import { createManagementBridge } from "./bridge/management";
 import { createSystemBridge } from "./bridge/system";
 import { createTeamBridge } from "./bridge/tenant";
 import { createWorkspaceBridge } from "./bridge/workspace";
+
+Sentry.init();
 
 const desktopBridge: DesktopBridge = {
   apiVersion: DESKTOP_BRIDGE_API_VERSION,

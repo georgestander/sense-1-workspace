@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Notification, nativeImage, shell } from "electron";
+import * as Sentry from "@sentry/electron/main";
 
 import { AppServerProcessManager } from "./runtime/app-server-process-manager.js";
 import { DESKTOP_APP_VERSION } from "./app/app-version.ts";
@@ -35,11 +36,23 @@ import {
   coalesceRuntimeNotifications,
   type RuntimeNotification,
 } from "./session/runtime-notification-coalescer.ts";
+import {
+  resolveSentryDsn,
+  resolveSentryEnvironment,
+  resolveSentryRelease,
+  shouldEnableSentryDebug,
+} from "../shared/sentry.ts";
 import type { DesktopBootstrap, DesktopSteerTurnResult, DesktopTaskRunResult, DesktopThreadInputState, DesktopThreadReadResult, DesktopThreadSnapshot, DesktopThreadSummary } from "../shared/contracts/index";
 
 const DESKTOP_APP_NAME = "Sense-1 Workspace";
 const LATEST_RELEASE_URL = "https://github.com/georgestander/sense-1-workspace/releases/latest";
 const shouldEnforceSingleInstance = process.env.NODE_ENV !== "test";
+Sentry.init({
+  dsn: resolveSentryDsn(process.env),
+  environment: resolveSentryEnvironment(process.env),
+  release: resolveSentryRelease(DESKTOP_APP_VERSION),
+  debug: shouldEnableSentryDebug(process.env),
+});
 app.setName(DESKTOP_APP_NAME);
 const isSingleInstance = shouldEnforceSingleInstance ? app.requestSingleInstanceLock() : true;
 const appServerManager = new AppServerProcessManager();
