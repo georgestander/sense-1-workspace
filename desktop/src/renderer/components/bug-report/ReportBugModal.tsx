@@ -4,6 +4,7 @@ import { AlertTriangle, Bug, CheckCircle2, Paperclip, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "../../lib/cn";
 import type { ReportBugController } from "../../features/bug-report/use-report-bug-controller";
+import { resolveReportBugOutcomePresentation } from "../../features/bug-report/report-bug-outcome.js";
 import type { DesktopBugSeverity } from "../../../shared/contracts/bug-reporting";
 
 const SEVERITY_OPTIONS: Array<{ value: DesktopBugSeverity; label: string }> = [
@@ -198,7 +199,7 @@ function IntakeSummary({ controller }: { controller: ReportBugController }) {
 function AttachmentsField({ controller }: { controller: ReportBugController }) {
   const disabled = controller.phase === "submitting" || controller.attachmentPickerPending;
   return (
-    <Field label="Attachments" hint="Optional. Images are treated as screenshots; other files are attached as-is.">
+    <Field label="Attachments" hint="Optional. Images are sent as screenshots; other files are included as attachments in the report request.">
       <div className="flex flex-col gap-2">
         <Button
           disabled={disabled}
@@ -242,8 +243,8 @@ function AttachmentsField({ controller }: { controller: ReportBugController }) {
 }
 
 function ReportBugSuccessPanel({ controller }: { controller: ReportBugController }) {
+  const outcome = resolveReportBugOutcomePresentation(controller.result);
   const reference = controller.result?.sentryEventId ?? null;
-  const linearUrl = controller.result?.linearIssueUrl ?? null;
   return (
     <>
       <div className="flex min-h-0 flex-1 flex-col items-center gap-4 overflow-y-auto px-6 py-10 text-center">
@@ -251,9 +252,9 @@ function ReportBugSuccessPanel({ controller }: { controller: ReportBugController
           <CheckCircle2 className="size-6" />
         </div>
         <div className="flex flex-col gap-1">
-          <h3 className="font-display text-lg font-semibold tracking-tight">Thanks — your report was sent</h3>
+          <h3 className="font-display text-lg font-semibold tracking-tight">{outcome.title}</h3>
           <p className="text-sm text-ink-soft">
-            We&apos;ve received your report and the team can review it during triage.
+            {outcome.detail}
           </p>
         </div>
         {reference ? (
@@ -262,17 +263,22 @@ function ReportBugSuccessPanel({ controller }: { controller: ReportBugController
             <p className="mt-0.5 break-all font-mono text-ink">{reference}</p>
           </div>
         ) : null}
-        {linearUrl ? (
-          <a
-            className="text-xs text-accent underline-offset-2 hover:underline"
-            href={linearUrl}
-            onClick={(event) => {
-              event.preventDefault();
-              void window.sense1Desktop?.window?.openExternalUrl(linearUrl);
-            }}
-          >
-            View tracking ticket
-          </a>
+        {outcome.links.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {outcome.links.map((link) => (
+              <a
+                className="text-xs text-accent underline-offset-2 hover:underline"
+                href={link.href}
+                key={`${link.label}:${link.href}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  void window.sense1Desktop?.window?.openExternalUrl(link.href);
+                }}
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
         ) : null}
       </div>
       <footer className="flex shrink-0 items-center justify-end gap-2 border-t border-line bg-surface-low px-5 py-3">
