@@ -5,6 +5,7 @@ export const MODEL_CATALOG_CACHE_KEY: string;
 export declare function normalizeModelCatalog(entries: unknown): DesktopModelEntry[];
 export declare function readCachedModelCatalog(storage?: Storage | null): DesktopModelEntry[];
 export declare function writeCachedModelCatalog(models: unknown, storage?: Storage | null): void;
+export declare function readRuntimeReasoningEfforts(modelEntry: DesktopModelEntry | null | undefined): string[];
 export declare function resolveModelSelection(args: {
   models: DesktopModelEntry[];
   requestedModel: string;

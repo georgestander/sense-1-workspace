@@ -309,6 +309,7 @@ export function useDesktopSessionState({
     threadPlanState,
   } = sessionView;
   useSessionShellEffects({
+    accountType,
     activeRoot,
     applyBootstrap,
     bootstrapRequestIdRef,

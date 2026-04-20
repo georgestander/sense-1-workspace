@@ -5,6 +5,7 @@ import {
   MODEL_CATALOG_CACHE_KEY,
   normalizeModelCatalog,
   readCachedModelCatalog,
+  readRuntimeReasoningEfforts,
   resolveModelSettingsUpdate,
   resolveModelSelection,
   resolveReasoningOptions,
@@ -220,4 +221,127 @@ test("normalizeModelCatalog drops invalid entries before the picker sees them", 
       },
     ],
   );
+});
+
+test("identical runtime catalogs produce identical renderer options across auth modes", () => {
+  const sharedCatalog = [
+    {
+      id: "gpt-5.4",
+      name: "GPT-5.4",
+      isDefault: true,
+      supportedReasoningEfforts: ["low", "medium", "high"],
+      defaultReasoningEffort: "medium",
+    },
+    {
+      id: "gpt-5.4-mini",
+      name: "GPT-5.4 Mini",
+      supportedReasoningEfforts: ["low", "medium", "high", "xhigh"],
+      defaultReasoningEffort: "medium",
+    },
+  ];
+
+  const chatgptModels = normalizeModelCatalog(sharedCatalog);
+  const apiKeyModels = normalizeModelCatalog(sharedCatalog);
+
+  assert.deepEqual(
+    chatgptModels.map((entry) => entry.id),
+    apiKeyModels.map((entry) => entry.id),
+  );
+
+  for (const modelId of ["gpt-5.4", "gpt-5.4-mini"]) {
+    assert.deepEqual(
+      resolveReasoningOptions({ models: chatgptModels, modelId, requestedReasoning: "" }),
+      resolveReasoningOptions({ models: apiKeyModels, modelId, requestedReasoning: "" }),
+    );
+    assert.equal(
+      resolveReasoningSelection({ models: chatgptModels, modelId, requestedReasoning: "high" }),
+      resolveReasoningSelection({ models: apiKeyModels, modelId, requestedReasoning: "high" }),
+    );
+  }
+});
+
+test("runtime-provided reasoning efforts are not augmented by the fallback heuristic", () => {
+  const runtimeRestrictedPro = [
+    {
+      id: "gpt-5-pro",
+      name: "GPT-5 Pro",
+      supportedReasoningEfforts: ["medium", "high"],
+      defaultReasoningEffort: "high",
+    },
+  ];
+
+  assert.deepEqual(
+    resolveReasoningOptions({
+      models: runtimeRestrictedPro,
+      modelId: "gpt-5-pro",
+      requestedReasoning: "",
+    }),
+    ["medium", "high"],
+  );
+
+  const runtimeRestrictedGpt51 = [
+    {
+      id: "gpt-5.1",
+      name: "GPT-5.1",
+      supportedReasoningEfforts: ["low", "high"],
+      defaultReasoningEffort: "low",
+    },
+  ];
+
+  assert.deepEqual(
+    resolveReasoningOptions({
+      models: runtimeRestrictedGpt51,
+      modelId: "gpt-5.1",
+      requestedReasoning: "",
+    }),
+    ["low", "high"],
+  );
+});
+
+test("readRuntimeReasoningEfforts exposes runtime data without falling through to heuristics", () => {
+  assert.deepEqual(readRuntimeReasoningEfforts(null), []);
+  assert.deepEqual(readRuntimeReasoningEfforts(undefined), []);
+  assert.deepEqual(
+    readRuntimeReasoningEfforts({
+      id: "gpt-5-pro",
+      name: "GPT-5 Pro",
+      supportedReasoningEfforts: [],
+      defaultReasoningEffort: "high",
+    }),
+    [],
+  );
+  assert.deepEqual(
+    readRuntimeReasoningEfforts({
+      id: "gpt-5.4",
+      name: "GPT-5.4",
+      supportedReasoningEfforts: ["low", "medium"],
+    }),
+    ["low", "medium"],
+  );
+});
+
+test("composer and settings surfaces derive the same options from the same catalog", () => {
+  const models = normalizeModelCatalog([
+    {
+      id: "gpt-5.4",
+      name: "GPT-5.4",
+      isDefault: true,
+      supportedReasoningEfforts: ["low", "medium", "high"],
+      defaultReasoningEffort: "medium",
+    },
+  ]);
+
+  const composerOptions = resolveReasoningOptions({
+    models,
+    modelId: "gpt-5.4",
+    requestedReasoning: "medium",
+  });
+  const settingsOptions = resolveReasoningOptions({
+    models,
+    modelId: "gpt-5.4",
+    requestedReasoning: "medium",
+  });
+
+  assert.deepEqual(composerOptions, settingsOptions);
+  assert.deepEqual(composerOptions, ["low", "medium", "high"]);
 });
