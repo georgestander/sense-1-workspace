@@ -447,60 +447,79 @@ function buildProviderOptions({
   requiresOpenaiAuth: boolean;
   selectedProvider: DesktopProviderId | null;
 }): DesktopProviderOption[] {
+  const isApiKeyAuth = accountType === "apikey" || authMode === "apikey";
+  const chatgptAccountEmail = accountType === "chatgpt" ? accountEmail : null;
+  const apiKeyAccountEmail = isApiKeyAuth ? accountEmail : null;
   return [
     {
       id: "chatgpt",
       label: "ChatGPT",
       description: "Use native Codex-managed ChatGPT sign-in.",
       available: true,
-      configured: selectedProvider === "chatgpt" || accountType === "chatgpt" || Boolean(accountEmail),
+      configured: selectedProvider === "chatgpt" || accountType === "chatgpt",
       requiresOpenaiAuth,
-      detail: accountEmail
-        ? `Signed in as ${accountEmail}.`
+      detail: chatgptAccountEmail
+        ? `Signed in as ${chatgptAccountEmail}.`
         : "Use your ChatGPT account and keep the Sense-1 Workspace shell unchanged after sign-in.",
+    },
+    {
+      id: "openai-api-key",
+      label: "OpenAI API key",
+      description: "Paste an OpenAI API key to use Sense-1 with your own credits.",
+      available: true,
+      configured: selectedProvider === "openai-api-key" || isApiKeyAuth,
+      requiresOpenaiAuth,
+      detail: apiKeyAccountEmail
+        ? `Signed in with an OpenAI API key for ${apiKeyAccountEmail}.`
+        : "Your key stays on this machine and lands you on the desktop shell.",
     },
     {
       id: "gemini",
       label: "Gemini",
-      description: "Use a Gemini CLI-backed local provider path when available.",
-      available: detectedGemini,
+      description: "Gemini sign-in is not part of this alpha.",
+      available: false,
       configured: selectedProvider === "gemini",
       requiresOpenaiAuth: false,
       detail: detectedGemini
-        ? "Gemini tooling is available on this machine."
-        : "Gemini CLI was not detected on this machine.",
+        ? "Gemini tooling was detected locally, but alpha sign-in is coming soon."
+        : "Gemini sign-in is coming soon.",
     },
     {
       id: "ollama",
       label: "Ollama",
-      description: "Use a local Ollama model provider.",
-      available: detectedOllama,
-      configured: selectedProvider === "ollama" || authMode === "apikey",
+      description: "Ollama sign-in is not part of this alpha.",
+      available: false,
+      configured: selectedProvider === "ollama",
       requiresOpenaiAuth: false,
       detail: detectedOllama
-        ? "Ollama was detected locally."
-        : "Ollama was not detected on this machine.",
+        ? "Ollama was detected locally, but alpha sign-in is coming soon."
+        : "Ollama sign-in is coming soon.",
     },
   ];
 }
 
 function resolveSelectedProvider({
   accountType,
+  authMode,
   config,
 }: {
   accountType: string | null;
+  authMode: string | null;
   config: ConfigReadResult["config"];
 }): DesktopProviderId | null {
   if (accountType === "chatgpt") {
     return "chatgpt";
   }
-  const modelProvider = firstString(config?.model_provider);
   const ossProvider = firstString(config?.oss_provider);
   if (ossProvider === "ollama") {
     return "ollama";
   }
+  const modelProvider = firstString(config?.model_provider);
   if (modelProvider?.toLowerCase().includes("gemini")) {
     return "gemini";
+  }
+  if (accountType === "apikey" || authMode === "apikey") {
+    return "openai-api-key";
   }
   return null;
 }
@@ -1571,6 +1590,7 @@ export class DesktopExtensionService {
     const config = mergeConfigWithLocalToggles(configResult?.config ?? null, localConfigToggles);
     const selectedProvider = resolveSelectedProvider({
       accountType: firstString(accountResult?.account?.type),
+      authMode: firstString(accountResult?.authMode),
       config,
     });
     const provider: DesktopProviderState = {
