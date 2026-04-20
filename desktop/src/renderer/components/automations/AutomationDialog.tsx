@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Play, Save, Trash2, X } from "lucide-react";
+import {
+  Brain,
+  Cpu,
+  FileText,
+  Loader2,
+  Play,
+  Power,
+  Save,
+  Sliders,
+  Terminal,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import type {
   DesktopAutomationDetailResult,
@@ -10,7 +22,6 @@ import { Button } from "../ui/button";
 import { AutomationScheduleField } from "./AutomationScheduleField";
 import { AutomationWorkspaceField } from "./AutomationWorkspaceField";
 import {
-  AUTOMATION_ALPHA_NOTE,
   AUTOMATION_KIND_LABEL,
   buildAutomationScheduleRrule,
   createDefaultAutomationSchedule,
@@ -147,7 +158,7 @@ export function AutomationDialog({
 
   return (
     <div
-      className="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 px-4 py-6"
+      className="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 px-4 py-4"
       role="dialog"
       aria-modal="true"
       aria-label={isEditing ? "Edit workspace automation" : "New workspace automation"}
@@ -157,15 +168,15 @@ export function AutomationDialog({
         }
       }}
     >
-      <div className="flex w-full max-w-2xl flex-col gap-5 rounded-[1.75rem] border border-line bg-surface-high p-6 shadow-2xl">
-        <header className="flex items-start gap-3">
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.11em] text-muted">
+      <div className="flex max-h-[90vh] w-full max-w-xl flex-col rounded-3xl border border-line bg-surface-high shadow-2xl">
+        <header className="flex items-center gap-3 border-b border-line px-5 py-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
               {AUTOMATION_KIND_LABEL}
             </p>
             <input
               aria-label="Automation title"
-              className="w-full border-0 bg-transparent p-0 text-2xl font-semibold tracking-tight text-ink outline-none placeholder:text-ink-soft focus-visible:ring-0"
+              className="w-full border-0 bg-transparent p-0 text-lg font-semibold tracking-tight text-ink outline-none placeholder:text-ink-soft focus-visible:ring-0"
               onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
               placeholder="Automation title"
               value={draft.name}
@@ -176,83 +187,86 @@ export function AutomationDialog({
           </Button>
         </header>
 
-        {loading ? (
-          <div className="flex min-h-[320px] items-center justify-center rounded-2xl bg-surface-soft">
-            <div className="flex items-center gap-3 text-sm text-ink-muted">
-              <Loader2 className="size-4 animate-spin text-muted" />
-              Loading automation details...
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4">
+          {loading ? (
+            <div className="flex min-h-[200px] items-center justify-center rounded-2xl bg-surface-soft">
+              <div className="flex items-center gap-3 text-sm text-ink-muted">
+                <Loader2 className="size-4 animate-spin text-muted" />
+                Loading automation details...
+              </div>
             </div>
-          </div>
-        ) : (
-          <>
-            <label className="flex flex-col gap-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Prompt</span>
+          ) : (
+            <>
               <textarea
-                className="min-h-[220px] rounded-[1.5rem] border border-line bg-canvas px-4 py-3 text-sm leading-6 text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
+                aria-label="Prompt"
+                className="min-h-[140px] rounded-2xl border border-line bg-canvas px-4 py-3 text-sm leading-6 text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
                 onChange={(event) => setDraft((current) => ({ ...current, prompt: event.target.value }))}
                 placeholder="Describe the recurring task clearly enough that it can run without more setup."
                 value={draft.prompt}
               />
-            </label>
 
-            <AutomationScheduleField
-              disabled={!draft.scheduleEditable}
-              onChange={(value) => setDraft((current) => ({ ...current, schedule: value }))}
-              value={draft.schedule}
-            />
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <AutomationWorkspaceField
-                mode={workspaceMode}
-                onChange={(value) => setDraft((current) => ({ ...current, cwd: value }))}
-                onModeChange={setWorkspaceMode}
-                options={projectOptions}
-                value={draft.cwd}
+              <AutomationScheduleField
+                disabled={!draft.scheduleEditable}
+                onChange={(value) => setDraft((current) => ({ ...current, schedule: value }))}
+                value={draft.schedule}
               />
 
-              <label className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Run target</span>
-                <div className="flex items-center gap-2 rounded-2xl border border-line bg-canvas px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
-                  <select
-                    className="min-w-0 flex-1 bg-transparent outline-none"
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        executionEnvironment: event.target.value as DesktopAutomationExecutionEnvironment,
-                      }))
-                    }
-                    value={draft.executionEnvironment}
-                  >
-                    <option value="local">Local</option>
-                    <option value="worktree">Worktree</option>
-                  </select>
-                </div>
-              </label>
-            </div>
-
-            <details className="rounded-2xl border border-line bg-canvas px-4 py-3">
-              <summary className="cursor-pointer select-none text-sm font-medium text-ink">
-                Advanced settings
-              </summary>
-              <p className="mt-1 text-xs leading-5 text-ink-muted">
-                Template, status, model, and reasoning stay tucked away unless you need them.
-              </p>
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Template</span>
-                  <input
-                    className="rounded-2xl border border-line bg-surface-high px-3 py-2 text-sm text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
-                    onChange={(event) => setDraft((current) => ({ ...current, template: event.target.value }))}
-                    placeholder="Daily brief, inbox triage, release review..."
-                    value={draft.template}
-                  />
-                </label>
+              <div className="grid gap-3 md:grid-cols-2">
+                <AutomationWorkspaceField
+                  mode={workspaceMode}
+                  onChange={(value) => setDraft((current) => ({ ...current, cwd: value }))}
+                  onModeChange={setWorkspaceMode}
+                  options={projectOptions}
+                  value={draft.cwd}
+                />
 
                 <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Status</span>
-                  <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface-high px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
+                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Run target</span>
+                  <div className="flex items-center gap-2 rounded-2xl border border-line bg-canvas px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
+                    <Terminal className="size-4 shrink-0 text-muted" />
                     <select
                       className="min-w-0 flex-1 bg-transparent outline-none"
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          executionEnvironment: event.target.value as DesktopAutomationExecutionEnvironment,
+                        }))
+                      }
+                      value={draft.executionEnvironment}
+                    >
+                      <option value="local">Local</option>
+                      <option value="worktree">Worktree</option>
+                    </select>
+                  </div>
+                </label>
+              </div>
+
+              <details className="rounded-2xl border border-line bg-canvas px-4 py-3">
+                <summary className="flex cursor-pointer select-none items-center gap-2 text-sm font-medium text-ink">
+                  <Sliders className="size-4 text-muted" />
+                  Advanced settings
+                </summary>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <label className="flex flex-col gap-1.5">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
+                      <FileText className="size-3.5" />
+                      Template
+                    </span>
+                    <input
+                      className="rounded-xl border border-line bg-surface-high px-3 py-2 text-sm text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
+                      onChange={(event) => setDraft((current) => ({ ...current, template: event.target.value }))}
+                      placeholder="Daily brief, inbox triage..."
+                      value={draft.template}
+                    />
+                  </label>
+
+                  <label className="flex flex-col gap-1.5">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
+                      <Power className="size-3.5" />
+                      Status
+                    </span>
+                    <select
+                      className="rounded-xl border border-line bg-surface-high px-3 py-2 text-sm text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
                       onChange={(event) =>
                         setDraft((current) => ({
                           ...current,
@@ -264,23 +278,27 @@ export function AutomationDialog({
                       <option value="ACTIVE">Active</option>
                       <option value="PAUSED">Paused</option>
                     </select>
-                  </div>
-                </label>
+                  </label>
 
-                <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Model</span>
-                  <input
-                    className="rounded-2xl border border-line bg-surface-high px-3 py-2 text-sm text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
-                    onChange={(event) => setDraft((current) => ({ ...current, model: event.target.value }))}
-                    value={draft.model}
-                  />
-                </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
+                      <Cpu className="size-3.5" />
+                      Model
+                    </span>
+                    <input
+                      className="rounded-xl border border-line bg-surface-high px-3 py-2 text-sm text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
+                      onChange={(event) => setDraft((current) => ({ ...current, model: event.target.value }))}
+                      value={draft.model}
+                    />
+                  </label>
 
-                <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Reasoning</span>
-                  <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface-high px-3 py-2 text-sm text-ink outline-none focus-within:ring-[3px] focus-within:ring-accent/30">
+                  <label className="flex flex-col gap-1.5">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
+                      <Brain className="size-3.5" />
+                      Reasoning
+                    </span>
                     <select
-                      className="min-w-0 flex-1 bg-transparent outline-none"
+                      className="rounded-xl border border-line bg-surface-high px-3 py-2 text-sm text-ink outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30"
                       onChange={(event) =>
                         setDraft((current) => ({ ...current, reasoningEffort: event.target.value }))
                       }
@@ -292,40 +310,38 @@ export function AutomationDialog({
                       <option value="high">High</option>
                       <option value="xhigh">Max</option>
                     </select>
-                  </div>
-                </label>
-              </div>
-            </details>
+                  </label>
+                </div>
+              </details>
+            </>
+          )}
+        </div>
 
-            <p className="text-xs leading-5 text-ink-muted">{AUTOMATION_ALPHA_NOTE}</p>
-
-            <footer className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap gap-2">
-                {isEditing ? (
-                  <>
-                    <Button disabled={saving} onClick={() => void onRunNow()} variant="secondary">
-                      <Play />
-                      Run now in workspace
-                    </Button>
-                    <Button disabled={saving} onClick={() => void onDelete()} variant="destructive">
-                      <Trash2 />
-                      Delete
-                    </Button>
-                  </>
-                ) : null}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button onClick={onClose} variant="ghost">
-                  Cancel
+        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-5 py-3">
+          <div className="flex flex-wrap gap-2">
+            {isEditing ? (
+              <>
+                <Button disabled={saving} onClick={() => void onRunNow()} size="sm" variant="secondary">
+                  <Play />
+                  Run now
                 </Button>
-                <Button disabled={disableSubmit} onClick={() => void handleSave()} variant="default">
-                  <Save />
-                  {isEditing ? "Save" : "Create"}
+                <Button disabled={saving} onClick={() => void onDelete()} size="sm" variant="destructive">
+                  <Trash2 />
+                  Delete
                 </Button>
-              </div>
-            </footer>
-          </>
-        )}
+              </>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={onClose} size="sm" variant="ghost">
+              Cancel
+            </Button>
+            <Button disabled={disableSubmit} onClick={() => void handleSave()} size="sm" variant="default">
+              <Save />
+              {isEditing ? "Save" : "Create"}
+            </Button>
+          </div>
+        </footer>
       </div>
     </div>
   );
