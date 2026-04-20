@@ -13,6 +13,7 @@ export const IPC_CHANNELS = {
   restoreDesktopThread: "sense1:desktop:thread:restore",
   deleteDesktopThread: "sense1:desktop:thread:delete",
   selectDesktopProfile: "sense1:desktop:profile:select",
+  completeDesktopDisplayName: "sense1:desktop:profile:complete-display-name",
   startDesktopAuthLogin: "sense1:desktop:auth:start-login",
   logoutDesktopAuth: "sense1:desktop:auth:logout",
   pickWorkspaceFolder: "sense1:desktop:workspace:pick-folder",

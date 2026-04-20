@@ -12,6 +12,7 @@ import { AutomationsPage } from "./components/AutomationsPage";
 import { AuthScreens } from "./components/AuthScreens";
 import { DesktopAuthenticatedShell } from "./components/DesktopAuthenticatedShell";
 import { PluginsPage } from "./components/PluginsPage";
+import { ProfileNamingStep } from "./components/ProfileNamingStep";
 import { StartSurface } from "./components/StartSurface";
 import { ThreadView } from "./components/ThreadView";
 import { shouldShowHomeRightRail } from "./features/app/app-view-visibility.js";
@@ -128,6 +129,18 @@ export default function App() {
         runtimeStatus={sessionState.runtimeStatus}
         providerState={management.overview?.provider ?? null}
         refreshBootstrap={sessionState.refreshBootstrap}
+      />
+    );
+  }
+
+  if (sessionState.identity?.needsDisplayName) {
+    return (
+      <ProfileNamingStep
+        inferredDisplayName={sessionState.identity.inferredDisplayName}
+        submitting={sessionState.identityCompletionPending}
+        errorMessage={sessionState.identityCompletionError}
+        runtimeStatus={sessionState.runtimeStatus}
+        onSubmit={sessionState.handleCompleteDisplayName}
       />
     );
   }

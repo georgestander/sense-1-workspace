@@ -23,6 +23,7 @@ import {
   resolveDesktopProfile,
   selectDesktopProfile,
 } from "./bootstrap-profile.js";
+import { buildDesktopIdentityState } from "./bootstrap-identity.js";
 import {
   applyBlockingSetup,
   buildRuntimeSetup,
@@ -394,6 +395,8 @@ export async function getDesktopBootstrap(
     },
   );
 
+  const identity = await buildDesktopIdentityState(profile, auth, env);
+
   return {
     profile,
     auth,
@@ -402,6 +405,7 @@ export async function getDesktopBootstrap(
     profileOptions,
     isSignedIn: auth.isSignedIn,
     accountEmail: auth.email,
+    identity,
     runtimeStatus: buildRuntimeStatus(runtime),
     runtimeSetup: buildRuntimeSetup(runtime),
     tenant: toDesktopBootstrapTenant(tenant),

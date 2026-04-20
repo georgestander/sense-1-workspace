@@ -881,6 +881,7 @@ async function bootstrapMainProcess(): Promise<void> {
       syncUpdaterBusyState();
       return await desktopSessionController.selectDesktopProfile(profileId);
     },
+    completeDesktopDisplayName: async (request) => await desktopSessionController.completeDesktopDisplayName(request),
     listModels: async () => await desktopSessionController.listModels(),
     respondToInputRequest: async (request) => await desktopSessionController.respondToInputRequest(request),
     startDesktopVoice: async (request) => await desktopSessionController.startDesktopVoice(request),

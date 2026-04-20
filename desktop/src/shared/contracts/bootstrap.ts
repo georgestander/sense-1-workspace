@@ -1,6 +1,7 @@
 import type { DesktopAuthState, DesktopProfileState, DesktopRuntimeState } from "./runtime.js";
 import type { DesktopRunContext, DesktopAuditEvent } from "./run.js";
 import type { DesktopApprovalEvent } from "./events.js";
+import type { DesktopIdentityState } from "./identity.js";
 import type { DesktopThreadSummary, DesktopFolderSummary, DesktopProfileOption, DesktopThreadSnapshot } from "./thread.js";
 
 export interface DesktopBootstrapRuntimeStatus {
@@ -42,6 +43,7 @@ export interface DesktopBootstrap {
   readonly profileOptions: DesktopProfileOption[];
   readonly isSignedIn: boolean;
   readonly accountEmail: string | null;
+  readonly identity: DesktopIdentityState;
   readonly runtimeStatus: DesktopBootstrapRuntimeStatus | null;
   readonly runtimeSetup: DesktopBootstrapRuntimeSetup | null;
   readonly tenant: DesktopBootstrapTenant | null;

@@ -2,6 +2,7 @@ import type { AppServerProcessManager } from "../runtime/app-server-process-mana
 import type {
   DesktopApprovalEvent,
   DesktopAuditEvent,
+  DesktopIdentityState,
   DesktopInteractionState,
   DesktopRunContext,
   DesktopThreadSnapshot,
@@ -99,6 +100,7 @@ export interface DesktopBootstrapPayload {
   readonly profileOptions: DesktopProfileOption[];
   readonly isSignedIn: boolean;
   readonly accountEmail: string | null;
+  readonly identity: DesktopIdentityState;
   readonly runtimeStatus: DesktopRuntimeStatusSummary | null;
   readonly runtimeSetup: DesktopRuntimeSetupSummary | null;
   readonly tenant: DesktopBootstrapTenantSummary | null;

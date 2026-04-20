@@ -10,6 +10,8 @@ import {
   type DesktopAuthLogoutResult,
   type DesktopAuthStartResult,
   type DesktopBugReportDraft,
+  type DesktopCompleteDisplayNameRequest,
+  type DesktopCompleteDisplayNameResult,
   type DesktopBugReportResult,
   type DesktopBugReportingStatus,
   type DesktopMcpServerAuthRequest,
@@ -123,6 +125,7 @@ type DesktopIpcServices = {
   queueTurnInput(request: DesktopQueueTurnInputRequest): Promise<void>;
   respondToDesktopApproval(request: DesktopApprovalResponseRequest): Promise<void>;
   selectDesktopProfile(profileId: string): Promise<SelectDesktopProfileResult>;
+  completeDesktopDisplayName(request: DesktopCompleteDisplayNameRequest): Promise<DesktopCompleteDisplayNameResult>;
   listModels(): Promise<DesktopModelListResult>;
   respondToInputRequest(request: DesktopInputResponseRequest): Promise<void>;
   startDesktopVoice(request: DesktopVoiceStartRequest): Promise<void>;
@@ -310,6 +313,13 @@ export function registerDesktopIpcHandlers(services: DesktopIpcServices): void {
     IPC_CHANNELS.selectDesktopProfile,
     async (_event, profileId: string): Promise<SelectDesktopProfileResult> => {
       return await services.selectDesktopProfile(profileId);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.completeDesktopDisplayName,
+    async (_event, request: DesktopCompleteDisplayNameRequest): Promise<DesktopCompleteDisplayNameResult> => {
+      return await services.completeDesktopDisplayName(request);
     },
   );
 

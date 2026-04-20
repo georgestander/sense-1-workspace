@@ -8,6 +8,7 @@ import {
   selectDesktopProfile,
 } from "./bootstrap/desktop-bootstrap.js";
 import { resolveSignedInDesktopProfile } from "./bootstrap/bootstrap-profile.js";
+import { completeDesktopDisplayName as persistDesktopDisplayName } from "./bootstrap/bootstrap-identity.js";
 import {
   DEFAULT_DESKTOP_SETTINGS,
   applyDesktopSettingsPatch,
@@ -21,6 +22,8 @@ import type {
   DesktopAuthLoginRequest,
   DesktopAuthLogoutResult,
   DesktopAuthStartResult,
+  DesktopCompleteDisplayNameRequest,
+  DesktopCompleteDisplayNameResult,
   DesktopAutomationDeleteRequest,
   DesktopAutomationDetailResult,
   DesktopAutomationListResult,
@@ -795,6 +798,15 @@ export class DesktopSessionController {
       success: true,
       bootstrap: await this.getBootstrap(),
     };
+  }
+
+  async completeDesktopDisplayName(request: DesktopCompleteDisplayNameRequest): Promise<DesktopCompleteDisplayNameResult> {
+    const profile = await this.#resolveProfile();
+    return await persistDesktopDisplayName({
+      profileId: profile.id,
+      displayName: request.displayName,
+      env: this.#env,
+    });
   }
 
   async rememberWorkspaceFolder(folderPath: string): Promise<void> {

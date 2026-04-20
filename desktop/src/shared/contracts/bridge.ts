@@ -45,6 +45,7 @@ import type {
 import type { DesktopThreadArchiveRequest, DesktopThreadDeleteRequest, DesktopThreadRenameRequest, DesktopThreadRestoreRequest, DesktopThreadWorkspaceRootRequest, DesktopWorkspaceArchiveRequest, DesktopWorkspaceDeleteRequest, DesktopWorkspaceHydrateResult, DesktopWorkspaceOperatingModeRequest, DesktopWorkspacePermissionGrantRequest, DesktopWorkspacePolicyRequest, DesktopWorkspacePolicyResult, DesktopWorkspaceRestoreRequest, DesktopWorkspaceSidebarOrderRequest } from "./workspace.js";
 import type { SubstrateEventsBySessionRequest, SubstrateEventsResult, SubstrateObjectRefsBySessionRequest, SubstrateObjectRefsResult, SubstrateRecentSessionsRequest, SubstrateRecentWorkspacesRequest, SubstrateSessionDetailRequest, SubstrateSessionDetailResult, SubstrateSessionsByWorkspaceRequest, SubstrateSessionsResult, SubstrateWorkspaceDetailRequest, SubstrateWorkspaceDetailResult, SubstrateWorkspacesResult } from "./substrate.js";
 import type { DesktopAuthLoginRequest, DesktopAuthLogoutResult, DesktopAuthStartResult, SelectDesktopProfileResult, WindowActionResult, WindowToggleResult, WorkspaceFolderPickerResult } from "./bootstrap.js";
+import type { DesktopCompleteDisplayNameRequest, DesktopCompleteDisplayNameResult } from "./identity.js";
 import type { DesktopThreadDelta } from "./thread.js";
 import { DESKTOP_BRIDGE_API_VERSION } from "./runtime.js";
 
@@ -70,6 +71,9 @@ export interface DesktopBridge {
   };
   profiles: {
     select(profileId: string): Promise<SelectDesktopProfileResult>;
+  };
+  profile: {
+    completeDisplayName(request: DesktopCompleteDisplayNameRequest): Promise<DesktopCompleteDisplayNameResult>;
   };
   threads: {
     rememberLastSelected(request: import("./workspace.js").DesktopLastSelectedThreadRequest): Promise<void>;

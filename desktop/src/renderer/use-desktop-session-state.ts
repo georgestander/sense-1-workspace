@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   DesktopAuthLoginMethod,
   DesktopBootstrap,
+  DesktopIdentityState,
   DesktopModelEntry,
   DesktopRunContext,
   DesktopBootstrapTeamSetup,
@@ -102,6 +103,9 @@ export function useDesktopSessionState({
   const [taskError, setTaskError] = useState<string | null>(null);
   const [authPendingMethod, setAuthPendingMethod] = useState<DesktopAuthLoginMethod | null>(null);
   const [signInPending, setSignInPending] = useState(false);
+  const [identity, setIdentity] = useState<DesktopIdentityState | null>(null);
+  const [identityCompletionPending, setIdentityCompletionPending] = useState(false);
+  const [identityCompletionError, setIdentityCompletionError] = useState<string | null>(null);
   const [logoutPending, setLogoutPending] = useState(false);
   const [continuePending, setContinuePending] = useState(false);
   const [taskPending, setTaskPending] = useState(false);
@@ -204,6 +208,7 @@ export function useDesktopSessionState({
         setAccountEmail,
         setAccountType,
         setActiveTurnIdsByThread,
+        setIdentity,
         setIsSignedIn,
         setPendingApprovals,
         setPerThreadSidebar,
@@ -348,6 +353,8 @@ export function useDesktopSessionState({
     setBootstrapError,
     setContinuePending,
     setAuthPendingMethod,
+    setIdentityCompletionPending,
+    setIdentityCompletionError,
     setLogoutPending,
     setPendingPermission,
     setPerThreadSidebar,
@@ -375,6 +382,9 @@ export function useDesktopSessionState({
     bootstrapLoading,
     ...sessionActions,
     continuePending,
+    identity,
+    identityCompletionError,
+    identityCompletionPending,
     isSignedIn,
     logoutPending,
     pendingApprovals,

@@ -18,6 +18,7 @@ export function getDesktopBridge(): DesktopBridge | null {
     typeof bridge.auth?.startLogin !== "function" ||
     typeof bridge.auth?.logout !== "function" ||
     typeof bridge.profiles?.select !== "function" ||
+    typeof bridge.profile?.completeDisplayName !== "function" ||
     typeof bridge.threads?.rememberLastSelected !== "function" ||
     typeof bridge.threads?.rename !== "function" ||
     typeof bridge.threads?.archive !== "function" ||

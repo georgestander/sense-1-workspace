@@ -66,6 +66,8 @@ export type DesktopSessionActionDependencies = {
   setBootstrapError: (value: string | null) => void;
   setContinuePending: (value: boolean) => void;
   setAuthPendingMethod: (value: DesktopAuthLoginMethod | null) => void;
+  setIdentityCompletionPending: (value: boolean) => void;
+  setIdentityCompletionError: (value: string | null) => void;
   setLogoutPending: (value: boolean) => void;
   setPendingPermission: Dispatch<SetStateAction<PendingPermissionState>>;
   setPerThreadSidebar: Dispatch<SetStateAction<Record<string, SidebarState>>>;
@@ -105,6 +107,7 @@ export type DesktopSessionActionHandlers = {
   grantWorkspacePermission: (mode: "once" | "always") => Promise<void>;
   handleContinueWithProfile: () => Promise<void>;
   handleStartAuthLogin: (request: DesktopAuthLoginRequest) => Promise<void>;
+  handleCompleteDisplayName: (displayName: string) => Promise<void>;
   handleLogout: () => Promise<void>;
   hydrateWorkspace: (rootPath: string) => Promise<DesktopWorkspaceHydrateResult | null>;
   installReadyUpdate: () => Promise<void>;
