@@ -6,6 +6,8 @@ import {
   type DesktopBugReportDraft,
   type DesktopBugReportResult,
   type DesktopBugReportingStatus,
+  type DesktopCrashReportAcknowledgeRequest,
+  type DesktopCrashReportAcknowledgeResult,
 } from "../../shared/contracts/index";
 
 type ReportsBridge = Pick<DesktopBridge, "reports">;
@@ -18,6 +20,14 @@ export function createReportsBridge(ipcRenderer: IpcRenderer): ReportsBridge {
       },
       getStatus: async (): Promise<DesktopBugReportingStatus> => {
         return ipcRenderer.invoke(IPC_CHANNELS.getDesktopBugReportingStatus) as Promise<DesktopBugReportingStatus>;
+      },
+      acknowledgeCrashReport: async (
+        request: DesktopCrashReportAcknowledgeRequest,
+      ): Promise<DesktopCrashReportAcknowledgeResult> => {
+        return ipcRenderer.invoke(
+          IPC_CHANNELS.acknowledgeDesktopCrashReport,
+          request,
+        ) as Promise<DesktopCrashReportAcknowledgeResult>;
       },
     },
   };

@@ -1,6 +1,7 @@
 import type { DesktopAuthState, DesktopProfileState, DesktopRuntimeState } from "./runtime.js";
 import type { DesktopRunContext, DesktopAuditEvent } from "./run.js";
 import type { DesktopApprovalEvent } from "./events.js";
+import type { DesktopCrashReportSuggestion } from "./bug-reporting.js";
 import type { DesktopIdentityState } from "./identity.js";
 import type { DesktopThreadSummary, DesktopFolderSummary, DesktopProfileOption, DesktopThreadSnapshot } from "./thread.js";
 
@@ -56,6 +57,7 @@ export interface DesktopBootstrap {
   readonly lastSelectedThreadId: string | null;
   readonly selectedThread: DesktopThreadSnapshot | null;
   readonly pendingApprovals: DesktopApprovalEvent[];
+  readonly crashReportSuggestion: DesktopCrashReportSuggestion | null;
 }
 
 export interface SelectDesktopProfileSuccess {

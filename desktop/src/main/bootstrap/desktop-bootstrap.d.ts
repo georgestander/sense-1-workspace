@@ -2,6 +2,7 @@ import type { AppServerProcessManager } from "../runtime/app-server-process-mana
 import type {
   DesktopApprovalEvent,
   DesktopAuditEvent,
+  DesktopCrashReportSuggestion,
   DesktopIdentityState,
   DesktopInteractionState,
   DesktopRunContext,
@@ -113,6 +114,7 @@ export interface DesktopBootstrapPayload {
   readonly lastSelectedThreadId: string | null;
   readonly selectedThread: DesktopThreadSnapshot | null;
   readonly pendingApprovals: DesktopApprovalEvent[];
+  readonly crashReportSuggestion: DesktopCrashReportSuggestion | null;
 }
 
 export interface DesktopProfileSelectionResult {

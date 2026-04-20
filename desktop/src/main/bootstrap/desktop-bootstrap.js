@@ -425,5 +425,6 @@ export async function getDesktopBootstrap(
         : effectiveLastSelectedThreadId,
     selectedThread,
     pendingApprovals: Array.isArray(pendingApprovals) ? pendingApprovals : [],
+    crashReportSuggestion: null,
   };
 }

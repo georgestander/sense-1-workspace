@@ -14,6 +14,8 @@ import {
   type DesktopCompleteDisplayNameResult,
   type DesktopBugReportResult,
   type DesktopBugReportingStatus,
+  type DesktopCrashReportAcknowledgeRequest,
+  type DesktopCrashReportAcknowledgeResult,
   type DesktopMcpServerAuthRequest,
   type DesktopMcpServerAuthResult,
   type DesktopAutomationDeleteRequest,
@@ -104,6 +106,7 @@ type DesktopIpcServices = {
   getBootstrap(): Promise<DesktopBootstrap>;
   submitDesktopBugReport(request: DesktopBugReportDraft): Promise<DesktopBugReportResult>;
   getDesktopBugReportingStatus(): Promise<DesktopBugReportingStatus>;
+  acknowledgeDesktopCrashReport(request: DesktopCrashReportAcknowledgeRequest): Promise<DesktopCrashReportAcknowledgeResult>;
   getRuntimeInfo(): RuntimeInfoResult;
   getUpdateState(): Promise<DesktopUpdateState>;
   checkForUpdates(): Promise<DesktopUpdateState>;
@@ -215,6 +218,13 @@ export function registerDesktopIpcHandlers(services: DesktopIpcServices): void {
     IPC_CHANNELS.getDesktopBugReportingStatus,
     async (): Promise<DesktopBugReportingStatus> => {
       return await services.getDesktopBugReportingStatus();
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.acknowledgeDesktopCrashReport,
+    async (_event, request: DesktopCrashReportAcknowledgeRequest): Promise<DesktopCrashReportAcknowledgeResult> => {
+      return await services.acknowledgeDesktopCrashReport(request);
     },
   );
 

@@ -47,6 +47,7 @@ import {
   type CrashClassSignal,
 } from "./bug-reporting/crash-class-detector.ts";
 import { CrashRecoveryTracker } from "./bug-reporting/crash-recovery-tracker.ts";
+import { CrashReportSuggestionStore } from "./bug-reporting/crash-report-suggestion-store.ts";
 import { redactSensitivePath, resolveRedactionHomeDir } from "./bug-reporting/redaction.ts";
 import { captureDesktopManualBugReport } from "./bug-reporting/sentry-reporting.ts";
 import { createDesktopLogBuffer, installDesktopLogBuffer } from "./logging/desktop-log-buffer.ts";
@@ -104,23 +105,20 @@ let currentVisibleThreadId: string | null = null;
 let currentAccountType: string | null = null;
 let lastBlockingBootstrapSetupCode: string | null = null;
 let openBrowserWindowCount = 0;
+const crashReportSuggestionStore = new CrashReportSuggestionStore();
 const crashRecoveryTracker = new CrashRecoveryTracker((signal) => {
   emitCrashReportSuggestedEvent(signal);
 });
 
 function emitCrashReportSuggestedEvent(signal: CrashClassSignal): void {
-  const setupCode = signal.reason === "bootstrap-blocked" ? signal.setupCode : null;
-  const restartCount =
-    signal.reason === "runtime-crashed" || signal.reason === "runtime-errored"
-      ? signal.restartCount
-      : null;
+  const suggestion = crashReportSuggestionStore.record(signal);
   emitDesktopRuntimeEvent({
     kind: "crashReportSuggested",
-    reason: signal.reason,
-    detail: signal.detail,
-    setupCode,
-    restartCount,
-    occurredAt: new Date().toISOString(),
+    reason: suggestion.reason,
+    detail: suggestion.detail,
+    setupCode: suggestion.setupCode,
+    restartCount: suggestion.restartCount,
+    occurredAt: suggestion.occurredAt,
   });
 }
 
@@ -422,6 +420,7 @@ function decorateBootstrap(bootstrap: DesktopBootstrap): DesktopBootstrap {
     ...bootstrap,
     recentThreads: bootstrap.recentThreads.map((thread) => decorateThreadSummary(thread)),
     selectedThread: bootstrap.selectedThread ? decorateThreadSnapshot(bootstrap.selectedThread) : null,
+    crashReportSuggestion: crashReportSuggestionStore.get(),
   };
 }
 
@@ -911,6 +910,9 @@ async function bootstrapMainProcess(): Promise<void> {
     },
     submitDesktopBugReport: async (request) => await bugReportingService.submitReport(request),
     getDesktopBugReportingStatus: async () => bugReportingService.getStatus(),
+    acknowledgeDesktopCrashReport: async ({ occurredAt }) => ({
+      acknowledged: crashReportSuggestionStore.acknowledge(occurredAt),
+    }),
     rememberLastSelectedThread: async (request) => {
       await desktopSessionController.rememberLastSelectedThread(request);
       updateVisibleThread(request.threadId ?? null);
