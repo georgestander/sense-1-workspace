@@ -2,11 +2,17 @@ import type { DesktopCompleteDisplayNameResult, DesktopIdentityState } from "../
 
 export interface DesktopIdentityAuthSnapshot {
   readonly isSignedIn?: boolean;
+  readonly name?: string | null;
+  readonly email?: string | null;
 }
 
 export interface DesktopIdentityProfileSnapshot {
   readonly id: string;
 }
+
+export function inferDisplayNameFromAuth(
+  auth: DesktopIdentityAuthSnapshot | null | undefined,
+): string | null;
 
 export function buildDesktopIdentityState(
   profile: DesktopIdentityProfileSnapshot,

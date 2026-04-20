@@ -1,4 +1,5 @@
 import {
+  DEFAULT_PROFILE_ID,
   ensureProfileDirectories,
   loadProfileIdentity,
   persistActiveProfileId,
@@ -12,6 +13,7 @@ import { ensurePrimaryDesktopProfile } from "../profile/profile-merge.js";
 import { isE2EAuthFixtureEnabled, readE2EAuthFixtureProfile } from "../e2e-auth-fixture.ts";
 import { ensureProfileSubstrate } from "../substrate/substrate.js";
 import { firstString } from "./bootstrap-shared.js";
+import { inferDisplayNameFromAuth } from "./bootstrap-identity.js";
 
 const DEFAULT_SIGN_IN_URL = "https://chatgpt.com/auth/login";
 const ACCOUNT_READ_PARAMS = { refreshToken: false };
@@ -100,11 +102,24 @@ export function normalizeAuthState(result) {
   };
 }
 
+async function resolveCanonicalDisplayName(profileId, auth, env) {
+  const explicitName = typeof auth?.name === "string" && auth.name.trim() ? auth.name.trim() : null;
+  if (explicitName) {
+    return explicitName;
+  }
+  const existing = await loadProfileIdentity(profileId, env);
+  if (existing?.displayName && existing.displayName.trim()) {
+    return null;
+  }
+  return inferDisplayNameFromAuth(auth);
+}
+
 export async function canonicalizeDesktopProfile(profile, auth, env = process.env) {
   if (env.SENSE1_PROFILE_ID?.trim()) {
     if (auth?.email) {
+      const displayName = await resolveCanonicalDisplayName(profile.id, auth, env);
       await persistProfileIdentity(profile.id, {
-        displayName: auth.name ?? null,
+        displayName,
         email: auth.email,
         lastSignedInAt: new Date().toISOString(),
       }, env);
@@ -112,9 +127,10 @@ export async function canonicalizeDesktopProfile(profile, auth, env = process.en
     return profile;
   }
 
+  const displayName = await resolveCanonicalDisplayName(DEFAULT_PROFILE_ID, auth, env);
   return await ensurePrimaryDesktopProfile({
     currentProfileId: profile.id,
-    displayName: auth?.name ?? null,
+    displayName,
     email: auth?.email ?? null,
     env,
   });
