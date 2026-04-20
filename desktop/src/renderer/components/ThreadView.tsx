@@ -63,6 +63,7 @@ export interface ThreadViewProps {
   transcriptEndRef: RefObject<HTMLDivElement | null>;
   configNotices: Array<{ id: number; text: string }>;
   footerStatusText: string;
+  onReportBug: () => void;
 }
 
 export function ThreadView(props: ThreadViewProps) {
@@ -115,6 +116,7 @@ export function ThreadView(props: ThreadViewProps) {
     transcriptEndRef,
     configNotices,
     footerStatusText,
+    onReportBug,
   } = props;
   return (
     <>
@@ -158,6 +160,7 @@ export function ThreadView(props: ThreadViewProps) {
         handleModelSelection={handleModelSelection}
         interruptTurn={interruptTurn}
         modelOptions={modelOptions}
+        onReportBug={onReportBug}
         pickFiles={pickFiles}
         queueSelectedThreadPrompt={queueSelectedThreadPrompt}
         queuedMessageCount={queuedMessageCount}

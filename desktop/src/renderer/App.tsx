@@ -5,6 +5,7 @@ import { useSettingsController } from "./features/settings/use-settings-controll
 import { useAuthenticatedDesktopApp } from "./features/app/use-authenticated-desktop-app.js";
 import { useDesktopManagement } from "./features/management/use-desktop-management.js";
 import { useDesktopAutomations } from "./features/automation/use-desktop-automations.js";
+import { useReportBugController } from "./features/bug-report/use-report-bug-controller.js";
 import { perfCount } from "./lib/perf-debug.ts";
 
 import { AutomationsPage } from "./components/AutomationsPage";
@@ -57,6 +58,7 @@ export default function App() {
   const automations = useDesktopAutomations({
     isSignedIn: sessionState.isSignedIn,
   });
+  const reportBug = useReportBugController();
   const {
     leftSidebarProps,
     resetToStartSurface,
@@ -80,6 +82,7 @@ export default function App() {
     },
     sessionState,
     settingsController,
+    reportBug,
     ui: {
       accountMenuOpen,
       folderMenuOpen,
@@ -218,6 +221,7 @@ export default function App() {
       mainContent={mainContent}
       rightRailProps={{ ...rightRailProps, showRightRail: showHomeRightRail }}
       settingsModalProps={settingsModalProps}
+      reportBugController={reportBug}
     />
   );
 }

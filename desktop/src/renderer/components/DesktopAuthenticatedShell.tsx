@@ -5,7 +5,9 @@ import { Button } from "./ui/button";
 import { LeftSidebar, type LeftSidebarProps } from "./LeftSidebar";
 import { RightRail, type RightRailProps } from "./RightRail";
 import { SettingsModal, type SettingsModalProps } from "./SettingsModal";
+import { ReportBugModal } from "./bug-report/ReportBugModal";
 import { VersionBadgeLink } from "./VersionBadgeLink";
+import type { ReportBugController } from "../features/bug-report/use-report-bug-controller";
 
 export interface DesktopAuthenticatedShellProps {
   showInstallUpdateAction: boolean;
@@ -21,6 +23,7 @@ export interface DesktopAuthenticatedShellProps {
   mainContent: ReactNode;
   rightRailProps: RightRailProps;
   settingsModalProps: SettingsModalProps;
+  reportBugController: ReportBugController;
 }
 
 export function DesktopAuthenticatedShell({
@@ -37,6 +40,7 @@ export function DesktopAuthenticatedShell({
   mainContent,
   rightRailProps,
   settingsModalProps,
+  reportBugController,
 }: DesktopAuthenticatedShellProps) {
   return (
     <div className="flex h-screen overflow-hidden flex-col bg-canvas text-ink">
@@ -98,6 +102,7 @@ export function DesktopAuthenticatedShell({
       </div>
 
       <SettingsModal {...settingsModalProps} />
+      <ReportBugModal controller={reportBugController} />
     </div>
   );
 }

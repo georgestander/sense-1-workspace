@@ -21,6 +21,9 @@ type BuildAppShellPropsArgs = {
     teamSetup: LeftSidebarProps["teamSetup"];
     tenant: LeftSidebarProps["tenant"];
   };
+  reportBug: {
+    openReportBug: () => void;
+  };
   search: {
     filteredThreads: LeftSidebarProps["filteredThreads"];
     leftRailOpen: LeftSidebarProps["leftRailOpen"];
@@ -103,6 +106,7 @@ export function useAppShellProps({
   settings,
   threadShell,
   workspace,
+  reportBug,
   resetComposerState,
 }: BuildAppShellPropsArgs) {
   function resetToStartSurface() {
@@ -114,6 +118,11 @@ export function useAppShellProps({
   async function handleOpenSettings() {
     account.setAccountMenuOpen(false);
     await settings.openSettingsFromHook();
+  }
+
+  function handleOpenReportBug() {
+    account.setAccountMenuOpen(false);
+    reportBug.openReportBug();
   }
 
   const leftSidebarProps: LeftSidebarProps = {
@@ -165,6 +174,7 @@ export function useAppShellProps({
     tenant: account.tenant,
     teamSetup: account.teamSetup,
     openSettings: handleOpenSettings,
+    openReportBug: handleOpenReportBug,
     handleLogout: account.handleLogout,
     logoutPending: account.logoutPending,
   };
