@@ -1,5 +1,9 @@
 import { folderDisplayName } from "../../state/session/session-selectors.js";
 
+export const AUTOMATION_KIND_LABEL = "Workspace automation";
+export const AUTOMATION_ALPHA_NOTE =
+  "Automations run on a workspace folder on a cron schedule. Scheduling directly from a thread isn't part of this alpha.";
+
 export type AutomationScheduleMode = "weekdays" | "weekly" | "daily" | "hourly";
 
 export type AutomationScheduleDraft = {
@@ -104,6 +108,17 @@ export function formatWorkspaceOptionLabel(folderPath: string): string {
     return "Workspace";
   }
   return displayName.startsWith("/") ? displayName : `/${displayName}`;
+}
+
+export function describeAutomationWorkspace(cwds: readonly string[] | null | undefined): string {
+  if (!Array.isArray(cwds)) {
+    return "No workspace bound";
+  }
+  const firstPath = cwds.find((entry) => typeof entry === "string" && entry.trim());
+  if (!firstPath) {
+    return "No workspace bound";
+  }
+  return formatWorkspaceOptionLabel(firstPath);
 }
 
 export function normalizeWorkspaceOptions(options: string[]): string[] {
