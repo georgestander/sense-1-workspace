@@ -62,6 +62,7 @@ import {
   findBlockedDesktopSettingsOverride,
   loadSupportedModels,
   resolveDesktopSettingsLayers,
+  resolveSignedInAccount,
   resolveSignedInEmail,
 } from "./desktop-run-start-settings.ts";
 import { createPermissionRequiredResult } from "./desktop-run-start-results.ts";
@@ -305,10 +306,15 @@ export class DesktopRunStartService {
       prompt: request.prompt,
       workspaceRoot: effectiveWorkspaceRoot,
     });
-    const email = await this.resolveSignedInEmail(profile.id);
-    if (!email) {
-      throw new Error("Sign in with ChatGPT before starting a desktop run.");
+    const auth = await resolveSignedInAccount({
+      env: this.#env,
+      manager: this.#manager,
+      profileId: profile.id,
+    });
+    if (!auth.isSignedIn) {
+      throw new Error("Sign in before starting a desktop run.");
     }
+    const email = auth.email;
 
     const substrateIdentity = await ensureProfileSubstrate({
       actorEmail: email,

@@ -6887,6 +6887,90 @@ test("runDesktopTask creates a visible per-session artifact directory for a new 
   assert.equal(bootstrap.auditEvents[0]?.details.executionIntentRule, "chat-default");
 });
 
+test("runDesktopTask allows signed-in apiKey sessions without an email address", async () => {
+  const root = await makeTempRoot();
+  const env = createTestEnv(root);
+  const managerCalls = [];
+  const manager = {
+    request: async (method, params) => {
+      managerCalls.push({ method, params });
+      if (method === "account/read") {
+        return {
+          account: {
+            email: null,
+            type: "apiKey",
+          },
+          authMode: "apikey",
+          requiresOpenaiAuth: false,
+        };
+      }
+
+      if (method === "model/list") {
+        return {
+          data: [
+            {
+              id: "gpt-5.4-mini",
+              supportedReasoningEfforts: ["minimal", "low", "medium", "high", "xhigh"],
+            },
+          ],
+        };
+      }
+
+      if (method === "thread/start") {
+        return {
+          thread: {
+            id: "thread-apikey-chat-1",
+            name: "API key chat thread",
+            preview: "API key chat thread",
+            updatedAt: Math.floor(Date.now() / 1000),
+            status: {
+              type: "active",
+              activeFlags: ["running"],
+            },
+          },
+        };
+      }
+
+      if (method === "turn/start") {
+        return {
+          turn: {
+            id: "turn-apikey-chat-1",
+          },
+        };
+      }
+
+      throw new Error(`Unexpected method: ${method}`);
+    },
+    handleProfileChange: async () => {},
+    off: () => {},
+    on: () => {},
+    respond: () => {},
+  };
+
+  const controller = new DesktopSessionController(manager, {
+    appStartedAt: "2026-03-24T10:00:00.000Z",
+    env,
+    openExternal: async () => {},
+    runtimeInfo: {
+      appVersion: "0.1.0",
+      electronVersion: "35.2.1",
+      platform: "darwin",
+      startedAt: "2026-03-24T10:00:00.000Z",
+    },
+  });
+
+  const result = await controller.runDesktopTask({
+    prompt: "Keep notes for this API-key session",
+  });
+
+  assert.equal(result.status, "started");
+  assert.equal(result.threadId, "thread-apikey-chat-1");
+  assert.equal(result.turnId, "turn-apikey-chat-1");
+  assert.equal(result.runContext?.actor.email, null);
+  assert.match(result.runContext?.actor.displayName ?? "", /\S/);
+  assertManagerMethods(managerCalls, ["account/read", "model/list", "thread/start", "turn/start"]);
+});
+
 test("runDesktopTask gates the first concrete execution-intent workspace request before starting a turn", async () => {
   const root = await makeTempRoot();
   const env = createTestEnv(root);

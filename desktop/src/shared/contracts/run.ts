@@ -4,7 +4,7 @@ export interface DesktopRunActor {
   readonly id: string;
   readonly kind: "user" | "agent" | "service";
   readonly displayName: string;
-  readonly email: string;
+  readonly email: string | null;
   readonly homeScopeId: string;
   readonly role?: string;
   readonly capabilities?: string[];
