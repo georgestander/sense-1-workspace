@@ -199,3 +199,30 @@ test("canonicalizeDesktopProfile preserves a manually-edited display name across
   const persisted = await loadProfileIdentity(DEFAULT_PROFILE_ID, env);
   assert.equal(persisted?.displayName, "Al");
 });
+
+test("canonicalizeDesktopProfile does not clobber a manual display name when auth.name is present", async () => {
+  const runtimeRoot = await makeTempRuntimeRoot();
+  const env = createTestEnv(runtimeRoot);
+  await ensureProfileDirectories(DEFAULT_PROFILE_ID, env);
+  await persistProfileIdentity(
+    DEFAULT_PROFILE_ID,
+    { displayName: "Al", email: "alex.morgan@example.com" },
+    env,
+  );
+
+  const profile = {
+    id: DEFAULT_PROFILE_ID,
+    source: "default",
+    rootPath: resolveProfileRoot(DEFAULT_PROFILE_ID, env),
+    codexHome: resolveProfileCodexHome(DEFAULT_PROFILE_ID, env),
+  };
+
+  await canonicalizeDesktopProfile(
+    profile,
+    { isSignedIn: true, name: "Alex Morgan", email: "alex.morgan@example.com" },
+    env,
+  );
+
+  const persisted = await loadProfileIdentity(DEFAULT_PROFILE_ID, env);
+  assert.equal(persisted?.displayName, "Al");
+});

@@ -103,10 +103,6 @@ export function normalizeAuthState(result) {
 }
 
 async function resolveCanonicalDisplayName(profileId, auth, env) {
-  const explicitName = typeof auth?.name === "string" && auth.name.trim() ? auth.name.trim() : null;
-  if (explicitName) {
-    return explicitName;
-  }
   const existing = await loadProfileIdentity(profileId, env);
   if (existing?.displayName && existing.displayName.trim()) {
     return null;
