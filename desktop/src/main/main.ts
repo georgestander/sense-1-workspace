@@ -47,6 +47,7 @@ import {
 } from "./session/runtime-notification-coalescer.ts";
 import {
   resolveSentryDsn,
+  resolveSentryDist,
   resolveSentryEnvironment,
   resolveSentryRelease,
   shouldEnableSentryDebug,
@@ -56,10 +57,12 @@ import type { DesktopBootstrap, DesktopSteerTurnResult, DesktopTaskRunResult, De
 const DESKTOP_APP_NAME = "Sense-1 Workspace";
 const LATEST_RELEASE_URL = "https://github.com/georgestander/sense-1-workspace/releases/latest";
 const shouldEnforceSingleInstance = process.env.NODE_ENV !== "test";
+const SENTRY_DIST = resolveSentryDist(__SENSE1_DESKTOP_BUILD_ID__);
 Sentry.init({
   dsn: resolveSentryDsn(process.env),
   environment: resolveSentryEnvironment(process.env),
   release: resolveSentryRelease(DESKTOP_APP_VERSION),
+  dist: SENTRY_DIST,
   debug: shouldEnableSentryDebug(process.env),
 });
 app.setName(DESKTOP_APP_NAME);

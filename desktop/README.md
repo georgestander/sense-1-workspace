@@ -32,6 +32,36 @@ pnpm -C desktop dist:win
 
 Packaged artifacts land in `desktop/release/`.
 
+## Sentry releases and source maps
+
+Desktop production bundles now emit source maps for main, preload, and renderer. Release packaging injects Sentry Debug IDs into the built JavaScript bundles, and packaged apps exclude raw `.map` files so source maps are available for upload without shipping them inside the installed app.
+
+Set these environment variables before preparing or uploading a release:
+
+```bash
+export SENSE1_DESKTOP_BUILD_ID="alpha-mac-001"   # optional but recommended; becomes the Sentry dist
+export SENTRY_AUTH_TOKEN="..."
+export SENTRY_ORG="..."
+export SENTRY_PROJECT="..."
+```
+
+Use this flow for a desktop build you intend to ship:
+
+```bash
+pnpm -C desktop sentry:sourcemaps:smoke
+pnpm -C desktop sentry:sourcemaps:upload
+pnpm -C desktop dist:mac   # or: pnpm -C desktop dist:win
+```
+
+Notes:
+
+- `pnpm -C desktop sentry:sourcemaps:smoke` prepares release artifacts, injects Debug IDs, and locally verifies that main, preload, and renderer bundles resolve back to `src/...` files through `sentry-cli sourcemaps resolve`.
+- `pnpm -C desktop sentry:sourcemaps:upload` prepares the same style of artifacts and uploads them to Sentry with release `sense-1-workspace@<desktop-version>` and optional `dist=$SENSE1_DESKTOP_BUILD_ID`.
+- `pnpm -C desktop release:mac` now reuses a prepared release build, uploads source maps, and then publishes the packaged macOS release.
+- Upload source maps before testers trigger production errors from that packaged build; Sentry only applies new artifacts to events captured after the upload.
+
+After shipping, confirm the end-to-end result in Sentry by triggering a desktop event from that build, opening the event stack trace, and verifying frames resolve to readable `src/...` paths instead of minified `dist/...` bundle locations.
+
 ## Alpha install flow
 
 Sense-1 desktop alpha builds install manually. The app does not deliver in-app auto-updates for this alpha, so testers should grab the newest packaged build from the shared download location and replace the existing install themselves.
