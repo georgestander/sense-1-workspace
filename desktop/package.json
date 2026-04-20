@@ -11,6 +11,7 @@
     "dev:full": "node ./scripts/dev-full.mjs",
     "build": "node ./scripts/prepare-codex-runtime.mjs && electron-vite build",
     "dist:mac": "pnpm build && electron-builder --project . --mac --arm64 --publish never",
+    "dist:win": "pnpm build && electron-builder --project . --win --x64 --publish never",
     "release:mac": "pnpm build && electron-builder --project . --mac --arm64 --publish always",
     "preview": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",

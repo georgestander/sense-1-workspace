@@ -200,10 +200,7 @@ function createDisabledUpdateService() {
     currentVersion: DESKTOP_APP_VERSION,
     updater: createNoopUpdater(),
     enabled: false,
-    unsupportedMessage:
-      process.platform === "darwin"
-        ? "Updates are only available in packaged Sense-1 Workspace builds."
-        : "In-app updates are available on packaged macOS builds.",
+    unsupportedMessage: "This alpha uses manual installs only. Download the latest macOS or Windows build and replace your current app outside Sense-1.",
   });
 }
 
@@ -217,27 +214,8 @@ function bindUpdateService(service: DesktopUpdateService): void {
 }
 
 async function createUpdateService(): Promise<DesktopUpdateService> {
-  if (!app.isPackaged || process.platform !== "darwin") {
-    return createDisabledUpdateService();
-  }
-
-  try {
-    const { autoUpdater } = await import("electron-updater");
-    return new DesktopUpdateService({
-      currentVersion: DESKTOP_APP_VERSION,
-      updater: autoUpdater,
-      installUpdateAndRestart: async () => {
-        if (appServerManager.state !== "idle" && appServerManager.state !== "stopped") {
-          await appServerManager.stop();
-        }
-        unregisterDesktopIpcHandlers();
-        autoUpdater.quitAndInstall(false, true);
-      },
-    });
-  } catch (error) {
-    console.error(`[desktop:update] Failed to initialize updater: ${formatError(error)}`);
-    return createDisabledUpdateService();
-  }
+  // Alpha desktop distribution is still manual, so keep the updater disabled even in packaged builds.
+  return createDisabledUpdateService();
 }
 
 function syncUpdaterBusyState(): void {

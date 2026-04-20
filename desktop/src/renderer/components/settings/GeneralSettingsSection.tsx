@@ -44,7 +44,7 @@ export type GeneralSettingsSectionProps = SectionProps & {
 
 export function GeneralSettingsSection({
   availableModels,
-  checkForUpdates,
+  checkForUpdates: _checkForUpdates,
   currentVersion,
   modelOptions,
   openLatestRelease,
@@ -71,7 +71,7 @@ export function GeneralSettingsSection({
   return (
     <>
       <h2 className="font-display text-[1.25rem] font-semibold leading-[1.35] tracking-[-0.015em]">General</h2>
-      <p className="mt-[0.2rem] text-[0.875rem] leading-[1.6] text-ink-muted">Core desktop defaults for updates, model selection, and reasoning depth.</p>
+      <p className="mt-[0.2rem] text-[0.875rem] leading-[1.6] text-ink-muted">Core desktop defaults for manual alpha installs, model selection, and reasoning depth.</p>
       {settingsData ? (
         <div className="mt-[1.25rem] flex flex-col gap-[1.25rem]">
           <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.85rem]">
@@ -112,6 +112,9 @@ export function GeneralSettingsSection({
                 <p className="mt-[0.15rem] text-[0.8125rem] leading-[1.52] text-ink-muted">
                   {updateSummary.detail}
                 </p>
+                <p className="mt-[0.4rem] text-[0.75rem] leading-[1.5] text-ink-faint">
+                  Testers should install newer alpha builds manually from the shared download page. macOS users replace the app in Applications; Windows users rerun the installer.
+                </p>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <Button
@@ -122,18 +125,7 @@ export function GeneralSettingsSection({
                   size="sm"
                   variant="secondary"
                 >
-                  Download latest release
-                </Button>
-                <Button
-                  className="rounded-full"
-                  disabled={updateState?.phase === "checking" || updateState?.phase === "downloading" || updateState?.phase === "installing"}
-                  onClick={() => {
-                    void checkForUpdates();
-                  }}
-                  size="sm"
-                  variant="secondary"
-                >
-                  Check for updates
+                  Open alpha downloads
                 </Button>
               </div>
             </div>
