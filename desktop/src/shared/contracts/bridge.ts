@@ -1,4 +1,5 @@
 import type { DesktopBootstrap } from "./bootstrap.js";
+import type { DesktopBugReportDraft, DesktopBugReportResult, DesktopBugReportingStatus } from "./bug-reporting.js";
 import type {
   DesktopAutomationDeleteRequest,
   DesktopAutomationDetailResult,
@@ -92,6 +93,10 @@ export interface DesktopBridge {
   };
   input: {
     respond(request: DesktopInputResponseRequest): Promise<void>;
+  };
+  reports: {
+    submit(request: DesktopBugReportDraft): Promise<DesktopBugReportResult>;
+    getStatus(): Promise<DesktopBugReportingStatus>;
   };
   voice: {
     start(request: DesktopVoiceStartRequest): Promise<void>;

@@ -6,6 +6,9 @@ import {
   type DesktopAppRemoveRequest,
   type DesktopAppInstallRequest,
   type DesktopAppEnabledRequest,
+  type DesktopBugReportDraft,
+  type DesktopBugReportResult,
+  type DesktopBugReportingStatus,
   type DesktopMcpServerAuthRequest,
   type DesktopMcpServerAuthResult,
   type DesktopAutomationDeleteRequest,
@@ -96,6 +99,8 @@ let pendingThreadDeltaFlushTimer: NodeJS.Timeout | null = null;
 
 type DesktopIpcServices = {
   getBootstrap(): Promise<DesktopBootstrap>;
+  submitDesktopBugReport(request: DesktopBugReportDraft): Promise<DesktopBugReportResult>;
+  getDesktopBugReportingStatus(): Promise<DesktopBugReportingStatus>;
   getRuntimeInfo(): RuntimeInfoResult;
   getUpdateState(): Promise<DesktopUpdateState>;
   checkForUpdates(): Promise<DesktopUpdateState>;
@@ -194,6 +199,20 @@ export function registerDesktopIpcHandlers(services: DesktopIpcServices): void {
   ipcMain.handle(IPC_CHANNELS.getDesktopBootstrap, async (): Promise<DesktopBootstrap> => {
     return await services.getBootstrap();
   });
+
+  ipcMain.handle(
+    IPC_CHANNELS.submitDesktopBugReport,
+    async (_event, request: DesktopBugReportDraft): Promise<DesktopBugReportResult> => {
+      return await services.submitDesktopBugReport(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.getDesktopBugReportingStatus,
+    async (): Promise<DesktopBugReportingStatus> => {
+      return await services.getDesktopBugReportingStatus();
+    },
+  );
 
   ipcMain.handle(
     IPC_CHANNELS.rememberLastSelectedThread,
