@@ -32,6 +32,11 @@ import { resolveDesktopInteractionState } from "./session/interaction-state.ts";
 import { ThreadInputQueueService } from "./session/thread-input-queue-service.ts";
 import { resolveBootstrapVisibleThreadId, shouldRestoreQueuedFollowUp } from "./session/thread-runtime-behavior.ts";
 import { RuntimeFileChangeTracker } from "./session/runtime-file-change-tracker.ts";
+import {
+  buildExhaustedCreditsEntry,
+  detectExhaustedCreditsFailure,
+  isApiKeyAccountType,
+} from "./session/api-key-credits-notification.ts";
 import { DesktopBugReportingService } from "./bug-reporting/desktop-bug-reporting-service.ts";
 import { redactSensitivePath, resolveRedactionHomeDir } from "./bug-reporting/redaction.ts";
 import { captureDesktopManualBugReport } from "./bug-reporting/sentry-reporting.ts";
@@ -84,6 +89,7 @@ const workspaceState = new DesktopWorkspaceStateService({
 });
 let updateService = createDisabledUpdateService();
 let currentVisibleThreadId: string | null = null;
+let currentAccountType: string | null = null;
 const runtimePerfCounters = new Map<string, number>();
 let runtimePerfLastFlushAt = Date.now();
 let pendingAccumulatorNotifications: RuntimeNotification[] = [];
@@ -275,6 +281,31 @@ function firstString(...values: Array<unknown>): string | null {
 
 function isNonEmptyString(value: string | null): value is string {
   return typeof value === "string" && value.length > 0;
+}
+
+function refreshCurrentAccountTypeFromNotification(
+  params: { threadId?: string; status?: string; turn?: { status?: string } | null } | null,
+): void {
+  if (!params || typeof params !== "object") {
+    return;
+  }
+  const source = params as Record<string, unknown>;
+  const authRecord =
+    source.auth && typeof source.auth === "object" ? (source.auth as Record<string, unknown>) : null;
+  const accountRecord =
+    source.account && typeof source.account === "object"
+      ? (source.account as Record<string, unknown>)
+      : authRecord?.account && typeof authRecord.account === "object"
+        ? (authRecord.account as Record<string, unknown>)
+        : null;
+  const candidate =
+    (typeof authRecord?.accountType === "string" && authRecord.accountType.trim()) ||
+    (typeof accountRecord?.type === "string" && accountRecord.type.trim()) ||
+    (typeof source.accountType === "string" && source.accountType.trim()) ||
+    null;
+  if (candidate) {
+    currentAccountType = candidate;
+  }
 }
 
 function completionStatusLabel(status: string | null | undefined): "completed" | "failed" | "interrupted" {
@@ -610,6 +641,9 @@ appServerManager.on("notification", (message) => {
   if (message.method === "account/login/completed") {
     focusMainWindow();
   }
+  if (message.method === "account/login/completed" || message.method === "account/updated") {
+    refreshCurrentAccountTypeFromNotification(messageParams);
+  }
   runtimeFileChangeTracker.observe(message);
   if (threadId) {
     const threadRunContext = desktopSessionController.getThreadRunContext(threadId);
@@ -718,6 +752,18 @@ appServerManager.on("notification", (message) => {
     }
 
     const completionStatus = completionStatusLabel(messageParams?.turn?.status ?? messageParams?.status);
+    if (completionStatus === "failed" && isApiKeyAccountType(currentAccountType)) {
+      const detection = detectExhaustedCreditsFailure(message);
+      if (detection.matched) {
+        const creditsEntryDeltas = threadAccumulator.appendSyntheticEntry(
+          threadId,
+          buildExhaustedCreditsEntry({ threadId, reason: detection.reason }),
+        );
+        for (const delta of creditsEntryDeltas) {
+          emitDesktopThreadDelta(delta);
+        }
+      }
+    }
     const completionResult = threadInputQueue.handleTurnCompleted({
       threadId,
       visibleThreadId: currentVisibleThreadId,
@@ -785,6 +831,9 @@ async function bootstrapMainProcess(): Promise<void> {
     getBootstrap: async () => {
       const bootstrap = await desktopSessionController.getBootstrap();
       updateVisibleThread(resolveBootstrapVisibleThreadId(bootstrap));
+      if (typeof bootstrap.auth?.accountType === "string" && bootstrap.auth.accountType.trim()) {
+        currentAccountType = bootstrap.auth.accountType;
+      }
       return decorateBootstrap(bootstrap);
     },
     submitDesktopBugReport: async (request) => await bugReportingService.submitReport(request),
