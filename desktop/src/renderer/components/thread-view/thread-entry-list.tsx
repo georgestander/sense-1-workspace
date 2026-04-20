@@ -188,7 +188,7 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
 
   if (entry.kind === "user") {
     return (
-      <article className="ml-auto w-full max-w-[78%] rounded-xl bg-[color-mix(in_oklch,var(--color-ink)_5%,white)] px-3 py-2 text-[0.8125rem]">
+      <article className="user-bubble ml-auto w-full max-w-[78%] rounded-xl px-3 py-2 text-[0.8125rem]">
         {"promptShortcuts" in entry && Array.isArray(entry.promptShortcuts) && entry.promptShortcuts.length > 0 ? (
           <ThreadEntryShortcutPills matches={entry.promptShortcuts} />
         ) : null}
