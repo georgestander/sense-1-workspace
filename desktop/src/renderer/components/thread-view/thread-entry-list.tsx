@@ -107,6 +107,43 @@ function ThreadEntryShortcutPills({
   );
 }
 
+function ThreadEntryAttachmentPills({
+  attachments,
+  workspaceRoot,
+}: {
+  attachments: Array<{
+    kind: "file" | "image";
+    label: string;
+    path: string;
+  }>;
+  workspaceRoot: string | null;
+}) {
+  if (attachments.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mb-2 flex flex-wrap items-center gap-2">
+      {attachments.map((attachment) => {
+        const Icon = getFileIcon(attachment.label);
+        return (
+          <button
+            className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-surface-soft px-3 py-1 text-[0.6875rem] font-medium text-ink shadow-[var(--shadow-raised)] hover:bg-surface"
+            key={`${attachment.path}:${attachment.kind}`}
+            onClick={() => openThreadFile(attachment.path, workspaceRoot)}
+            title={attachment.path}
+            type="button"
+          >
+            <Icon className="size-3.5 shrink-0 text-ink-muted" />
+            <span className="truncate">{attachment.label}</span>
+            <span className="shrink-0 text-ink-faint">{attachment.kind === "image" ? "Image" : getFileLabel(attachment.label)}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function ActivityGroupCard({
   extensionOverview,
   group,
@@ -193,6 +230,9 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
       <article className="user-bubble ml-auto w-full max-w-[78%] rounded-xl px-3 py-2 text-[0.8125rem]">
         {"promptShortcuts" in entry && Array.isArray(entry.promptShortcuts) && entry.promptShortcuts.length > 0 ? (
           <ThreadEntryShortcutPills matches={entry.promptShortcuts} />
+        ) : null}
+        {"attachments" in entry && Array.isArray(entry.attachments) && entry.attachments.length > 0 ? (
+          <ThreadEntryAttachmentPills attachments={entry.attachments} workspaceRoot={workspaceRoot} />
         ) : null}
         <ThreadMarkdown className="thread-markdown-user" workspaceRoot={workspaceRoot}>
           {visibleUserBody}

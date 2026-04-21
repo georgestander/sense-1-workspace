@@ -710,6 +710,16 @@ test("runDesktopTask sends attachments as turn/start input items", async () => {
     },
     {
       type: "text",
+      text: [
+        "<sense1-attachment-context>",
+        "The user attached these files for this request. Treat them as part of the task even when they live outside the current workspace.",
+        "- notes.txt :: /tmp/workspace/notes.txt",
+        "- design.png :: /tmp/workspace/design.png",
+        "</sense1-attachment-context>",
+      ].join("\n"),
+    },
+    {
+      type: "text",
       text: "Review these files",
     },
   ]);
@@ -811,6 +821,15 @@ test("runDesktopTask includes resolved shortcut mentions before attachments and 
     {
       type: "localImage",
       path: "/tmp/workspace/design.png",
+    },
+    {
+      type: "text",
+      text: [
+        "<sense1-attachment-context>",
+        "The user attached these files for this request. Treat them as part of the task even when they live outside the current workspace.",
+        "- design.png :: /tmp/workspace/design.png",
+        "</sense1-attachment-context>",
+      ].join("\n"),
     },
     {
       type: "text",

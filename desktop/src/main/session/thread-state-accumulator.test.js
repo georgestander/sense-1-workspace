@@ -53,6 +53,47 @@ test("mapItemToEntry counts non-shortcut mention attachments as files", () => {
     kind: "user",
     title: "You",
     body: "Attached 1 file.",
+    attachments: [
+      {
+        kind: "file",
+        label: "brief.md",
+        path: "/tmp/session/brief.md",
+      },
+    ],
+  });
+});
+
+test("mapItemToEntry strips the synthetic attachment context note from visible user text", () => {
+  const entry = mapItemToEntry({
+    id: "user-file-2",
+    type: "userMessage",
+    content: [
+      { type: "mention", name: "brief.md", path: "/tmp/session/brief.md" },
+      {
+        type: "text",
+        text: [
+          "<sense1-attachment-context>",
+          "The user attached these files for this request. Treat them as part of the task even when they live outside the current workspace.",
+          "- brief.md :: /tmp/session/brief.md",
+          "</sense1-attachment-context>",
+          "Please use the attached brief.",
+        ].join("\n"),
+      },
+    ],
+  });
+
+  assert.deepEqual(entry, {
+    id: "user-file-2",
+    kind: "user",
+    title: "You",
+    body: "Please use the attached brief.",
+    attachments: [
+      {
+        kind: "file",
+        label: "brief.md",
+        path: "/tmp/session/brief.md",
+      },
+    ],
   });
 });
 

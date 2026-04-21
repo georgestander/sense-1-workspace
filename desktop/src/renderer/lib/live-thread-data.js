@@ -1,4 +1,8 @@
 import { resolveInputItemPromptShortcutMatches } from "../../shared/prompt-shortcuts.ts";
+import {
+  resolveUserMessageAttachments,
+  stripAttachmentContextNote,
+} from "../../shared/thread-attachments.ts";
 
 function firstString(...values) {
   for (const value of values) {
@@ -129,7 +133,7 @@ function fileNameFromPath(value) {
 function mapUserMessageContent(content) {
   const normalizedContent = Array.isArray(content) ? content : [];
   const shortcutMatches = resolveInputItemPromptShortcutMatches(normalizedContent);
-  const shortcutItems = new Set(shortcutMatches.map((match) => match.item));
+  const attachments = resolveUserMessageAttachments(normalizedContent);
   const shortcuts = shortcutMatches.map((match) => ({
     kind: match.kind,
     label: match.label,
@@ -140,19 +144,18 @@ function mapUserMessageContent(content) {
     .map((entry) => entry.text)
     .join("\n")
     .trim();
+  const visibleText = stripAttachmentContextNote(text);
+  const attachmentCount = attachments.length;
 
-  const attachmentCount = normalizedContent.filter(
-    (entry) => entry?.type === "localImage" || (entry?.type === "mention" && !shortcutItems.has(entry)),
-  ).length;
-
-  if (!text && attachmentCount === 0 && shortcuts.length === 0) {
+  if (!visibleText && attachmentCount === 0 && shortcuts.length === 0) {
     return null;
   }
 
   return {
     promptShortcuts: shortcuts,
+    attachments,
     body:
-      text ||
+      visibleText ||
       (shortcuts.length > 0 && attachmentCount === 0
         ? shortcuts.length === 1
           ? "Used 1 shortcut."
@@ -176,6 +179,7 @@ export function mapItemToThreadEntry(item) {
       title: "You",
       body: content.body,
       ...(content.promptShortcuts.length > 0 ? { promptShortcuts: content.promptShortcuts } : {}),
+      ...(content.attachments.length > 0 ? { attachments: content.attachments } : {}),
     };
   }
 

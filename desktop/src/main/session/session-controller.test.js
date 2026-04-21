@@ -1737,6 +1737,16 @@ test("runDesktopTask forwards selected attachment paths through the session cont
     },
     {
       type: "text",
+      text: [
+        "<sense1-attachment-context>",
+        "The user attached these files for this request. Treat them as part of the task even when they live outside the current workspace.",
+        `- notes.txt :: ${path.join(workspaceRoot, "notes.txt")}`,
+        `- index.ts :: ${path.join(workspaceRoot, "src", "index.ts")}`,
+        "</sense1-attachment-context>",
+      ].join("\n"),
+    },
+    {
+      type: "text",
       text: "Use these files",
     },
   ]);

@@ -1,6 +1,10 @@
 import { resolveDesktopInteractionState } from "../session/interaction-state.ts";
 import { buildPlanState } from "../session/plan-state.ts";
 import {
+  resolveUserMessageAttachments,
+  stripAttachmentContextNote,
+} from "../../shared/thread-attachments.ts";
+import {
   buildStructuredReviewSummary,
   dedupeReviewArtifacts,
 } from "../review-summary.ts";
@@ -45,23 +49,23 @@ function fileNameFromPath(value) {
 }
 
 function mapUserMessageContent(content) {
+  const attachments = resolveUserMessageAttachments(content);
   const text = (Array.isArray(content) ? content : [])
     .filter((entry) => entry?.type === "text" && typeof entry.text === "string")
     .map((entry) => entry.text)
     .join("\n")
     .trim();
+  const visibleText = stripAttachmentContextNote(text);
+  const attachmentCount = attachments.length;
 
-  const attachmentCount = (Array.isArray(content) ? content : []).filter(
-    (entry) => entry?.type === "mention" || entry?.type === "localImage",
-  ).length;
-
-  if (!text && attachmentCount === 0) {
+  if (!visibleText && attachmentCount === 0) {
     return null;
   }
 
   return {
+    attachments,
     body:
-      text ||
+      visibleText ||
       (attachmentCount === 1
         ? "Attached 1 file."
         : `Attached ${attachmentCount} files.`),
@@ -80,6 +84,7 @@ function mapItemToThreadEntry(item) {
       kind: "user",
       title: "You",
       body: content.body,
+      ...(content.attachments.length > 0 ? { attachments: content.attachments } : {}),
     };
   }
 

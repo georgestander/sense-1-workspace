@@ -1,5 +1,6 @@
 import type { DesktopInteractionState } from "./runtime.js";
 import type { DesktopInputRequestState, DesktopPlanState, DesktopThreadInputState } from "./thread-input.js";
+import type { DesktopUserMessageAttachment } from "../thread-attachments.ts";
 
 export interface DesktopThreadSummary {
   readonly id: string;
@@ -101,6 +102,7 @@ export type DesktopThreadEntry =
         readonly label: string;
         readonly token: string;
       }>;
+      readonly attachments?: DesktopUserMessageAttachment[];
       readonly status?: string;
     }
   | {
