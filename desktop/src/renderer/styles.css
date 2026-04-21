@@ -513,6 +513,10 @@ body {
   --color-line: oklch(1 0 0 / 30%);
   --color-accent: oklch(0.625 0.038 243);
   --color-accent-faint: oklch(0.625 0.038 243 / 10%);
+  --thread-attachment-pill-surface: oklch(0.985 0 0);
+  --thread-attachment-pill-surface-hover: oklch(0.955 0 0);
+  --thread-attachment-pill-ink: oklch(0.18 0 0);
+  --thread-attachment-pill-ink-muted: oklch(0.36 0 0);
   background: oklch(0.730 0.090 262);
   color: var(--color-ink);
 }

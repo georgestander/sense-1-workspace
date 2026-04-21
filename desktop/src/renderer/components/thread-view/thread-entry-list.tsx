@@ -128,15 +128,15 @@ function ThreadEntryAttachmentPills({
         const Icon = getFileIcon(attachment.label);
         return (
           <button
-            className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-surface-soft px-3 py-1 text-[0.6875rem] font-medium text-ink shadow-[var(--shadow-raised)] hover:bg-surface"
+            className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-[var(--thread-attachment-pill-surface)] px-3 py-1 text-[0.6875rem] font-medium text-[var(--thread-attachment-pill-ink)] shadow-[var(--shadow-raised)] transition-colors hover:bg-[var(--thread-attachment-pill-surface-hover)]"
             key={`${attachment.path}:${attachment.kind}`}
             onClick={() => openThreadFile(attachment.path, workspaceRoot)}
             title={attachment.path}
             type="button"
           >
-            <Icon className="size-3.5 shrink-0 text-ink-muted" />
+            <Icon className="size-3.5 shrink-0 text-[var(--thread-attachment-pill-ink-muted)]" />
             <span className="truncate">{attachment.label}</span>
-            <span className="shrink-0 text-ink-faint">{attachment.kind === "image" ? "Image" : getFileLabel(attachment.label)}</span>
+            <span className="shrink-0 text-[var(--thread-attachment-pill-ink-muted)]">{attachment.kind === "image" ? "Image" : getFileLabel(attachment.label)}</span>
           </button>
         );
       })}
