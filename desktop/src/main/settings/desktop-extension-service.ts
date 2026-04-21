@@ -856,6 +856,19 @@ async function readPluginLocalMetadata(
   };
 }
 
+async function readPluginReadmeContent(sourcePath: string | null): Promise<string> {
+  if (!sourcePath) {
+    return "";
+  }
+  const candidates = ["README.md", "readme.md", "Readme.md"];
+  for (const candidate of candidates) {
+    try {
+      return await fs.readFile(path.join(sourcePath, candidate), "utf8");
+    } catch {}
+  }
+  return "";
+}
+
 async function readLocalPluginDetail(
   plugin: DesktopPluginRecord,
   profileCodexHome: string,
@@ -867,6 +880,8 @@ async function readLocalPluginDetail(
       asRecord(JSON.parse(await fs.readFile(path.join(metadata.sourcePath ?? "", ".codex-plugin", "plugin.json"), "utf8"))).interface,
     );
   } catch {}
+
+  const content = await readPluginReadmeContent(metadata.sourcePath ?? plugin.sourcePath);
 
   return {
     pluginId: plugin.id,
@@ -888,6 +903,7 @@ async function readLocalPluginDetail(
     })),
     apps: metadata.appIds,
     mcpServers: metadata.mcpServerIds,
+    content,
   };
 }
 
@@ -1751,6 +1767,9 @@ export class DesktopExtensionService {
       ...metadata.mcpServerIds,
     ]);
 
+    const resolvedSourcePath = firstString(asRecord(readPlugin.source).path, metadata.sourcePath, plugin.sourcePath);
+    const content = await readPluginReadmeContent(resolvedSourcePath);
+
     return {
       pluginId: plugin.id,
       name: plugin.name,
@@ -1758,7 +1777,7 @@ export class DesktopExtensionService {
       description: firstString(interfaceRecord.shortDescription, plugin.description),
       marketplaceName: plugin.marketplaceName,
       marketplacePath: plugin.marketplacePath,
-      sourcePath: firstString(asRecord(readPlugin.source).path, metadata.sourcePath, plugin.sourcePath),
+      sourcePath: resolvedSourcePath,
       websiteUrl: firstString(interfaceRecord.websiteUrl, plugin.websiteUrl),
       capabilities: uniqueStrings([
         ...asStringArray(interfaceRecord.capabilities),
@@ -1771,6 +1790,7 @@ export class DesktopExtensionService {
       })),
       apps,
       mcpServers,
+      content,
     };
   }
 

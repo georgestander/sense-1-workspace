@@ -1,4 +1,5 @@
-import { ArrowLeft, Blocks, Cable, ExternalLink, MessageSquare, Sparkles, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, Blocks, Cable, ExternalLink, MessageSquare, Pencil, Sparkles, Trash2 } from "lucide-react";
 
 import type {
   DesktopAppRecord,
@@ -8,6 +9,7 @@ import type {
 } from "../../../main/contracts";
 import type { DesktopPromptShortcutSuggestion } from "../../../shared/prompt-shortcuts.ts";
 import { resolveManagedExtensionPromptShortcut } from "../../../shared/prompt-shortcuts.ts";
+import { ThreadMarkdown } from "../../thread-markdown";
 import { Button } from "../ui/button";
 
 type PluginDetailViewProps = {
@@ -107,6 +109,29 @@ export function PluginDetailView({
   const websiteUrl = legacyPlugin?.websiteUrl ?? null;
   const tryInChatShortcut = resolveManagedExtensionPromptShortcut(managedRecord, overview);
 
+  const [readmeContent, setReadmeContent] = useState<string | null>(null);
+  const [readmeLoading, setReadmeLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setReadmeLoading(true);
+    window.sense1Desktop.management
+      .readPluginDetail({ pluginId: managedRecord.id })
+      .then((result) => {
+        if (cancelled) return;
+        setReadmeContent(result.content ?? "");
+        setReadmeLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setReadmeContent("");
+        setReadmeLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [managedRecord.id]);
+
+  const readmeBody = (readmeContent ?? "").trim();
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Header */}
@@ -127,14 +152,14 @@ export function PluginDetailView({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {managedRecord.canOpen && onOpen ? (
-            <Button
-              className="h-7 gap-1.5 rounded-lg px-2.5 text-[11px]"
+            <button
+              className="inline-flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-[11px] text-ink-muted transition-colors hover:bg-surface-soft hover:text-ink"
               onClick={onOpen}
-              variant="secondary"
+              type="button"
             >
-              <ExternalLink className="size-3" />
-              Open
-            </Button>
+              <Pencil className="size-3" />
+              Edit source
+            </button>
           ) : null}
           {onTryInChat && tryInChatShortcut ? (
             <Button
@@ -263,6 +288,23 @@ export function PluginDetailView({
                   />
                 ))}
               </div>
+            </section>
+          ) : null}
+
+          {/* README */}
+          {readmeLoading ? (
+            <section>
+              <SectionHeading>Readme</SectionHeading>
+              <div className="space-y-2">
+                <div className="h-3 w-3/4 animate-pulse rounded bg-surface-soft" />
+                <div className="h-3 w-full animate-pulse rounded bg-surface-soft" />
+                <div className="h-3 w-5/6 animate-pulse rounded bg-surface-soft" />
+              </div>
+            </section>
+          ) : readmeBody ? (
+            <section>
+              <SectionHeading>Readme</SectionHeading>
+              <ThreadMarkdown>{readmeBody}</ThreadMarkdown>
             </section>
           ) : null}
         </div>

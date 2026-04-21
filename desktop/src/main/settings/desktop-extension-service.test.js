@@ -2317,6 +2317,7 @@ test("readPluginDetail prefers plugin/read and falls back to local metadata", as
       ],
       apps: ["connector_gmail"],
       mcpServers: ["plugin-mcp"],
+      content: "",
     });
   } finally {
     await fs.rm(pluginRoot, { force: true, recursive: true });

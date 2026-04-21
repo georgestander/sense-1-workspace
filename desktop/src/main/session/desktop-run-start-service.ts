@@ -78,6 +78,38 @@ const PROFILE_CODEX_HOME_SHORTCUTS = new Set([
   "skill-installer",
 ]);
 
+const PROFILE_SKILL_LIBRARY_HINT_PATTERNS = Object.freeze([
+  /\bsense-?1\s+skills?\s+library\b/iu,
+  /\bskills?\s+page\b/iu,
+  /\bprofile\s+skills?\b/iu,
+  /\binstalled\s+skills?\b/iu,
+  /\bglobal\s+skills?\b/iu,
+]);
+
+const PROFILE_SKILL_CREATION_PATTERNS = Object.freeze([
+  /\b(create|add|install|save|move|copy|put|publish|scaffold|make|build)\b.{0,80}\bskills?\b/iu,
+  /\bnew\b.{0,40}\bskills?\b/iu,
+]);
+
+const PROFILE_SKILL_EDIT_PATTERNS = Object.freeze([
+  /\b(edit|update|modify|change|fix|rewrite|improve|refine)\b.{0,80}\bskills?\b/iu,
+]);
+
+function firstString(...values: Array<string | null | undefined>): string | null {
+  for (const value of values) {
+    if (typeof value !== "string") {
+      continue;
+    }
+
+    const trimmed = value.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+
+  return null;
+}
+
 function firstShortcutName(inputItems: DesktopAppServerInputItem[]): string[] {
   return inputItems
     .filter((item): item is DesktopAppServerInputItem & { type: "mention"; name?: string } => item.type === "mention")
@@ -91,6 +123,65 @@ function resolveProfileCodexHomeShortcutNames(inputItems: DesktopAppServerInputI
       .map((name) => name.split(":").at(-1)?.trim().toLowerCase() ?? "")
       .filter((localName) => PROFILE_CODEX_HOME_SHORTCUTS.has(localName)),
   );
+}
+
+function promptLooksLikeManagedProfileSkillRequest(prompt: string | null | undefined): boolean {
+  const resolvedPrompt = firstString(prompt);
+  if (!resolvedPrompt || !/\bskills?\b/iu.test(resolvedPrompt)) {
+    return false;
+  }
+
+  const mentionsManagedDestination = PROFILE_SKILL_LIBRARY_HINT_PATTERNS.some((pattern) => pattern.test(resolvedPrompt));
+  if (!mentionsManagedDestination) {
+    return false;
+  }
+
+  return (
+    PROFILE_SKILL_CREATION_PATTERNS.some((pattern) => pattern.test(resolvedPrompt))
+    || PROFILE_SKILL_EDIT_PATTERNS.some((pattern) => pattern.test(resolvedPrompt))
+  );
+}
+
+function promptLooksLikeManagedProfileSkillCreation(prompt: string | null | undefined): boolean {
+  const resolvedPrompt = firstString(prompt);
+  if (!resolvedPrompt || !/\bskills?\b/iu.test(resolvedPrompt)) {
+    return false;
+  }
+
+  return (
+    PROFILE_SKILL_LIBRARY_HINT_PATTERNS.some((pattern) => pattern.test(resolvedPrompt))
+    && PROFILE_SKILL_CREATION_PATTERNS.some((pattern) => pattern.test(resolvedPrompt))
+  );
+}
+
+function resolveProfileCodexHomeAccess({
+  inputItems,
+  profileCodexHome,
+  prompt,
+}: {
+  inputItems: DesktopAppServerInputItem[];
+  profileCodexHome: string;
+  prompt: string | null | undefined;
+}): {
+  hasManagedSkillCreationRequest: boolean;
+  hasManagedSkillRequest: boolean;
+  shortcutNames: Set<string>;
+  shouldGrantProfileCodexHome: boolean;
+} {
+  const shortcutNames = resolveProfileCodexHomeShortcutNames(inputItems);
+  const managedSkillPrompt = promptLooksLikeManagedProfileSkillRequest(prompt);
+  const managedSkillCreationPrompt = promptLooksLikeManagedProfileSkillCreation(prompt);
+  const hasManagedSkillRequest =
+    shortcutNames.has("skill-creator")
+    || shortcutNames.has("skill-installer")
+    || managedSkillPrompt;
+
+  return {
+    hasManagedSkillCreationRequest: shortcutNames.has("skill-creator") || managedSkillCreationPrompt,
+    hasManagedSkillRequest,
+    shortcutNames,
+    shouldGrantProfileCodexHome: shortcutNames.size > 0 || hasManagedSkillRequest,
+  };
 }
 
 function findShortcutMention(
@@ -165,14 +256,18 @@ function withAdditionalWritableRoots(
 
 function buildProfileExtensionRuntimeInstruction({
   inputItems,
+  hasManagedSkillCreationRequest,
+  hasManagedSkillRequest,
   profileCodexHome,
   shortcutNames,
 }: {
   inputItems: DesktopAppServerInputItem[];
+  hasManagedSkillCreationRequest: boolean;
+  hasManagedSkillRequest: boolean;
   profileCodexHome: string;
   shortcutNames: Set<string>;
 }): string | null {
-  if (shortcutNames.size === 0) {
+  if (shortcutNames.size === 0 && !hasManagedSkillRequest) {
     return null;
   }
 
@@ -180,7 +275,7 @@ function buildProfileExtensionRuntimeInstruction({
   const profilePluginsDir = `${profileCodexHome}/plugins`;
   const profileMarketplacePath = `${profileCodexHome}/.agents/plugins/marketplace.json`;
 
-  if (shortcutNames.has("skill-creator") || shortcutNames.has("skill-installer")) {
+  if (hasManagedSkillRequest) {
     instructions.push(
       `When creating or installing Sense-1 skills, treat ${profileCodexHome} as the active profile CODEX_HOME. Install them there so they are callable from any thread in this profile.`,
     );
@@ -193,7 +288,7 @@ function buildProfileExtensionRuntimeInstruction({
     instructions.push(
       `Do not report success until the final installed skill exists under ${profileCodexHome} and you can reference that installed location. A workspace draft or scaffold does not satisfy a managed install request.`,
     );
-    if (shortcutNames.has("skill-creator")) {
+    if (hasManagedSkillCreationRequest) {
       instructions.push(
         `When the user asks for a new Sense-1 skill, finish with a callable installed profile skill in ${profileCodexHome}/skills. Do not stop at a TODO-only template, placeholder scaffold, or a draft left in the selected workspace for later move/install unless the user explicitly asked for workspace-local scaffold output.`,
       );
@@ -538,9 +633,13 @@ export class DesktopRunStartService {
         }
       }
       const skillApprovalKeys = await collectSkillApprovalKeys(inputItems);
-      const profileCodexHomeShortcutNames = resolveProfileCodexHomeShortcutNames(inputItems);
       const profileCodexHome = resolveProfileCodexHome(profile.id, this.#env);
-      if (profileCodexHomeShortcutNames.size > 0) {
+      const profileCodexHomeAccess = resolveProfileCodexHomeAccess({
+        inputItems,
+        profileCodexHome,
+        prompt: request.prompt,
+      });
+      if (profileCodexHomeAccess.shouldGrantProfileCodexHome) {
         runtimeRunContext = withAdditionalWritableRoots(runContext, [profileCodexHome]);
       }
       const resolvedRuntimeInstructions = mergeRuntimeInstructions(
@@ -555,9 +654,11 @@ export class DesktopRunStartService {
           }),
         ),
         buildProfileExtensionRuntimeInstruction({
+          hasManagedSkillCreationRequest: profileCodexHomeAccess.hasManagedSkillCreationRequest,
+          hasManagedSkillRequest: profileCodexHomeAccess.hasManagedSkillRequest,
           inputItems,
           profileCodexHome,
-          shortcutNames: profileCodexHomeShortcutNames,
+          shortcutNames: profileCodexHomeAccess.shortcutNames,
         }),
       );
       const resolvedVerbosity = resolveVerbosity(resolvedSettings.settings.verbosity);

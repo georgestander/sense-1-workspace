@@ -26,6 +26,7 @@
     "test:renderer": "node --test \"src/renderer/*.test.js\" \"src/renderer/**/*.test.js\"",
     "test:unit": "pnpm test:main && pnpm test:renderer",
     "qa:electron:smoke": "node ./scripts/playwright-electron-runner.mjs --module ./scripts/playwright-electron-smoke.mjs",
+    "verify:alpha": "node ./scripts/alpha-verification-gate.mjs",
     "sentry:sourcemaps:smoke": "node ./scripts/sentry-release.mjs smoke",
     "sentry:sourcemaps:upload": "node ./scripts/sentry-release.mjs upload",
     "test:e2e": "pnpm build && npx playwright test",

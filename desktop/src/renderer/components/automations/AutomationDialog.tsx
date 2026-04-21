@@ -321,9 +321,15 @@ export function AutomationDialog({
           <div className="flex flex-wrap gap-2">
             {isEditing ? (
               <>
-                <Button disabled={saving} onClick={() => void onRunNow()} size="sm" variant="secondary">
+                <Button
+                  disabled={saving}
+                  onClick={() => void onRunNow()}
+                  size="sm"
+                  title="Runs this workspace automation once, outside its schedule. It does not attach to the current thread."
+                  variant="secondary"
+                >
                   <Play />
-                  Run now
+                  Run once now
                 </Button>
                 <Button disabled={saving} onClick={() => void onDelete()} size="sm" variant="destructive">
                   <Trash2 />

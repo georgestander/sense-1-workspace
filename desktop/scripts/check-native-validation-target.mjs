@@ -193,7 +193,7 @@ writeFileSync(
     "- Use `pnpm -C web check` separately for web/admin shared-shell validation.",
     "- `pnpm -C desktop check ...` prepares the native parity bundle for this checkout shape.",
     "- The packaged lifecycle probe is process-only proof; it does not inspect the packaged renderer UI by itself.",
-    "- Native pass still requires the manual smoke in `docs/native-macos-desktop-smoke-runbook.md` against the branch-matched desktop alpha build.",
+    "- Native pass still requires the manual smoke in `desktop/docs/native-macos-desktop-smoke-runbook.md` and the full gate in `desktop/docs/alpha-verification-matrix.md` against the branch-matched desktop alpha build.",
     "",
     "## Bundles",
     "",
@@ -234,7 +234,7 @@ writeFileSync(
       : "- packaged launch lifecycle check: skipped (no --desktop-app-path)",
     "",
     failedCommands.length === 0
-      ? "All selected preflight commands passed. Continue with the native smoke runbook."
+      ? "All selected preflight commands passed. Continue with the native smoke runbook and then record the result through `pnpm -C desktop verify:alpha -- --desktop-build-id <build-id>`."
       : "One or more repo-local preflight commands failed. Review `commands/*.txt` before claiming native proof.",
   ]
     .filter(Boolean)
