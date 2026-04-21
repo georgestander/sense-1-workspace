@@ -39,7 +39,9 @@ Discuss first before making large changes to:
 
 ```bash
 pnpm -C desktop install --frozen-lockfile
+./scripts/install-git-hooks.sh
 pnpm -C desktop typecheck
+pnpm -C desktop test:perf:smoke
 pnpm -C desktop test:unit
 pnpm -C desktop build
 pnpm -C desktop check:structure
@@ -53,6 +55,8 @@ node scripts/check-public-boundary.mjs
 - link the PR to an issue or roadmap item
 - update tests when behavior changes
 - make sure CI passes before requesting review
+
+Local hooks are the first regression gate. After running `./scripts/install-git-hooks.sh`, every push will run the desktop renderer tests, a local renderer perf smoke, and a full desktop build before GitHub ever sees the branch.
 
 CI passing is necessary, not sufficient. Maintainers may still reject PRs that do not fit the repo contract.
 

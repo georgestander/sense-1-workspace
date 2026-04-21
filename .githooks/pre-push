@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+printf '%s\n' "[pre-push] desktop local regression guard"
+pnpm -C desktop check:pre-push
