@@ -67,7 +67,17 @@ import type { DesktopBootstrap, DesktopSteerTurnResult, DesktopTaskRunResult, De
 const DESKTOP_APP_NAME = "Sense-1 Workspace";
 const LATEST_RELEASE_URL = "https://github.com/georgestander/sense-1-workspace/releases/latest";
 const shouldEnforceSingleInstance = process.env.NODE_ENV !== "test";
-const SENTRY_DIST = resolveSentryDist(__SENSE1_DESKTOP_BUILD_ID__);
+
+function resolveDesktopSentryDist(): string | undefined {
+  const injectedBuildId =
+    typeof __SENSE1_DESKTOP_BUILD_ID__ === "string"
+      ? __SENSE1_DESKTOP_BUILD_ID__
+      : process.env.SENSE1_DESKTOP_BUILD_ID;
+  return resolveSentryDist(injectedBuildId);
+}
+
+const SENTRY_DIST = resolveDesktopSentryDist();
+
 Sentry.init({
   dsn: resolveSentryDsn(process.env),
   environment: resolveSentryEnvironment(process.env),
