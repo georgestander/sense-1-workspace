@@ -1,4 +1,4 @@
-import { Monitor, Moon, Sun } from "lucide-react";
+import { ChevronRight, Monitor, Moon, Sun } from "lucide-react";
 
 import { Button } from "../ui/button";
 import { cn } from "../../lib/cn";
@@ -111,14 +111,17 @@ export function GeneralSettingsSection({
             <p className="mt-[0.4rem] text-[0.8125rem] leading-[1.52] text-ink-muted">System follows your operating system. Choose Light or Dark to override.</p>
           </div>
 
-          <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+          <details className="group rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Current version</span>
+                <span className="text-[0.8125rem] font-medium leading-[1.4] text-ink">{currentVersion ? `v${currentVersion}` : "unavailable"}</span>
+              </div>
+              <ChevronRight className="size-3 text-ink-muted transition-transform group-open:rotate-90" />
+            </summary>
+            <div className="mt-[0.5rem] flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Current version</p>
-                <p className="mt-[0.35rem] text-[1rem] font-medium leading-[1.45] text-ink">
-                  {currentVersion ? `v${currentVersion}` : "Version unavailable"}
-                </p>
-                <p className={cn("mt-[0.55rem] text-[0.875rem] font-medium leading-[1.6]", updateSummary.isError ? "text-danger" : "text-ink")}>
+                <p className={cn("text-[0.875rem] font-medium leading-[1.6]", updateSummary.isError ? "text-danger" : "text-ink")}>
                   {updateSummary.title}
                 </p>
                 <p className="mt-[0.15rem] text-[0.8125rem] leading-[1.52] text-ink-muted">
@@ -141,7 +144,7 @@ export function GeneralSettingsSection({
                 </Button>
               </div>
             </div>
-          </div>
+          </details>
 
           <label className="flex flex-col gap-[0.4rem]">
             <span className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Default model</span>
@@ -191,11 +194,19 @@ export function GeneralSettingsSection({
             )}
           </label>
 
-          <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+          <details className="group rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Trusted skills</span>
+                <span className="text-[0.8125rem] leading-[1.4] text-ink-muted">
+                  {trustedSkillApprovals.length > 0 ? `${trustedSkillApprovals.length} approved` : "none"}
+                </span>
+              </div>
+              <ChevronRight className="size-3 text-ink-muted transition-transform group-open:rotate-90" />
+            </summary>
+            <div className="mt-[0.5rem] flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Trusted skills</p>
-                <p className="mt-[0.35rem] text-[0.875rem] leading-[1.6] text-ink-muted">
+                <p className="text-[0.875rem] leading-[1.6] text-ink-muted">
                   Sense-1 remembers approved skills at the profile level and reuses them across threads and workspaces until the skill changes or you revoke trust.
                 </p>
               </div>
@@ -239,7 +250,7 @@ export function GeneralSettingsSection({
             {settingsError?.key === "trustedSkillApprovals" ? (
               <p className="mt-[0.65rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : null}
-          </div>
+          </details>
           <label className="flex flex-col gap-[0.4rem]">
             <span className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Service tier</span>
             <select
