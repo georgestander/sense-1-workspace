@@ -32,6 +32,15 @@ pnpm -C desktop dist:win
 
 Packaged artifacts land in `desktop/release/`.
 
+Each packaging run now also writes:
+
+- `desktop/release/INSTALL-macOS.md`
+- `desktop/release/INSTALL-Windows.md`
+- `desktop/release/ALPHA-README.md`
+- `desktop/release/alpha-release-manifest.json`
+
+Those files are intended to travel with the shared alpha artifacts so testers get the right manual-install guidance for each platform.
+
 ## Sentry releases and source maps
 
 Desktop production bundles now emit source maps for main, preload, and renderer. Release packaging injects Sentry Debug IDs into the built JavaScript bundles, and packaged apps exclude raw `.map` files so source maps are available for upload without shipping them inside the installed app.
@@ -68,10 +77,12 @@ Sense-1 desktop alpha builds install manually. The app does not deliver in-app a
 
 ### macOS
 
-1. Run `pnpm -C desktop dist:mac` to generate the signed-off alpha artifacts for manual sharing.
+1. Run `pnpm -C desktop dist:mac` to generate the alpha artifacts for manual sharing.
 2. Open the generated DMG from `desktop/release/`.
 3. Drag `Sense-1 Workspace.app` into `Applications`.
 4. When sending an updated alpha build, have testers replace the existing app in `Applications` with the newer one.
+
+The release folder also includes `INSTALL-macOS.md`, which repeats these steps for testers.
 
 If Gatekeeper blocks the app because the alpha is unsigned, open it via Finder with `Control`-click -> `Open`, or use `System Settings` -> `Privacy & Security` -> `Open Anyway` after the first launch attempt.
 
@@ -81,11 +92,15 @@ If Gatekeeper blocks the app because the alpha is unsigned, open it via Finder w
 2. Share the generated `.exe` with testers through the alpha download location.
 3. Testers install updates by running the newer installer again.
 
+The release folder also includes `INSTALL-Windows.md`, which repeats these steps for testers.
+
 If Windows SmartScreen warns that the installer is from an unrecognized app, use `More info` -> `Run anyway` only for trusted internal alpha builds.
 
 ## Packaging notes
 
 - Electron-builder's Windows NSIS target is already configured in `desktop/package.json`.
+- `dist:mac` validates that the release folder contains both `.dmg` and `.zip` artifacts for the packaged alpha build.
+- `dist:win` validates that the release folder contains the packaged NSIS `.exe` installer.
 - Electron-builder's multi-platform guidance says not to assume every host can build every target, so use a Windows-capable packaging machine or CI lane if local cross-build support is unavailable.
 
 ## Architecture
