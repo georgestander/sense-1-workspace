@@ -51,6 +51,7 @@ export function getDesktopBridge(): DesktopBridge | null {
     typeof bridge.team?.getState !== "function" ||
     typeof bridge.team?.createFirstTeam !== "function" ||
     typeof bridge.team?.saveMember !== "function" ||
+    typeof bridge.team?.removeMember !== "function" ||
     typeof bridge.automations?.list !== "function" ||
     typeof bridge.automations?.get !== "function" ||
     typeof bridge.automations?.save !== "function" ||

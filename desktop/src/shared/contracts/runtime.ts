@@ -72,6 +72,7 @@ export const IPC_CHANNELS = {
   getDesktopTeamState: "sense1:desktop:team:get-state",
   createDesktopFirstTeam: "sense1:desktop:team:create-first",
   saveDesktopTeamMember: "sense1:desktop:team:save-member",
+  removeDesktopTeamMember: "sense1:desktop:team:remove-member",
   listDesktopAutomations: "sense1:desktop:automations:list",
   getDesktopAutomation: "sense1:desktop:automations:get",
   saveDesktopAutomation: "sense1:desktop:automations:save",

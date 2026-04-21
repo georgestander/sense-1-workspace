@@ -5,6 +5,7 @@ import { Input } from "../ui/input";
 import type {
   DesktopBootstrapTeamSetup,
   DesktopBootstrapTenant,
+  DesktopTeamMemberRecord,
   DesktopTeamStateResult,
 } from "../../../main/contracts";
 
@@ -47,10 +48,12 @@ export function TeamSettingsSection({
   const [teamState, setTeamState] = useState<DesktopTeamStateResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [removingEmail, setRemovingEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [teamName, setTeamName] = useState("");
   const [memberEmail, setMemberEmail] = useState("");
   const [memberRole, setMemberRole] = useState<"member" | "admin">("member");
+  const [editingEmail, setEditingEmail] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,15 +126,60 @@ export function TeamSettingsSection({
       const result = await bridge.team.saveMember({
         email: memberEmail,
         role: memberRole,
+        previousEmail: editingEmail,
       });
       setTeamState(result);
       setMemberEmail("");
       setMemberRole("member");
+      setEditingEmail(null);
       await refreshBootstrap();
     } catch (nextError) {
       setError(sanitizeTeamErrorMessage(nextError instanceof Error ? nextError.message : "Could not save the team member."));
     } finally {
       setSaving(false);
+    }
+  }
+
+  function handleEditMember(member: DesktopTeamMemberRecord): void {
+    setEditingEmail(member.email);
+    setMemberEmail(member.email);
+    setMemberRole(member.role);
+    setError(null);
+  }
+
+  function handleCancelEdit(): void {
+    setEditingEmail(null);
+    setMemberEmail("");
+    setMemberRole("member");
+  }
+
+  async function handleRemoveMember(member: DesktopTeamMemberRecord): Promise<void> {
+    const bridge = window.sense1Desktop;
+    if (!bridge?.team?.removeMember) {
+      setError("Desktop team member removal is not available in this build.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Remove ${member.actorDisplayName} (${member.email}) from this team?`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setRemovingEmail(member.email);
+    setError(null);
+    try {
+      const result = await bridge.team.removeMember({ email: member.email });
+      setTeamState(result);
+      if (editingEmail === member.email) {
+        handleCancelEdit();
+      }
+      await refreshBootstrap();
+    } catch (nextError) {
+      setError(sanitizeTeamErrorMessage(nextError instanceof Error ? nextError.message : "Could not remove the team member."));
+    } finally {
+      setRemovingEmail(null);
     }
   }
 
@@ -203,9 +251,13 @@ export function TeamSettingsSection({
 
               {effectiveTeamState.teamSetup.canManageTeam ? (
                 <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
-                  <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Add member</p>
+                  <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">
+                    {editingEmail ? "Edit member" : "Add member"}
+                  </p>
                   <p className="mt-[0.35rem] text-[0.9375rem] leading-[1.55] text-ink">
-                    Add or update a local member record for this team on this machine.
+                    {editingEmail
+                      ? `Update the email or role for ${editingEmail} on this machine.`
+                      : "Add or update a local member record for this team on this machine."}
                   </p>
                   <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                     <Input
@@ -227,8 +279,17 @@ export function TeamSettingsSection({
                       disabled={saving || !memberEmail.trim()}
                       onClick={() => void handleSaveMember()}
                     >
-                      {saving ? "Saving..." : "Save member"}
+                      {saving ? "Saving..." : editingEmail ? "Update member" : "Save member"}
                     </Button>
+                    {editingEmail ? (
+                      <Button
+                        disabled={saving}
+                        onClick={() => handleCancelEdit()}
+                        variant="ghost"
+                      >
+                        Cancel
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               ) : (
@@ -243,19 +304,51 @@ export function TeamSettingsSection({
                 <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
                   <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Members</p>
                   <div className="mt-3 flex flex-col gap-2">
-                    {effectiveTeamState.members.map((member) => (
-                      <div className="rounded-lg bg-surface-high px-3 py-2" key={`${member.tenantId}:${member.email}`}>
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-ink">{member.actorDisplayName}</p>
-                            <p className="truncate text-xs text-ink-muted">{member.email}</p>
+                    {effectiveTeamState.members.map((member) => {
+                      const isSelf = member.email === effectiveTeamState.accountEmail;
+                      const isEditing = editingEmail === member.email;
+                      const isRemovingThis = removingEmail === member.email;
+                      const busyWithOther = (saving && editingEmail !== member.email) || (removingEmail !== null && !isRemovingThis);
+                      return (
+                        <div
+                          className="rounded-lg bg-surface-high px-3 py-2"
+                          key={`${member.tenantId}:${member.email}`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-ink">{member.actorDisplayName}</p>
+                              <p className="truncate text-xs text-ink-muted">{member.email}</p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <span className="rounded-full bg-surface-low px-2.5 py-1 text-[11px] uppercase tracking-[0.08em] text-ink-faint">
+                                {member.role}
+                              </span>
+                              {effectiveTeamState.teamSetup.canManageTeam ? (
+                                <>
+                                  <Button
+                                    disabled={busyWithOther || isRemovingThis}
+                                    onClick={() => handleEditMember(member)}
+                                    size="sm"
+                                    variant={isEditing ? "default" : "secondary"}
+                                  >
+                                    {isEditing ? "Editing" : "Edit"}
+                                  </Button>
+                                  <Button
+                                    disabled={busyWithOther || isSelf || isRemovingThis}
+                                    onClick={() => void handleRemoveMember(member)}
+                                    size="sm"
+                                    title={isSelf ? "You cannot remove yourself." : undefined}
+                                    variant="destructive"
+                                  >
+                                    {isRemovingThis ? "Removing..." : "Remove"}
+                                  </Button>
+                                </>
+                              ) : null}
+                            </div>
                           </div>
-                          <span className="shrink-0 rounded-full bg-surface-low px-2.5 py-1 text-[11px] uppercase tracking-[0.08em] text-ink-faint">
-                            {member.role}
-                          </span>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ) : null}

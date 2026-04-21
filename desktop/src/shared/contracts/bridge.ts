@@ -40,6 +40,7 @@ import type { RuntimeInfo } from "./runtime.js";
 import type { DesktopPolicyRulesResult, DesktopSettingsResult, DesktopSettingsUpdateRequest } from "./settings.js";
 import type {
   DesktopCreateFirstTeamRequest,
+  DesktopRemoveTeamMemberRequest,
   DesktopSaveTeamMemberRequest,
   DesktopTeamStateResult,
 } from "./tenant.js";
@@ -152,6 +153,7 @@ export interface DesktopBridge {
     getState(): Promise<DesktopTeamStateResult>;
     createFirstTeam(request: DesktopCreateFirstTeamRequest): Promise<DesktopTeamStateResult>;
     saveMember(request: DesktopSaveTeamMemberRequest): Promise<DesktopTeamStateResult>;
+    removeMember(request: DesktopRemoveTeamMemberRequest): Promise<DesktopTeamStateResult>;
   };
   automations: {
     list(): Promise<DesktopAutomationListResult>;

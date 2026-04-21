@@ -28,4 +28,9 @@ export interface DesktopSaveTeamMemberRequest {
   readonly email: string;
   readonly role: "member" | "admin";
   readonly displayName?: string | null;
+  readonly previousEmail?: string | null;
+}
+
+export interface DesktopRemoveTeamMemberRequest {
+  readonly email: string;
 }
