@@ -184,6 +184,7 @@ export interface DesktopPluginDetailResult {
   readonly skills: DesktopPluginDetailSkillRecord[];
   readonly apps: string[];
   readonly mcpServers: string[];
+  readonly content: string;
 }
 
 export interface DesktopAppEnabledRequest {
