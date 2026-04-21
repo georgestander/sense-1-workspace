@@ -19,6 +19,7 @@ pnpm -C desktop typecheck
 pnpm -C desktop test:unit
 pnpm -C desktop check:structure
 pnpm -C desktop build
+pnpm -C desktop verify:alpha -- --desktop-build-id alpha-001
 ```
 
 ## Packaging
@@ -40,6 +41,25 @@ Each packaging run now also writes:
 - `desktop/release/alpha-release-manifest.json`
 
 Those files are intended to travel with the shared alpha artifacts so testers get the right manual-install guidance for each platform.
+
+## Alpha verification gate
+
+Use the explicit alpha gate before inviting testers:
+
+```bash
+pnpm -C desktop verify:alpha -- --desktop-build-id alpha-001
+```
+
+The gate writes `desktop/release/alpha-verification/alpha-verification-matrix.json` plus a summary README and exits non-zero until:
+
+- all repo-local automated checks pass, and
+- all required packaged manual scenarios are marked `pass`
+
+Manual scenario instructions live in:
+
+- `/Users/georgestander/dev/tools/sense-1-workspace/docs/alpha-verification-matrix.md`
+- `/Users/georgestander/dev/tools/sense-1-workspace/docs/native-macos-desktop-smoke-runbook.md`
+- `/Users/georgestander/dev/tools/sense-1-workspace/docs/native-windows-desktop-smoke-runbook.md`
 
 ## Sentry releases and source maps
 
@@ -101,6 +121,7 @@ If Windows SmartScreen warns that the installer is from an unrecognized app, use
 - Electron-builder's Windows NSIS target is already configured in `desktop/package.json`.
 - `dist:mac` validates that the release folder contains both `.dmg` and `.zip` artifacts for the packaged alpha build.
 - `dist:win` validates that the release folder contains the packaged NSIS `.exe` installer.
+- `verify:alpha` keeps tester invites blocked until the explicit alpha verification matrix passes.
 - Electron-builder's multi-platform guidance says not to assume every host can build every target, so use a Windows-capable packaging machine or CI lane if local cross-build support is unavailable.
 
 ## Architecture
