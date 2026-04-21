@@ -1,4 +1,4 @@
-import { useEffect, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, type Dispatch, type SetStateAction } from "react";
 
 import type { DesktopThreadSnapshot, ProjectedSessionRecord, ProjectedWorkspaceRecord } from "../../../main/contracts";
 import type { FolderOption } from "../../state/session/session-types.js";
@@ -61,7 +61,7 @@ export function useWorkspaceNavigation({
     setFolderMenuOpen(false);
   }, [isSignedIn, setFolderMenuOpen, setWorkInFolder, setWorkspaceFolder]);
 
-  async function resumeWorkspaceSession(session: ProjectedSessionRecord, workspaceRoot: string | null) {
+  const resumeWorkspaceSession = useCallback(async (session: ProjectedSessionRecord, workspaceRoot: string | null) => {
     const threadId = session.codex_thread_id?.trim();
     if (!threadId) {
       return;
@@ -78,14 +78,14 @@ export function useWorkspaceNavigation({
     setAttachedFiles([]);
     setTaskError(null);
     await selectThread(threadId, { workspaceRoot: resumeRoot });
-  }
+  }, [selectThread, setAttachedFiles, setDraftPrompt, setFolderMenuOpen, setTaskError, setWorkInFolder, setWorkspaceFolder]);
 
-  function requestWorkspacePermissionForPath(path: string) {
+  const requestWorkspacePermissionForPath = useCallback((path: string) => {
     const displayName = path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;
     requestWorkspacePermission(path, displayName);
-  }
+  }, [requestWorkspacePermission]);
 
-  function resolveWorkspacePolicy(path: string, onGranted: () => void) {
+  const resolveWorkspacePolicy = useCallback((path: string, onGranted: () => void) => {
     void (async () => {
       try {
         const bridge = window.sense1Desktop;
@@ -103,9 +103,9 @@ export function useWorkspaceNavigation({
       }
       onGranted();
     })();
-  }
+  }, [requestWorkspacePermissionForPath]);
 
-  function navigateToWorkspaceFolder(path: string) {
+  const navigateToWorkspaceFolder = useCallback((path: string) => {
     setWorkInFolder(true);
     setWorkspaceFolder(path);
     setFolderMenuOpen(false);
@@ -123,22 +123,31 @@ export function useWorkspaceNavigation({
       }
       void clearSelectedThread();
     });
-  }
+  }, [
+    clearSelectedThread,
+    projectedWorkspaces,
+    resolveWorkspacePolicy,
+    selectThread,
+    setFolderMenuOpen,
+    setWorkInFolder,
+    setWorkspaceFolder,
+    threads,
+  ]);
 
-  function pickRecentFolder(path: string) {
+  const pickRecentFolder = useCallback((path: string) => {
     navigateToWorkspaceFolder(path);
-  }
+  }, [navigateToWorkspaceFolder]);
 
-  async function chooseDifferentFolder() {
+  const chooseDifferentFolder = useCallback(async () => {
     const nextFolder = await chooseDifferentFolderFromSession();
     if (nextFolder) {
       navigateToWorkspaceFolder(nextFolder.path);
       return;
     }
     setFolderMenuOpen(false);
-  }
+  }, [chooseDifferentFolderFromSession, navigateToWorkspaceFolder, setFolderMenuOpen]);
 
-  function onNewThreadInWorkspace(root: string) {
+  const onNewThreadInWorkspace = useCallback((root: string) => {
     setWorkInFolder(true);
     setWorkspaceFolder(root);
     setFolderMenuOpen(false);
@@ -147,13 +156,21 @@ export function useWorkspaceNavigation({
     resolveWorkspacePolicy(root, () => {
       void clearSelectedThread();
     });
-  }
+  }, [
+    clearSelectedThread,
+    resolveWorkspacePolicy,
+    setDraftPrompt,
+    setFolderMenuOpen,
+    setTaskError,
+    setWorkInFolder,
+    setWorkspaceFolder,
+  ]);
 
-  function resetWorkspaceShell() {
+  const resetWorkspaceShell = useCallback(() => {
     setWorkInFolder(false);
     setWorkspaceFolder(null);
     setFolderMenuOpen(false);
-  }
+  }, [setFolderMenuOpen, setWorkInFolder, setWorkspaceFolder]);
 
   return {
     chooseDifferentFolder,

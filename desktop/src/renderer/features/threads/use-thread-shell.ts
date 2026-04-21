@@ -1,4 +1,4 @@
-import { useEffect, useState, type SetStateAction } from "react";
+import { useCallback, useEffect, useState, type SetStateAction } from "react";
 import type { DesktopThreadSnapshot } from "../../../main/contracts";
 import {
   performThreadArchive,
@@ -39,51 +39,51 @@ export function useThreadShell({
   const [threadDeletePendingId, setThreadDeletePendingId] = useState<string | null>(null);
   const [threadRestorePendingId, setThreadRestorePendingId] = useState<string | null>(null);
 
-  function setSidebarThreadMenu(value: SetStateAction<string | null>) {
+  const setSidebarThreadMenu = useCallback((value: SetStateAction<string | null>) => {
     setSidebarThreadMenuOpenId((current) => (typeof value === "function" ? value(current) : value));
     setHomeThreadMenuOpenId(null);
-  }
+  }, []);
 
-  function setHomeThreadMenu(value: SetStateAction<string | null>) {
+  const setHomeThreadMenu = useCallback((value: SetStateAction<string | null>) => {
     setHomeThreadMenuOpenId((current) => (typeof value === "function" ? value(current) : value));
     setSidebarThreadMenuOpenId(null);
-  }
+  }, []);
 
-  function closeThreadMenus() {
+  const closeThreadMenus = useCallback(() => {
     setSidebarThreadMenuOpenId(null);
     setHomeThreadMenuOpenId(null);
-  }
+  }, []);
 
-  function openThreadRename(thread: ThreadRenameTarget) {
+  const openThreadRename = useCallback((thread: ThreadRenameTarget) => {
     closeThreadMenus();
     setThreadRenameId(thread.id);
     setThreadRenameDraft(thread.title);
-  }
+  }, [closeThreadMenus]);
 
-  function cancelThreadRename() {
+  const cancelThreadRename = useCallback(() => {
     setThreadRenameId(null);
     setThreadRenameDraft("");
-  }
+  }, []);
 
-  function resetThreadShell() {
+  const resetThreadShell = useCallback(() => {
     closeThreadMenus();
     cancelThreadRename();
-  }
+  }, [cancelThreadRename, closeThreadMenus]);
 
   useEffect(() => {
     closeThreadMenus();
   }, [selectedThreadId]);
 
-  async function submitThreadRename(threadId: string): Promise<void> {
+  const submitThreadRename = useCallback(async (threadId: string): Promise<void> => {
     await performThreadRename({
       threadId,
       threadRenameDraft,
       renameThread,
       cancelThreadRename,
     });
-  }
+  }, [cancelThreadRename, renameThread, threadRenameDraft]);
 
-  async function handleArchiveThread(threadId: string): Promise<void> {
+  const handleArchiveThread = useCallback(async (threadId: string): Promise<void> => {
     await performThreadArchive({
       threadId,
       archiveThread,
@@ -93,9 +93,9 @@ export function useThreadShell({
       closeThreadMenus,
       refreshWorkspaceCollections,
     });
-  }
+  }, [archiveThread, closeThreadMenus, refreshWorkspaceCollections, threadRenameId, cancelThreadRename]);
 
-  async function handleRestoreThread(threadId: string): Promise<void> {
+  const handleRestoreThread = useCallback(async (threadId: string): Promise<void> => {
     await performThreadRestore({
       threadId,
       restoreThread,
@@ -103,9 +103,9 @@ export function useThreadShell({
       closeThreadMenus,
       refreshWorkspaceCollections,
     });
-  }
+  }, [closeThreadMenus, refreshWorkspaceCollections, restoreThread]);
 
-  async function handleDeleteThread(threadId: string): Promise<void> {
+  const handleDeleteThread = useCallback(async (threadId: string): Promise<void> => {
     await performThreadDelete({
       threadId,
       selectedThreadId,
@@ -118,7 +118,16 @@ export function useThreadShell({
       resetToStartSurface,
       confirmDeleteThread,
     });
-  }
+  }, [
+    cancelThreadRename,
+    closeThreadMenus,
+    confirmDeleteThread,
+    deleteThread,
+    refreshWorkspaceCollections,
+    resetToStartSurface,
+    selectedThreadId,
+    threadRenameId,
+  ]);
 
   return {
     sidebarThreadMenuOpenId,

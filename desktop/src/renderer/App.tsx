@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useDesktopSessionState } from "./use-desktop-session-state.js";
 import { useSettingsController } from "./features/settings/use-settings-controller.js";
@@ -44,6 +44,10 @@ export default function App() {
   const [folderMenuOpen, setFolderMenuOpen] = useState(false);
   const [workspaceFolder, setWorkspaceFolder] = useState<string | null>(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const openAutomations = useCallback(() => setActiveView("automations"), []);
+  const openPlugins = useCallback(() => setActiveView("plugins"), []);
+  const toggleLeftRail = useCallback(() => setLeftRailOpen((value) => !value), []);
+  const toggleRightRail = useCallback(() => setRightRailOpen((value) => !value), []);
 
   const sessionState = useDesktopSessionState({ model, reasoningEffort: reasoning, serviceTier });
   const settingsController = useSettingsController({
@@ -78,8 +82,8 @@ export default function App() {
     extensionOverview: management.overview,
     navigation: {
       activeView,
-      openAutomations: () => setActiveView("automations"),
-      openPlugins: () => setActiveView("plugins"),
+      openAutomations,
+      openPlugins,
     },
     sessionState,
     settingsController,
@@ -268,14 +272,14 @@ export default function App() {
         void sessionState.installReadyUpdate();
       }}
       leftRailOpen={leftRailOpen}
-      onToggleLeftRail={() => setLeftRailOpen((value) => !value)}
+      onToggleLeftRail={toggleLeftRail}
       onResetToStartSurface={() => {
         setActiveView("home");
         resetToStartSurface();
       }}
       showRightRail={showHomeRightRail}
       rightRailOpen={rightRailOpen}
-      onToggleRightRail={() => setRightRailOpen((value) => !value)}
+      onToggleRightRail={toggleRightRail}
       runtimeStatus={sessionState.runtimeStatus}
       leftSidebarProps={leftSidebarProps}
       mainContent={mainContent}
