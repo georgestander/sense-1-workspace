@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 
 
 import type { DesktopModelEntry, DesktopSettings } from "../../../main/contracts";
 import {
-  resolveModelEntry,
   resolveModelSettingsUpdate,
   resolveModelSelection,
   resolveReasoningOptions,
@@ -70,10 +69,6 @@ export function useAppModelSettings({
         requestedModel: settingsData.model,
       })
     : selectedModel;
-  const settingsModelEntry = resolveModelEntry({
-    models: availableModels,
-    requestedModel: settingsModel,
-  });
   const settingsReasoning = settingsData
     ? resolveReasoningSelection({
         models: availableModels,
@@ -81,13 +76,11 @@ export function useAppModelSettings({
         requestedReasoning: settingsData.reasoningEffort,
       })
     : selectedReasoning;
-  const settingsReasoningOptions = settingsModelEntry?.supportedReasoningEfforts?.length
-    ? settingsModelEntry.supportedReasoningEfforts
-    : resolveReasoningOptions({
-        models: availableModels,
-        modelId: settingsModel,
-        requestedReasoning: settingsData?.reasoningEffort ?? selectedReasoning,
-      });
+  const settingsReasoningOptions = resolveReasoningOptions({
+    models: availableModels,
+    modelId: settingsModel,
+    requestedReasoning: settingsData?.reasoningEffort ?? selectedReasoning,
+  });
   const selectedServiceTier: "flex" | "fast" = serviceTier === "fast" ? "fast" : "flex";
   const settingsServiceTier: "flex" | "fast" = settingsData?.serviceTier === "fast" ? "fast" : "flex";
 

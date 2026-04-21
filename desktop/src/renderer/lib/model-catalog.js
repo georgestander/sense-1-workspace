@@ -105,14 +105,15 @@ function resolveDefaultModelEntry(models) {
   return models.find((entry) => entry.isDefault) ?? models[0] ?? null;
 }
 
-function inferSupportedReasoningEfforts(modelEntry) {
-  const explicitEfforts = Array.isArray(modelEntry?.supportedReasoningEfforts)
-    ? modelEntry.supportedReasoningEfforts.filter(Boolean)
+export function readRuntimeReasoningEfforts(modelEntry) {
+  return Array.isArray(modelEntry?.supportedReasoningEfforts)
+    ? modelEntry.supportedReasoningEfforts.filter(
+        (effort) => typeof effort === "string" && effort.trim(),
+      )
     : [];
-  if (explicitEfforts.length > 0) {
-    return explicitEfforts;
-  }
+}
 
+function inferFallbackReasoningEfforts(modelEntry) {
   const modelId = typeof modelEntry?.id === "string" ? modelEntry.id.trim().toLowerCase() : "";
   const defaultReasoningEffort = typeof modelEntry?.defaultReasoningEffort === "string"
     ? modelEntry.defaultReasoningEffort.trim().toLowerCase()
@@ -130,6 +131,14 @@ function inferSupportedReasoningEfforts(modelEntry) {
   }
 
   return REASONING_LOW_MEDIUM_HIGH_XHIGH;
+}
+
+function resolveSupportedReasoningEfforts(modelEntry) {
+  const runtime = readRuntimeReasoningEfforts(modelEntry);
+  if (runtime.length > 0) {
+    return runtime;
+  }
+  return inferFallbackReasoningEfforts(modelEntry);
 }
 
 export function resolveModelSelection({ models, requestedModel }) {
@@ -165,7 +174,7 @@ export function resolveReasoningSelection({
     return preferredReasoning;
   }
 
-  const supportedReasoningEfforts = inferSupportedReasoningEfforts(modelEntry);
+  const supportedReasoningEfforts = resolveSupportedReasoningEfforts(modelEntry);
 
   if (
     preferredReasoning
@@ -193,7 +202,7 @@ export function resolveReasoningOptions({
   requestedReasoning,
 }) {
   const modelEntry = resolveModelEntry({ models, requestedModel: modelId });
-  const supportedReasoningEfforts = inferSupportedReasoningEfforts(modelEntry);
+  const supportedReasoningEfforts = resolveSupportedReasoningEfforts(modelEntry);
   if (supportedReasoningEfforts.length > 0) {
     return supportedReasoningEfforts;
   }

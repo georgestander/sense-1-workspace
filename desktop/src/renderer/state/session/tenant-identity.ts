@@ -67,10 +67,10 @@ export function buildStartSurfaceIdentity({
     return {
       canStartWork: false,
       mode: "local" as const,
-      heading: "Sign in with ChatGPT to start working locally.",
+      heading: "Sign in to start working locally.",
       supportingCopy: "Sense-1 will keep your work on this Mac and can attach a team later when one exists.",
       statusTitle: "Sign-in required",
-      statusBody: "Local chat and folder work unlock after ChatGPT sign-in succeeds.",
+      statusBody: "Local chat and folder work unlock after sign-in succeeds.",
       canCreateFirstTeam: false,
       roleLabel: null,
       scopeLabel: null,
@@ -118,7 +118,7 @@ export function buildSidebarIdentity(tenant: TenantIdentity, teamSetup: TeamSetu
   if (!teamSetup.canWorkLocally) {
     return {
       summary: "Sign in required",
-      detail: "ChatGPT sign-in unlocks local chats, folder work, and team setup.",
+      detail: "Sign-in unlocks local chats, folder work, and team setup.",
     };
   }
 
@@ -139,12 +139,12 @@ export function buildThreadComposerIdentity(tenant: TenantIdentity, teamSetup: T
   if (!teamSetup.canWorkLocally) {
     return {
       canContinueThread: false,
-      message: "Sign in with ChatGPT before continuing this thread.",
+      message: "Sign in before continuing this thread.",
     };
   }
 
   return {
     canContinueThread: true,
-    message: tenant ? null : "Local mode keeps this thread on this Mac until you create or join a team.",
+    message: null,
   };
 }

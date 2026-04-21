@@ -1,5 +1,5 @@
-import type { DragEvent } from "react";
-import { ChevronDown, Plus, PlugZap, CalendarClock, Settings, LogOut, UserCircle2 } from "lucide-react";
+import { memo, type DragEvent } from "react";
+import { Bug, ChevronDown, Plus, PlugZap, CalendarClock, Settings, LogOut, UserCircle2 } from "lucide-react";
 
 import { Button } from "./ui/button";
 import { cn } from "../lib/cn";
@@ -62,14 +62,31 @@ export type LeftSidebarProps = {
   accountMenuOpen: boolean;
   setAccountMenuOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
   accountEmail: string | null | undefined;
+  accountType: string | null | undefined;
   tenant: DesktopBootstrapTenant | null;
   teamSetup: DesktopBootstrapTeamSetup;
   openSettings: () => Promise<void> | void;
+  openReportBug: () => void;
   handleLogout: () => Promise<void> | void;
   logoutPending: boolean;
 };
 
-export function LeftSidebar({
+function resolveAccountLabel(accountEmail: string | null | undefined, accountType: string | null | undefined): string {
+  if (accountEmail) {
+    return accountEmail;
+  }
+
+  const normalizedAccountType = accountType?.toLowerCase() ?? null;
+  if (normalizedAccountType === "chatgpt") {
+    return "Signed in with ChatGPT";
+  }
+  if (normalizedAccountType === "apikey") {
+    return "Signed in with OpenAI API key";
+  }
+  return "Signed in";
+}
+
+export const LeftSidebar = memo(function LeftSidebar({
   activeView,
   leftRailOpen,
   filteredThreads,
@@ -113,13 +130,16 @@ export function LeftSidebar({
   accountMenuOpen,
   setAccountMenuOpen,
   accountEmail,
+  accountType,
   tenant,
   teamSetup,
   openSettings,
+  openReportBug,
   handleLogout,
   logoutPending,
 }: LeftSidebarProps) {
   const tenantIdentity = buildSidebarIdentity(tenant, teamSetup);
+  const accountLabel = resolveAccountLabel(accountEmail, accountType);
 
   return (
     <aside
@@ -251,7 +271,7 @@ export function LeftSidebar({
           <button className="flex w-full items-center gap-2 text-left" onClick={() => setAccountMenuOpen((value) => !value)} type="button">
             <UserCircle2 className="text-muted" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{accountEmail ?? "Signed in with ChatGPT"}</p>
+              <p className="truncate text-sm font-medium">{accountLabel}</p>
               <p className="truncate text-xs text-muted">{tenantIdentity.summary}</p>
               <p className="truncate text-[11px] text-muted/80">{tenantIdentity.detail}</p>
             </div>
@@ -262,6 +282,10 @@ export function LeftSidebar({
               <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-ink-soft transition-colors hover:bg-surface-strong" onClick={() => void openSettings()} type="button">
                 <Settings className="size-3.5" />
                 Settings
+              </button>
+              <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-ink-soft transition-colors hover:bg-surface-strong" onClick={openReportBug} type="button">
+                <Bug className="size-3.5" />
+                Report a bug
               </button>
               <button
                 className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-ink-soft transition-colors hover:bg-surface-strong"
@@ -281,4 +305,4 @@ export function LeftSidebar({
       </div>
     </aside>
   );
-}
+});

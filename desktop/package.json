@@ -1,6 +1,6 @@
 {
   "name": "sense-1-workspace",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "Sense-1 Workspace Electron desktop app shell",
   "author": "George Stander",
   "type": "module",
@@ -10,10 +10,15 @@
     "dev": "electron-vite dev",
     "dev:full": "node ./scripts/dev-full.mjs",
     "build": "node ./scripts/prepare-codex-runtime.mjs && electron-vite build",
-    "dist:mac": "pnpm build && electron-builder --project . --mac --arm64 --publish never",
-    "release:mac": "pnpm build && electron-builder --project . --mac --arm64 --publish always",
+    "build:release": "node ./scripts/sentry-release.mjs prepare",
+    "dist:mac": "node ./scripts/package-alpha.mjs --target mac",
+    "dist:win": "node ./scripts/package-alpha.mjs --target win",
+    "release:mac": "pnpm build:release && node ./scripts/sentry-release.mjs upload --no-build && electron-builder --project . --mac --arm64 --publish always",
     "preview": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check:pre-commit": "pnpm typecheck",
+    "test:perf:smoke": "node --test \"src/renderer/perf-smoke.test.js\"",
+    "check:pre-push": "pnpm test:renderer && pnpm test:perf:smoke && pnpm build",
     "check:structure": "node ./scripts/check-desktop-structure.mjs",
     "check:structure:strict": "node ./scripts/check-desktop-structure.mjs --strict",
     "check": "pnpm check:structure:strict && node ./scripts/check-native-validation-target.mjs",
@@ -21,6 +26,8 @@
     "test:renderer": "node --test \"src/renderer/*.test.js\" \"src/renderer/**/*.test.js\"",
     "test:unit": "pnpm test:main && pnpm test:renderer",
     "qa:electron:smoke": "node ./scripts/playwright-electron-runner.mjs --module ./scripts/playwright-electron-smoke.mjs",
+    "sentry:sourcemaps:smoke": "node ./scripts/sentry-release.mjs smoke",
+    "sentry:sourcemaps:upload": "node ./scripts/sentry-release.mjs upload",
     "test:e2e": "pnpm build && npx playwright test",
     "test:e2e:headed": "pnpm build && npx playwright test --headed"
   },
@@ -63,6 +70,7 @@
     },
     "files": [
       "dist/**/*",
+      "!dist/**/*.map",
       "package.json",
       "node_modules/**/*"
     ],

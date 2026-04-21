@@ -16,8 +16,12 @@ if (!rootElement) {
   throw new Error("Desktop renderer root element was not found.");
 }
 
-createRoot(rootElement).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+const appTree = import.meta.env.DEV
+  ? <App />
+  : (
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
+
+createRoot(rootElement).render(appTree);

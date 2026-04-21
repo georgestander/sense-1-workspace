@@ -1,5 +1,5 @@
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from "react";
-import { BrainCircuit, Mic, Paperclip, Send, Square, Zap } from "lucide-react";
+import { BrainCircuit, Bug, Mic, Paperclip, Send, Square, Zap } from "lucide-react";
 
 import { Button } from "../ui/button";
 import { FastModeSuggestionMenu } from "../composer/fast-mode-suggestion-menu.js";
@@ -40,6 +40,7 @@ type ThreadComposerProps = {
   effectiveThreadBusy: boolean;
   interruptTurn: () => Promise<void>;
   submitSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
+  onReportBug: () => void;
 };
 
 function ThreadComposerInner({
@@ -67,6 +68,7 @@ function ThreadComposerInner({
   effectiveThreadBusy,
   interruptTurn,
   submitSelectedThreadPrompt,
+  onReportBug,
 }: ThreadComposerProps) {
   const teamIdentity = buildThreadComposerIdentity(tenant, teamSetup);
   const [threadPrompt, setThreadPrompt] = useState(threadPromptOverride);
@@ -242,11 +244,6 @@ function ThreadComposerInner({
             {teamIdentity.message}
           </p>
         ) : null}
-        {teamIdentity.canContinueThread && !tenant && teamIdentity.message ? (
-          <p className="rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft" role="status">
-            {teamIdentity.message}
-          </p>
-        ) : null}
         {dictation.error ? (
           <p className="px-1 text-[0.5rem] leading-tight text-ink">{dictation.error}</p>
         ) : null}
@@ -286,7 +283,7 @@ function ThreadComposerInner({
             setThreadPrompt(event.target.value);
             setShortcutCursorIndex(event.target.selectionStart ?? event.target.value.length);
           }}
-          placeholder={composerDisabled ? "Sign in with ChatGPT before continuing this thread." : "Continue this thread..."}
+          placeholder={composerDisabled ? "Sign in before continuing this thread." : "Continue this thread..."}
           ref={composerRef}
           value={threadPrompt}
         />
@@ -371,6 +368,16 @@ function ThreadComposerInner({
               <Zap className="size-3" />
               Fast
             </button>
+            <Button
+              aria-label="Report a bug"
+              className="ml-1"
+              onClick={onReportBug}
+              size="icon-sm"
+              type="button"
+              variant="ghost"
+            >
+              <Bug />
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             {dictation.recordingIndicator ? (

@@ -344,7 +344,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
               event.preventDefault();
               submitDraftTask();
             }}
-            placeholder={canStartWork ? "How can I help you today?" : "Sign in with ChatGPT to start working."}
+            placeholder={canStartWork ? "How can I help you today?" : "Sign in to start working."}
             ref={promptInputRef}
             value={draftPrompt}
           />

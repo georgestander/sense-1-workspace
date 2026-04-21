@@ -3,8 +3,13 @@ import type { IpcRenderer } from "electron";
 import {
   IPC_CHANNELS,
   type DesktopApprovalResponseRequest,
+  type DesktopAuthLoginRequest,
+  type DesktopAuthLogoutResult,
+  type DesktopAuthStartResult,
   type DesktopBootstrap,
   type DesktopBridge,
+  type DesktopCompleteDisplayNameRequest,
+  type DesktopCompleteDisplayNameResult,
   type DesktopInputResponseRequest,
   type DesktopInterruptTurnRequest,
   type DesktopLastSelectedThreadRequest,
@@ -20,8 +25,6 @@ import {
   type DesktopThreadRenameRequest,
   type DesktopThreadRestoreRequest,
   type DesktopSteerTurnRequest,
-  type LaunchChatgptSignInResult,
-  type LogoutChatgptResult,
   type RuntimeInfo,
   type SelectDesktopProfileResult,
   type DesktopVoiceAppendAudioRequest,
@@ -32,7 +35,7 @@ import { shouldRefreshSessionSnapshot } from "./utils";
 
 type SessionBridge = Pick<
   DesktopBridge,
-  "runtime" | "session" | "auth" | "profiles" | "threads" | "turns" | "approvals" | "models" | "input" | "voice"
+  "runtime" | "session" | "auth" | "profiles" | "profile" | "threads" | "turns" | "approvals" | "models" | "input" | "voice"
 >;
 
 export function createSessionBridge(ipcRenderer: IpcRenderer): SessionBridge {
@@ -85,16 +88,21 @@ export function createSessionBridge(ipcRenderer: IpcRenderer): SessionBridge {
       },
     },
     auth: {
-      launchChatgptSignIn: async (): Promise<LaunchChatgptSignInResult> => {
-        return ipcRenderer.invoke(IPC_CHANNELS.launchChatgptSignIn) as Promise<LaunchChatgptSignInResult>;
+      startLogin: async (request: DesktopAuthLoginRequest): Promise<DesktopAuthStartResult> => {
+        return ipcRenderer.invoke(IPC_CHANNELS.startDesktopAuthLogin, request) as Promise<DesktopAuthStartResult>;
       },
-      logoutChatgpt: async (): Promise<LogoutChatgptResult> => {
-        return ipcRenderer.invoke(IPC_CHANNELS.logoutChatgpt) as Promise<LogoutChatgptResult>;
+      logout: async (): Promise<DesktopAuthLogoutResult> => {
+        return ipcRenderer.invoke(IPC_CHANNELS.logoutDesktopAuth) as Promise<DesktopAuthLogoutResult>;
       },
     },
     profiles: {
       select: async (profileId: string): Promise<SelectDesktopProfileResult> => {
         return ipcRenderer.invoke(IPC_CHANNELS.selectDesktopProfile, profileId) as Promise<SelectDesktopProfileResult>;
+      },
+    },
+    profile: {
+      completeDisplayName: async (request: DesktopCompleteDisplayNameRequest): Promise<DesktopCompleteDisplayNameResult> => {
+        return ipcRenderer.invoke(IPC_CHANNELS.completeDesktopDisplayName, request) as Promise<DesktopCompleteDisplayNameResult>;
       },
     },
     threads: {

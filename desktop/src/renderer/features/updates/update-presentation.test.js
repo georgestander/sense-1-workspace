@@ -22,13 +22,13 @@ function buildUpdateState(overrides = {}) {
   };
 }
 
-test("header update action only shows when install is ready", () => {
-  assert.equal(shouldShowHeaderUpdateAction(buildUpdateState({ phase: "readyToInstall" })), true);
+test("header update action stays hidden for the manual alpha flow", () => {
+  assert.equal(shouldShowHeaderUpdateAction(buildUpdateState({ phase: "readyToInstall" })), false);
   assert.equal(shouldShowHeaderUpdateAction(buildUpdateState({ phase: "downloading" })), false);
   assert.equal(shouldShowHeaderUpdateAction(buildUpdateState({ phase: "downloadedWaitingForIdle" })), false);
 });
 
-test("settings summary shows download progress while updating in the background", () => {
+test("settings summary keeps stale download phases on the manual alpha path", () => {
   const summary = resolveSettingsUpdateSummary(
     buildUpdateState({
       phase: "downloading",
@@ -37,12 +37,12 @@ test("settings summary shows download progress while updating in the background"
     }),
   );
 
-  assert.equal(summary.title, "Downloading v0.3.5…");
-  assert.equal(summary.detail, "64% downloaded in the background.");
+  assert.equal(summary.title, "Install alpha builds manually.");
+  assert.match(summary.detail, /will not download or restart into updates/i);
   assert.equal(summary.isError, false);
 });
 
-test("settings summary explains when install is waiting for active work to finish", () => {
+test("settings summary does not advertise a ready-to-install restart flow", () => {
   const summary = resolveSettingsUpdateSummary(
     buildUpdateState({
       phase: "downloadedWaitingForIdle",
@@ -51,8 +51,8 @@ test("settings summary explains when install is waiting for active work to finis
     }),
   );
 
-  assert.equal(summary.title, "v0.3.5 is ready.");
-  assert.match(summary.detail, /wait for active work to finish/i);
+  assert.equal(summary.title, "Install alpha builds manually.");
+  assert.match(summary.detail, /replace your current app/i);
 });
 
 test("settings summary keeps error handling quiet but recoverable", () => {
@@ -63,13 +63,13 @@ test("settings summary keeps error handling quiet but recoverable", () => {
     }),
   );
 
-  assert.equal(summary.title, "Update failed.");
-  assert.match(summary.detail, /Check for updates/i);
-  assert.match(summary.detail, /Download latest release/i);
+  assert.equal(summary.title, "Couldn't refresh alpha release status.");
+  assert.match(summary.detail, /Open alpha downloads/i);
+  assert.match(summary.detail, /manually/i);
   assert.equal(summary.isError, true);
 });
 
-test("unsupported builds point people to the manual download fallback", () => {
+test("unsupported builds point people to the manual alpha download fallback", () => {
   const summary = resolveSettingsUpdateSummary(
     buildUpdateState({
       phase: "unsupported",
@@ -77,7 +77,7 @@ test("unsupported builds point people to the manual download fallback", () => {
     }),
   );
 
-  assert.equal(summary.title, "In-app updates are unavailable in this build.");
-  assert.match(summary.detail, /Download latest release/i);
+  assert.equal(summary.title, "Manual alpha installs only.");
+  assert.match(summary.detail, /Open the alpha downloads/i);
   assert.equal(summary.isError, false);
 });

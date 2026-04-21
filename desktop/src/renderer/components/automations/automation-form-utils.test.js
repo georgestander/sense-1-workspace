@@ -2,9 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  AUTOMATION_ALPHA_NOTE,
+  AUTOMATION_KIND_LABEL,
   buildAutomationScheduleRrule,
   createDefaultAutomationSchedule,
   describeAutomationSchedule,
+  describeAutomationWorkspace,
   formatWorkspaceOptionLabel,
   isAutomationScheduleEditable,
   normalizeWorkspaceOptions,
@@ -76,4 +79,24 @@ test("unsupported RRULEs stay preserved instead of being rewritten", () => {
 
   assert.equal(isAutomationScheduleEditable(original), false);
   assert.equal(resolveAutomationSaveRrule(original, parsed, false), original);
+});
+
+test("describeAutomationWorkspace prefers the first non-empty cwd and falls back when absent", () => {
+  assert.equal(
+    describeAutomationWorkspace(["/Users/georgestander/dev/tools/sense-1"]),
+    "/sense-1",
+  );
+  assert.equal(
+    describeAutomationWorkspace(["   ", "/tmp/demo"]),
+    "/demo",
+  );
+  assert.equal(describeAutomationWorkspace([]), "No workspace bound");
+  assert.equal(describeAutomationWorkspace(null), "No workspace bound");
+  assert.equal(describeAutomationWorkspace(undefined), "No workspace bound");
+});
+
+test("automation scope constants carry the alpha workspace-only framing", () => {
+  assert.equal(AUTOMATION_KIND_LABEL, "Workspace automation");
+  assert.match(AUTOMATION_ALPHA_NOTE, /workspace folder/i);
+  assert.match(AUTOMATION_ALPHA_NOTE, /thread/i);
 });

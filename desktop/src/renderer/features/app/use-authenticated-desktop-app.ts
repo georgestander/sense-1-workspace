@@ -1,8 +1,9 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useMemo, type Dispatch, type SetStateAction } from "react";
 
 import type { DesktopExtensionOverviewResult } from "../../../main/contracts";
 import type { useDesktopSessionState } from "../../use-desktop-session-state.js";
 import type { useSettingsController } from "../settings/use-settings-controller.js";
+import type { ReportBugController } from "../bug-report/use-report-bug-controller.js";
 import { shouldShowHeaderUpdateAction } from "../updates/update-presentation.js";
 import { buildStartSurfaceProps, buildThreadViewProps } from "./app-main-content-props.js";
 import { perfCount } from "../../lib/perf-debug.ts";
@@ -21,6 +22,7 @@ type UseAuthenticatedDesktopAppArgs = {
   extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
   sessionState: SessionState;
   settingsController: SettingsControllerState;
+  reportBug: ReportBugController;
   ui: {
     accountMenuOpen: boolean;
     folderMenuOpen: boolean;
@@ -47,6 +49,7 @@ export function useAuthenticatedDesktopApp({
   extensionOverview,
   sessionState,
   settingsController,
+  reportBug,
   ui,
 }: UseAuthenticatedDesktopAppArgs) {
   perfCount("render.useAuthenticatedDesktopApp");
@@ -74,12 +77,16 @@ export function useAuthenticatedDesktopApp({
     navigation,
     account: {
       accountEmail: sessionState.accountEmail,
+      accountType: sessionState.accountType,
       accountMenuOpen: ui.accountMenuOpen,
       handleLogout: sessionState.handleLogout,
       logoutPending: sessionState.logoutPending,
       setAccountMenuOpen: ui.setAccountMenuOpen,
       teamSetup: sessionState.teamSetup,
       tenant: sessionState.tenant,
+    },
+    reportBug: {
+      openReportBug: reportBug.openModal,
     },
     search: {
       filteredThreads: content.filteredThreads,
@@ -156,11 +163,14 @@ export function useAuthenticatedDesktopApp({
     resetComposerState: content.composer.resetComposerState,
   });
 
-  const threadViewProps = buildThreadViewProps({
+  const threadViewProps = useMemo(() => buildThreadViewProps({
     extensionOverview,
     sessionState,
     ui: {
       setReasoning: ui.setReasoning,
+    },
+    reportBug: {
+      onReportBug: reportBug.openModal,
     },
     composer: {
       attachedFiles: content.composer.attachedFiles,
@@ -202,9 +212,64 @@ export function useAuthenticatedDesktopApp({
       transcriptContainerRef: content.transcriptContainerRef,
       transcriptEndRef: content.transcriptEndRef,
     },
-  });
+  }), [
+    content.composer.attachedFiles,
+    content.composer.clarificationAnswer,
+    content.composer.clarificationPending,
+    content.composer.inputResponsePending,
+    content.composer.inputResponseText,
+    content.composer.queueSelectedThreadPrompt,
+    content.composer.selectedChipIndex,
+    content.composer.setAttachedFiles,
+    content.composer.setClarificationAnswer,
+    content.composer.setClarificationPending,
+    content.composer.setInputResponseText,
+    content.composer.setSelectedChipIndex,
+    content.composer.submitSelectedThreadPrompt,
+    content.composer.threadPromptOverride,
+    content.modelSettings.configNotices,
+    content.modelSettings.handleModelSelection,
+    content.modelSettings.handleServiceTierSelection,
+    content.modelSettings.modelOptions,
+    content.modelSettings.reasoningOptions,
+    content.modelSettings.selectedModel,
+    content.modelSettings.selectedReasoning,
+    content.modelSettings.selectedServiceTier,
+    content.rightRail.effectiveThreadBusy,
+    content.rightRail.footerStatusText,
+    content.rightRail.hasStructuredQuestions,
+    content.rightRail.isClarifying,
+    content.rightRail.rightRailChangeGroups,
+    content.rightRail.structuredQuestions,
+    content.rightRail.threadInteractionState,
+    content.transcriptContainerRef,
+    content.transcriptEndRef,
+    extensionOverview,
+    reportBug.openModal,
+    sessionState.availableModels,
+    sessionState.cancelWorkspacePermission,
+    sessionState.grantWorkspacePermission,
+    sessionState.interruptTurn,
+    sessionState.pendingApprovals,
+    sessionState.pendingPermission,
+    sessionState.pickFiles,
+    sessionState.processingApprovalIds,
+    sessionState.respondToApproval,
+    sessionState.respondToInputRequest,
+    sessionState.selectedThread,
+    sessionState.selectedThreadApprovals,
+    sessionState.selectedThreadId,
+    sessionState.setTaskError,
+    sessionState.taskError,
+    sessionState.taskPending,
+    sessionState.teamSetup,
+    sessionState.tenant,
+    sessionState.threadInputRequest,
+    sessionState.steerTurn,
+    ui.setReasoning,
+  ]);
 
-  const startSurfaceProps = buildStartSurfaceProps({
+  const startSurfaceProps = useMemo(() => buildStartSurfaceProps({
     extensionOverview,
     sessionState,
     ui: {
@@ -267,7 +332,71 @@ export function useAuthenticatedDesktopApp({
       threadRestorePendingId: content.threadShell.threadRestorePendingId,
       threadDeletePendingId: content.threadShell.threadDeletePendingId,
     },
-  });
+  }), [
+    content.composer.attachedFiles,
+    content.composer.draftPrompt,
+    content.composer.setAttachedFiles,
+    content.composer.setDraftPrompt,
+    content.composer.submitDraftTask,
+    content.modelSettings.handleModelSelection,
+    content.modelSettings.handleServiceTierSelection,
+    content.modelSettings.modelOptions,
+    content.modelSettings.selectedModel,
+    content.modelSettings.selectedServiceTier,
+    content.threadShell.cancelThreadRename,
+    content.threadShell.handleArchiveThread,
+    content.threadShell.handleDeleteThread,
+    content.threadShell.handleRestoreThread,
+    content.threadShell.homeThreadMenuOpenId,
+    content.threadShell.openThreadRename,
+    content.threadShell.setHomeThreadMenu,
+    content.threadShell.setThreadRenameDraft,
+    content.threadShell.submitThreadRename,
+    content.threadShell.threadArchivePendingId,
+    content.threadShell.threadDeletePendingId,
+    content.threadShell.threadRenameDraft,
+    content.threadShell.threadRenameId,
+    content.threadShell.threadRestorePendingId,
+    content.workspaceCollections.activeWorkspaceProjection,
+    content.workspaceCollections.archivedSessions,
+    content.workspaceCollections.archivedWorkspaces,
+    content.workspaceCollections.workspaceSessions,
+    content.workspaceCollections.workspaceSessionsLoading,
+    content.workspaceShell.chooseDifferentFolder,
+    content.workspaceShell.handleArchiveWorkspace,
+    content.workspaceShell.handleDeleteWorkspace,
+    content.workspaceShell.handleRestoreWorkspace,
+    content.workspaceShell.homeWorkspaceMenuOpenId,
+    content.workspaceShell.navigateToWorkspaceFolder,
+    content.workspaceShell.pickRecentFolder,
+    content.workspaceShell.resumeWorkspaceSession,
+    content.workspaceShell.setHomeWorkspaceMenu,
+    content.workspaceShell.workspaceArchivePendingId,
+    content.workspaceShell.workspaceDeletePendingId,
+    content.workspaceShell.workspaceIdByRoot,
+    content.workspaceShell.workspaceRestorePendingId,
+    content.workspaceShell.workspaceThreadGroups,
+    extensionOverview,
+    sessionState.accountEmail,
+    sessionState.availableModels,
+    sessionState.cancelWorkspacePermission,
+    sessionState.grantWorkspacePermission,
+    sessionState.pickFiles,
+    sessionState.pendingPermission,
+    sessionState.refreshBootstrap,
+    sessionState.recentFolders,
+    sessionState.taskError,
+    sessionState.taskPending,
+    sessionState.teamSetup,
+    sessionState.tenant,
+    sessionState.threads,
+    ui.folderMenuOpen,
+    ui.setFolderMenuOpen,
+    ui.setWorkInFolder,
+    ui.setWorkspaceFolder,
+    ui.workInFolder,
+    ui.workspaceFolder,
+  ]);
 
   return {
     leftSidebarProps,

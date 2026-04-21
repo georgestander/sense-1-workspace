@@ -36,3 +36,25 @@ export interface DesktopBugReportResult {
   readonly linearIssueId: string | null;
   readonly linearIssueUrl: string | null;
 }
+
+export type DesktopCrashReportSuggestionReason =
+  | "runtime-crashed"
+  | "runtime-errored"
+  | "bootstrap-blocked"
+  | "renderer-gone";
+
+export interface DesktopCrashReportSuggestion {
+  readonly reason: DesktopCrashReportSuggestionReason;
+  readonly detail: string | null;
+  readonly setupCode: string | null;
+  readonly restartCount: number | null;
+  readonly occurredAt: string;
+}
+
+export interface DesktopCrashReportAcknowledgeRequest {
+  readonly occurredAt: string;
+}
+
+export interface DesktopCrashReportAcknowledgeResult {
+  readonly acknowledged: boolean;
+}

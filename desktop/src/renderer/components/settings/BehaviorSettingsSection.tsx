@@ -38,13 +38,13 @@ export function BehaviorSettingsSection({
 
   return (
     <>
-      <h2 className="font-display text-[1.25rem] font-semibold leading-[1.35] tracking-[-0.015em]">Agent behavior</h2>
-      <p className="mt-[0.2rem] text-[0.875rem] leading-[1.6] text-ink-muted">
+      <h2 className="font-display text-[1.05rem] font-semibold leading-[1.35] tracking-[-0.015em]">Agent behavior</h2>
+      <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.55] text-ink-muted">
         Built-in rules that govern how Sense-1 handles files, workspaces, and conversations.
       </p>
       {policyRules ? (
         policyRules.length > 0 ? (
-          <div className="mt-[1.25rem] flex flex-col gap-[1.25rem]">
+          <div className="mt-[0.75rem] flex flex-col gap-[0.75rem]">
             {policyRules.map((group) => (
               <div className="rounded-lg bg-surface-low px-[0.9rem] py-[0.65rem]" key={group.id}>
                 <h3 className="font-display text-[1.1rem] font-semibold leading-[1.4] tracking-[-0.01em]">{group.topic}</h3>
@@ -57,7 +57,7 @@ export function BehaviorSettingsSection({
                           <span className="text-[0.75rem] leading-[1.2] text-accent">{rule.currentValue}</span>
                         ) : null}
                       </div>
-                      <p className="mt-[0.2rem] text-[0.875rem] leading-[1.6] text-ink-faint">{rule.description}</p>
+                      <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.55] text-ink-faint">{rule.description}</p>
                     </div>
                   ))}
                 </div>
@@ -68,10 +68,10 @@ export function BehaviorSettingsSection({
             </p>
           </div>
         ) : (
-          <p className="mt-[1.25rem] text-[0.875rem] leading-[1.6] text-ink-muted">Could not load agent behavior rules.</p>
+          <p className="mt-[0.75rem] text-[0.8125rem] leading-[1.55] text-ink-muted">Could not load agent behavior rules.</p>
         )
       ) : (
-        <p className="mt-[1.25rem] text-[0.875rem] leading-[1.6] text-ink-muted">Loading rules...</p>
+        <p className="mt-[0.75rem] text-[0.8125rem] leading-[1.55] text-ink-muted">Loading rules...</p>
       )}
     </>
   );

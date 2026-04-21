@@ -14,6 +14,9 @@ type BuildThreadViewPropsArgs = {
   ui: {
     setReasoning: Dispatch<SetStateAction<string>>;
   };
+  reportBug: {
+    onReportBug: () => void;
+  };
   composer: Pick<
     ThreadViewProps,
     | "clarificationAnswer"
@@ -130,6 +133,7 @@ export function buildThreadViewProps({
   sessionState,
   extensionOverview,
   ui,
+  reportBug,
   composer,
   modelState,
   rightRail,
@@ -197,6 +201,7 @@ export function buildThreadViewProps({
     transcriptEndRef: transcript.transcriptEndRef,
     configNotices: rightRail.configNotices,
     footerStatusText: rightRail.footerStatusText,
+    onReportBug: reportBug.onReportBug,
   }));
 }
 

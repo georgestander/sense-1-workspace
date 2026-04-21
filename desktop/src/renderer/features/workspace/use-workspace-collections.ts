@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   ProjectedSessionRecord,
@@ -52,7 +52,7 @@ export function useWorkspaceCollections({
   const workspaceCollectionsRequestIdRef = useRef(0);
   const activeWorkspaceRequestIdRef = useRef(0);
 
-  async function refreshWorkspaceCollections() {
+  const refreshWorkspaceCollections = useCallback(async () => {
     if (!isSignedIn) {
       workspaceCollectionsRequestIdRef.current += 1;
       setProjectedWorkspaces([]);
@@ -82,9 +82,9 @@ export function useWorkspaceCollections({
     setKnownWorkspaces(workspaceResult.workspaces);
     setArchivedWorkspaces(workspaceResult.workspaces.filter((workspace) => workspace.status === "archived"));
     setArchivedSessions(sessionResult.sessions.filter((session) => session.status === "archived"));
-  }
+  }, [isSignedIn]);
 
-  function removeWorkspaceFromCollections(workspaceId: string, workspaceRoot: string) {
+  const removeWorkspaceFromCollections = useCallback((workspaceId: string, workspaceRoot: string) => {
     setProjectedWorkspaces((current) => current.filter((workspace) => workspace.workspace_id !== workspaceId));
     setKnownWorkspaces((current) => current.filter((workspace) => workspace.id !== workspaceId));
     setArchivedWorkspaces((current) => current.filter((workspace) => workspace.id !== workspaceId));
@@ -95,7 +95,7 @@ export function useWorkspaceCollections({
         : current
     ));
     setWorkspaceSessions((current) => current.filter((session) => session.workspace_id !== workspaceId));
-  }
+  }, []);
 
   useEffect(() => {
     void refreshWorkspaceCollections().catch(() => {});
@@ -199,7 +199,7 @@ export function useWorkspaceCollections({
     };
   }, [isSignedIn, resolvedActiveWorkspaceRoot, selectedProfileId]);
 
-  return {
+  return useMemo(() => ({
     activeWorkspaceProjection,
     archivedSessions,
     archivedWorkspaces,
@@ -209,5 +209,15 @@ export function useWorkspaceCollections({
     removeWorkspaceFromCollections,
     workspaceSessions,
     workspaceSessionsLoading,
-  };
+  }), [
+    activeWorkspaceProjection,
+    archivedSessions,
+    archivedWorkspaces,
+    knownWorkspaces,
+    projectedWorkspaces,
+    refreshWorkspaceCollections,
+    removeWorkspaceFromCollections,
+    workspaceSessions,
+    workspaceSessionsLoading,
+  ]);
 }

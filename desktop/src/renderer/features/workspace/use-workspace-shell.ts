@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type Dispatch, type DragEvent, type SetStateAction } from "react";
+import { useCallback, useMemo, useRef, useState, type Dispatch, type DragEvent, type SetStateAction } from "react";
 
 import type {
   DesktopOperatingMode,
@@ -132,7 +132,10 @@ export function useWorkspaceShell({
   const draggedWorkspaceRef = useRef<string | null>(null);
 
   const activeWorkspaceRoot = selectedThread?.workspaceRoot ?? (workInFolder ? workspaceFolder : null);
-  const workspaceIdByRoot = buildWorkspaceIdByRoot({ knownWorkspaces, projectedWorkspaces });
+  const workspaceIdByRoot = useMemo(
+    () => buildWorkspaceIdByRoot({ knownWorkspaces, projectedWorkspaces }),
+    [knownWorkspaces, projectedWorkspaces],
+  );
   const activeOperatingMode = resolveActiveWorkspaceOperatingMode({
     defaultOperatingMode,
     selectedThreadWorkspaceRoot: selectedThread?.workspaceRoot,
@@ -178,7 +181,7 @@ export function useWorkspaceShell({
     selectedThread?.id ?? null,
     selectedThread?.workspaceRoot ?? null,
   );
-  const visibleWorkspaceThreadGroups = {
+  const visibleWorkspaceThreadGroups = useMemo(() => ({
     ...workspaceThreadGroups,
     workspaces: hideWorkspaceSidebarGroups
       ? []
@@ -188,29 +191,35 @@ export function useWorkspaceShell({
       selectedThread?.id ?? null,
       selectedThread?.workspaceRoot ?? null,
     ),
-  };
+  }), [
+    activeWorkspaceRoot,
+    hideWorkspaceSidebarGroups,
+    selectedThread?.id,
+    selectedThread?.workspaceRoot,
+    workspaceThreadGroups,
+  ]);
 
-  function setSidebarWorkspaceMenu(value: string | null | ((current: string | null) => string | null)) {
+  const setSidebarWorkspaceMenu = useCallback((value: string | null | ((current: string | null) => string | null)) => {
     setSidebarWorkspaceMenuOpenId((current) => (typeof value === "function" ? value(current) : value));
     setHomeWorkspaceMenuOpenId(null);
-  }
+  }, []);
 
-  function setHomeWorkspaceMenu(value: string | null | ((current: string | null) => string | null)) {
+  const setHomeWorkspaceMenu = useCallback((value: string | null | ((current: string | null) => string | null)) => {
     setHomeWorkspaceMenuOpenId((current) => (typeof value === "function" ? value(current) : value));
     setSidebarWorkspaceMenuOpenId(null);
-  }
+  }, []);
 
-  function closeWorkspaceMenus() {
+  const closeWorkspaceMenus = useCallback(() => {
     setSidebarWorkspaceMenuOpenId(null);
     setHomeWorkspaceMenuOpenId(null);
-  }
+  }, []);
 
-  function resetWorkspaceShell() {
+  const resetWorkspaceShell = useCallback(() => {
     resetWorkspaceNavigation();
     closeWorkspaceMenus();
-  }
+  }, [closeWorkspaceMenus, resetWorkspaceNavigation]);
 
-  function toggleWorkspaceExpanded(root: string) {
+  const toggleWorkspaceExpanded = useCallback((root: string) => {
     setExpandedWorkspaces((prev) => ({
       ...prev,
       [root]: !isWorkspaceSidebarGroupExpanded({
@@ -219,17 +228,17 @@ export function useWorkspaceShell({
         activeWorkspaceRoot,
       }),
     }));
-  }
+  }, [activeWorkspaceRoot]);
 
-  async function changeWorkspaceOperatingMode(mode: DesktopOperatingMode) {
+  const changeWorkspaceOperatingMode = useCallback(async (mode: DesktopOperatingMode) => {
     if (!selectedThread?.workspaceRoot) {
       return;
     }
 
     await setWorkspaceOperatingMode(selectedThread.workspaceRoot, mode);
-  }
+  }, [selectedThread?.workspaceRoot, setWorkspaceOperatingMode]);
 
-  async function handleArchiveWorkspace(workspaceId: string, workspaceRoot: string) {
+  const handleArchiveWorkspace = useCallback(async (workspaceId: string, workspaceRoot: string) => {
     if (!window.confirm("Archive this workspace? It will leave the normal workspace and thread lists, but you can restore it later.")) {
       return;
     }
@@ -243,9 +252,9 @@ export function useWorkspaceShell({
     if (didArchive) {
       await refreshWorkspaceCollections();
     }
-  }
+  }, [activeWorkspaceRoot, archiveWorkspace, closeWorkspaceMenus, refreshWorkspaceCollections, resetWorkspaceShell]);
 
-  async function handleRestoreWorkspace(workspaceId: string) {
+  const handleRestoreWorkspace = useCallback(async (workspaceId: string) => {
     closeWorkspaceMenus();
     setWorkspaceRestorePendingId(workspaceId);
     const didRestore = await restoreWorkspace(workspaceId);
@@ -253,9 +262,9 @@ export function useWorkspaceShell({
     if (didRestore) {
       await refreshWorkspaceCollections();
     }
-  }
+  }, [closeWorkspaceMenus, refreshWorkspaceCollections, restoreWorkspace]);
 
-  async function handleDeleteWorkspace(workspaceId: string, workspaceRoot: string) {
+  const handleDeleteWorkspace = useCallback(async (workspaceId: string, workspaceRoot: string) => {
     if (!window.confirm("Delete this workspace from Sense-1 permanently? The local folder stays on disk, but Sense-1 will remove its saved threads, sessions, and app-owned artifacts for this workspace.")) {
       return;
     }
@@ -270,9 +279,16 @@ export function useWorkspaceShell({
       removeWorkspaceFromCollections(workspaceId, workspaceRoot);
       await refreshWorkspaceCollections();
     }
-  }
+  }, [
+    activeWorkspaceRoot,
+    closeWorkspaceMenus,
+    deleteWorkspace,
+    refreshWorkspaceCollections,
+    removeWorkspaceFromCollections,
+    resetWorkspaceShell,
+  ]);
 
-  function handleWorkspaceDragStart(event: DragEvent, root: string) {
+  const handleWorkspaceDragStart = useCallback((event: DragEvent, root: string) => {
     if (root === activeWorkspaceRoot) {
       event.preventDefault();
       return;
@@ -283,29 +299,29 @@ export function useWorkspaceShell({
     if (event.currentTarget instanceof HTMLElement) {
       event.currentTarget.style.opacity = "0.5";
     }
-  }
+  }, [activeWorkspaceRoot]);
 
-  function handleWorkspaceDragEnd(event: DragEvent) {
+  const handleWorkspaceDragEnd = useCallback((event: DragEvent) => {
     if (event.currentTarget instanceof HTMLElement) {
       event.currentTarget.style.opacity = "";
     }
     draggedWorkspaceRef.current = null;
     setDragOverRoot(null);
-  }
+  }, []);
 
-  function handleWorkspaceDragOver(event: DragEvent, root: string) {
+  const handleWorkspaceDragOver = useCallback((event: DragEvent, root: string) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
     if (draggedWorkspaceRef.current && draggedWorkspaceRef.current !== root) {
       setDragOverRoot(root);
     }
-  }
+  }, []);
 
-  function handleWorkspaceDragLeave() {
+  const handleWorkspaceDragLeave = useCallback(() => {
     setDragOverRoot(null);
-  }
+  }, []);
 
-  async function handleWorkspaceDrop(event: DragEvent, targetRoot: string) {
+  const handleWorkspaceDrop = useCallback(async (event: DragEvent, targetRoot: string) => {
     event.preventDefault();
     setDragOverRoot(null);
     const sourceRoot = draggedWorkspaceRef.current;
@@ -329,7 +345,7 @@ export function useWorkspaceShell({
     if (nextOrder.join("\n") !== workspaceSidebarOrder.join("\n")) {
       await rememberWorkspaceSidebarOrder(nextOrder);
     }
-  }
+  }, [rememberWorkspaceSidebarOrder, visibleWorkspaceThreadGroups.workspaces, workspaceSidebarOrder]);
 
   return {
     activeOperatingMode,

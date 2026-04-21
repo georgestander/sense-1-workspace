@@ -59,6 +59,7 @@ This isn't a chat wrapper. It's a native desktop workspace that treats the Codex
 ```bash
 # Prerequisites: Node.js 22+, pnpm 9+, Codex CLI installed
 pnpm -C desktop install
+./scripts/install-git-hooks.sh
 pnpm -C desktop dev:full
 ```
 
@@ -71,6 +72,7 @@ pnpm -C desktop dev              # Electron shell only (renderer hot-reload)
 pnpm -C desktop dev:full         # Full desktop with Codex runtime
 pnpm -C desktop typecheck        # TypeScript type checking
 pnpm -C desktop test:unit        # Unit tests (main + renderer)
+pnpm -C desktop test:perf:smoke  # Local renderer perf regression smoke
 pnpm -C desktop build            # Build all bundles
 pnpm -C desktop check:structure  # Desktop structure lint
 ```

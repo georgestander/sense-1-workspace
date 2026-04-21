@@ -1,5 +1,11 @@
 import type { DesktopBootstrap } from "./bootstrap.js";
-import type { DesktopBugReportDraft, DesktopBugReportResult, DesktopBugReportingStatus } from "./bug-reporting.js";
+import type {
+  DesktopBugReportDraft,
+  DesktopBugReportResult,
+  DesktopBugReportingStatus,
+  DesktopCrashReportAcknowledgeRequest,
+  DesktopCrashReportAcknowledgeResult,
+} from "./bug-reporting.js";
 import type {
   DesktopAutomationDeleteRequest,
   DesktopAutomationDetailResult,
@@ -44,7 +50,8 @@ import type {
 } from "./voice.js";
 import type { DesktopThreadArchiveRequest, DesktopThreadDeleteRequest, DesktopThreadRenameRequest, DesktopThreadRestoreRequest, DesktopThreadWorkspaceRootRequest, DesktopWorkspaceArchiveRequest, DesktopWorkspaceDeleteRequest, DesktopWorkspaceHydrateResult, DesktopWorkspaceOperatingModeRequest, DesktopWorkspacePermissionGrantRequest, DesktopWorkspacePolicyRequest, DesktopWorkspacePolicyResult, DesktopWorkspaceRestoreRequest, DesktopWorkspaceSidebarOrderRequest } from "./workspace.js";
 import type { SubstrateEventsBySessionRequest, SubstrateEventsResult, SubstrateObjectRefsBySessionRequest, SubstrateObjectRefsResult, SubstrateRecentSessionsRequest, SubstrateRecentWorkspacesRequest, SubstrateSessionDetailRequest, SubstrateSessionDetailResult, SubstrateSessionsByWorkspaceRequest, SubstrateSessionsResult, SubstrateWorkspaceDetailRequest, SubstrateWorkspaceDetailResult, SubstrateWorkspacesResult } from "./substrate.js";
-import type { LaunchChatgptSignInResult, LogoutChatgptResult, SelectDesktopProfileResult, WindowActionResult, WindowToggleResult, WorkspaceFolderPickerResult } from "./bootstrap.js";
+import type { DesktopAuthLoginRequest, DesktopAuthLogoutResult, DesktopAuthStartResult, SelectDesktopProfileResult, WindowActionResult, WindowToggleResult, WorkspaceFolderPickerResult } from "./bootstrap.js";
+import type { DesktopCompleteDisplayNameRequest, DesktopCompleteDisplayNameResult } from "./identity.js";
 import type { DesktopThreadDelta } from "./thread.js";
 import { DESKTOP_BRIDGE_API_VERSION } from "./runtime.js";
 
@@ -65,11 +72,14 @@ export interface DesktopBridge {
     onRuntimeEvent(listener: (event: DesktopRuntimeEvent) => void): () => void;
   };
   auth: {
-    launchChatgptSignIn(): Promise<LaunchChatgptSignInResult>;
-    logoutChatgpt(): Promise<LogoutChatgptResult>;
+    startLogin(request: DesktopAuthLoginRequest): Promise<DesktopAuthStartResult>;
+    logout(): Promise<DesktopAuthLogoutResult>;
   };
   profiles: {
     select(profileId: string): Promise<SelectDesktopProfileResult>;
+  };
+  profile: {
+    completeDisplayName(request: DesktopCompleteDisplayNameRequest): Promise<DesktopCompleteDisplayNameResult>;
   };
   threads: {
     rememberLastSelected(request: import("./workspace.js").DesktopLastSelectedThreadRequest): Promise<void>;
@@ -97,6 +107,7 @@ export interface DesktopBridge {
   reports: {
     submit(request: DesktopBugReportDraft): Promise<DesktopBugReportResult>;
     getStatus(): Promise<DesktopBugReportingStatus>;
+    acknowledgeCrashReport(request: DesktopCrashReportAcknowledgeRequest): Promise<DesktopCrashReportAcknowledgeResult>;
   };
   voice: {
     start(request: DesktopVoiceStartRequest): Promise<void>;

@@ -2,12 +2,14 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import type { AppServerProcessManager } from "./runtime/app-server-process-manager.js";
-import { launchDesktopChatgptSignIn, logoutDesktopChatgpt } from "./auth/desktop-auth.ts";
+import { logoutDesktopAuth, startDesktopAuthLogin } from "./auth/desktop-auth.ts";
 import {
   getDesktopBootstrap,
   selectDesktopProfile,
 } from "./bootstrap/desktop-bootstrap.js";
 import { resolveSignedInDesktopProfile } from "./bootstrap/bootstrap-profile.js";
+import { completeDesktopDisplayName as persistDesktopDisplayName } from "./bootstrap/bootstrap-identity.js";
+import { resolveSignedInAccount } from "./session/desktop-run-start-settings.ts";
 import {
   DEFAULT_DESKTOP_SETTINGS,
   applyDesktopSettingsPatch,
@@ -18,6 +20,11 @@ import type {
   DesktopAppRemoveRequest,
   DesktopAppInstallRequest,
   DesktopAppEnabledRequest,
+  DesktopAuthLoginRequest,
+  DesktopAuthLogoutResult,
+  DesktopAuthStartResult,
+  DesktopCompleteDisplayNameRequest,
+  DesktopCompleteDisplayNameResult,
   DesktopAutomationDeleteRequest,
   DesktopAutomationDetailResult,
   DesktopAutomationListResult,
@@ -67,7 +74,6 @@ import type {
   DesktopWorkspacePolicyResult,
   DesktopWorkspaceRestoreRequest,
   DesktopWorkspaceOperatingModeRequest,
-  LaunchChatgptSignInResult,
   SelectDesktopProfileResult,
   RuntimeInfo,
   DesktopSettings,
@@ -156,6 +162,7 @@ async function resolveDesktopRealtimeAccessToken(codexHome: string, env: NodeJS.
 export class DesktopSessionController {
   static readonly DEFAULT_SETTINGS: DesktopSettings = {
     model: DEFAULT_DESKTOP_SETTINGS.model,
+    verbosity: DEFAULT_DESKTOP_SETTINGS.verbosity,
     reasoningEffort: DEFAULT_DESKTOP_SETTINGS.reasoningEffort,
     serviceTier: DEFAULT_DESKTOP_SETTINGS.serviceTier,
     personality: DEFAULT_DESKTOP_SETTINGS.personality,
@@ -250,7 +257,12 @@ export class DesktopSessionController {
     this.#desktopTenant = new DesktopTenantService({
       env: this.#env,
       resolveProfile: this.#resolveProfile,
-      resolveSignedInEmail: async (profileId) => await this.#runStart.resolveSignedInEmail(profileId),
+      resolveSignedInAccount: async (profileId) =>
+        await resolveSignedInAccount({
+          env: this.#env,
+          manager: this.#manager,
+          profileId,
+        }),
     });
     this.#desktopAutomations = new DesktopAutomationService({
       env: this.#env,
@@ -487,8 +499,9 @@ export class DesktopSessionController {
     });
   }
 
-  async launchChatgptSignIn(): Promise<LaunchChatgptSignInResult> {
-    const result = await launchDesktopChatgptSignIn(this.#manager, {
+  async startAuthLogin(request: DesktopAuthLoginRequest): Promise<DesktopAuthStartResult> {
+    const result = await startDesktopAuthLogin(this.#manager, {
+      request,
       appStartedAt: this.#appStartedAt,
       env: this.#env,
       runtimeInfo: this.#runtimeInfo,
@@ -498,9 +511,9 @@ export class DesktopSessionController {
     return result;
   }
 
-  async logoutChatgpt() {
+  async logoutDesktopAuth(): Promise<DesktopAuthLogoutResult> {
     await this.#desktopVoice.dispose();
-    const result = await logoutDesktopChatgpt(this.#manager, {
+    const result = await logoutDesktopAuth(this.#manager, {
       env: this.#env,
     });
     this.#invalidateResolvedProfile();
@@ -792,6 +805,15 @@ export class DesktopSessionController {
       success: true,
       bootstrap: await this.getBootstrap(),
     };
+  }
+
+  async completeDesktopDisplayName(request: DesktopCompleteDisplayNameRequest): Promise<DesktopCompleteDisplayNameResult> {
+    const profile = await this.#resolveProfile();
+    return await persistDesktopDisplayName({
+      profileId: profile.id,
+      displayName: request.displayName,
+      env: this.#env,
+    });
   }
 
   async rememberWorkspaceFolder(folderPath: string): Promise<void> {

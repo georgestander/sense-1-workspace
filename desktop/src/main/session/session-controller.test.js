@@ -1094,6 +1094,7 @@ test("getDesktopSettings resolves legacy flat settings into the current policy-b
     {
       model: "gpt-5.4",
       reasoningEffort: "high",
+      verbosity: "detailed",
       personality: "formal",
       approvalPosture: "onRequest",
       sandboxPosture: "readOnly",
@@ -1123,6 +1124,7 @@ test("getDesktopSettings resolves legacy flat settings into the current policy-b
   const result = await controller.getDesktopSettings();
   assert.equal(result.settings.model, "gpt-5.4");
   assert.equal(result.settings.reasoningEffort, "high");
+  assert.equal(result.settings.verbosity, "detailed");
   assert.equal(result.settings.personality, "pragmatic");
   assert.equal(result.settings.runtimeInstructions, DesktopSessionController.DEFAULT_SETTINGS.runtimeInstructions);
   assert.equal(result.settings.sandboxPosture, "readOnly");
@@ -1418,6 +1420,159 @@ test("listModels preserves runtime default metadata for the renderer", async () 
   ]);
 });
 
+test("listModels keeps the alpha OpenAI model surface identical across ChatGPT and API-key auth", async () => {
+  const root = await makeTempRoot();
+  const env = createTestEnv(root);
+  const runtimeCatalog = [
+    {
+      id: "gpt-5.4-mini",
+      name: "GPT-5.4 Mini",
+      supportedReasoningEfforts: ["minimal", "low", "medium", "high", "xhigh"],
+      defaultReasoningEffort: "medium",
+    },
+    {
+      id: "gpt-5.4",
+      isDefault: true,
+      name: "GPT-5.4",
+      supportedReasoningEfforts: ["low", "medium", "high"],
+      defaultReasoningEffort: "high",
+    },
+    {
+      id: "o3",
+      name: "o3",
+      supportedReasoningEfforts: ["high"],
+    },
+  ];
+
+  async function listModelsForAuth(account) {
+    const controller = new DesktopSessionController(
+      {
+        request: async (method) => {
+          if (method === "account/read") {
+            return account;
+          }
+
+          if (method === "model/list") {
+            return { data: runtimeCatalog };
+          }
+
+          throw new Error(`Unexpected method: ${method}`);
+        },
+      },
+      {
+        appStartedAt: "2026-03-25T10:00:00.000Z",
+        env,
+        openExternal: async () => {},
+        runtimeInfo: {
+          appVersion: "0.1.0",
+          electronVersion: "35.2.1",
+          platform: "darwin",
+          startedAt: "2026-03-25T10:00:00.000Z",
+        },
+      },
+    );
+
+    return await controller.listModels();
+  }
+
+  const chatgptResult = await listModelsForAuth({
+    account: {
+      email: "george@example.com",
+      type: "chatgpt",
+    },
+    authMode: "chatgpt",
+    requiresOpenaiAuth: false,
+  });
+  const apiKeyResult = await listModelsForAuth({
+    account: {
+      email: null,
+      type: "apiKey",
+    },
+    authMode: "apikey",
+    requiresOpenaiAuth: false,
+  });
+
+  assert.deepEqual(chatgptResult.models, apiKeyResult.models);
+  assert.deepEqual(chatgptResult.models, [
+    {
+      id: "gpt-5.4-mini",
+      name: "GPT-5.4 Mini",
+      supportedReasoningEfforts: ["minimal", "low", "medium", "high", "xhigh"],
+      defaultReasoningEffort: "medium",
+    },
+    {
+      id: "gpt-5.4",
+      isDefault: true,
+      name: "GPT-5.4",
+      supportedReasoningEfforts: ["low", "medium", "high"],
+      defaultReasoningEffort: "high",
+    },
+  ]);
+});
+
+test("updateDesktopSettings blocks OpenAI alpha models outside the shared auth-parity surface", async () => {
+  const root = await makeTempRoot();
+  const env = createTestEnv(root);
+  const controller = new DesktopSessionController(
+    {
+      request: async (method) => {
+        if (method === "account/read") {
+          return {
+            account: {
+              email: "george@example.com",
+              type: "chatgpt",
+            },
+            authMode: "chatgpt",
+            requiresOpenaiAuth: false,
+          };
+        }
+
+        if (method === "model/list") {
+          return {
+            data: [
+              {
+                id: "gpt-5.4-mini",
+                name: "GPT-5.4 Mini",
+                supportedReasoningEfforts: ["medium", "high", "xhigh"],
+              },
+              {
+                id: "gpt-5.4",
+                name: "GPT-5.4",
+                supportedReasoningEfforts: ["low", "medium", "high"],
+              },
+              {
+                id: "o3",
+                name: "o3",
+                supportedReasoningEfforts: ["high"],
+              },
+            ],
+          };
+        }
+
+        throw new Error(`Unexpected method: ${method}`);
+      },
+    },
+    {
+      appStartedAt: "2026-03-25T10:00:00.000Z",
+      env,
+      openExternal: async () => {},
+      runtimeInfo: {
+        appVersion: "0.1.0",
+        electronVersion: "35.2.1",
+        platform: "darwin",
+        startedAt: "2026-03-25T10:00:00.000Z",
+      },
+    },
+  );
+
+  await assert.rejects(
+    () => controller.updateDesktopSettings({
+      model: "o3",
+    }),
+    /does not list it as an available model/i,
+  );
+});
+
 test("runDesktopTask applies persisted workspace policy defaults to the runtime request", async () => {
   const root = await makeTempRoot();
   const env = createTestEnv(root);
@@ -1496,6 +1651,7 @@ test("runDesktopTask applies persisted workspace policy defaults to the runtime 
   await controller.updateDesktopSettings({
     model: "gpt-5.4-mini",
     reasoningEffort: "high",
+    verbosity: "detailed",
     personality: "formal",
     runtimeInstructions: "Keep outputs crisp for this desktop runtime.",
     sandboxPosture: "readOnly",
@@ -1523,6 +1679,7 @@ test("runDesktopTask applies persisted workspace policy defaults to the runtime 
   assert.equal(turnStart?.params.model, "gpt-5.4-mini");
   assert.equal(turnStart?.params.personality, "pragmatic");
   assert.equal(turnStart?.params.reasoningEffort, "high");
+  assert.equal(turnStart?.params.settings?.sense1?.verbosity, "detailed");
   assert.deepEqual(turnStart?.params.sandboxPolicy, {
     type: "workspaceWrite",
     networkAccess: true,
@@ -1730,6 +1887,16 @@ test("runDesktopTask forwards selected attachment paths through the session cont
       type: "mention",
       name: "index.ts",
       path: path.join(workspaceRoot, "src", "index.ts"),
+    },
+    {
+      type: "text",
+      text: [
+        "<sense1-attachment-context>",
+        "The user attached these files for this request. Treat them as part of the task even when they live outside the current workspace.",
+        `- notes.txt :: ${path.join(workspaceRoot, "notes.txt")}`,
+        `- index.ts :: ${path.join(workspaceRoot, "src", "index.ts")}`,
+        "</sense1-attachment-context>",
+      ].join("\n"),
     },
     {
       type: "text",
@@ -6885,6 +7052,90 @@ test("runDesktopTask creates a visible per-session artifact directory for a new 
   assert.equal(bootstrap.auditEvents[0]?.eventType, "run.started");
   assert.equal(bootstrap.auditEvents[0]?.details.executionIntent, "lightweightConversation");
   assert.equal(bootstrap.auditEvents[0]?.details.executionIntentRule, "chat-default");
+});
+
+test("runDesktopTask allows signed-in apiKey sessions without an email address", async () => {
+  const root = await makeTempRoot();
+  const env = createTestEnv(root);
+  const managerCalls = [];
+  const manager = {
+    request: async (method, params) => {
+      managerCalls.push({ method, params });
+      if (method === "account/read") {
+        return {
+          account: {
+            email: null,
+            type: "apiKey",
+          },
+          authMode: "apikey",
+          requiresOpenaiAuth: false,
+        };
+      }
+
+      if (method === "model/list") {
+        return {
+          data: [
+            {
+              id: "gpt-5.4-mini",
+              supportedReasoningEfforts: ["minimal", "low", "medium", "high", "xhigh"],
+            },
+          ],
+        };
+      }
+
+      if (method === "thread/start") {
+        return {
+          thread: {
+            id: "thread-apikey-chat-1",
+            name: "API key chat thread",
+            preview: "API key chat thread",
+            updatedAt: Math.floor(Date.now() / 1000),
+            status: {
+              type: "active",
+              activeFlags: ["running"],
+            },
+          },
+        };
+      }
+
+      if (method === "turn/start") {
+        return {
+          turn: {
+            id: "turn-apikey-chat-1",
+          },
+        };
+      }
+
+      throw new Error(`Unexpected method: ${method}`);
+    },
+    handleProfileChange: async () => {},
+    off: () => {},
+    on: () => {},
+    respond: () => {},
+  };
+
+  const controller = new DesktopSessionController(manager, {
+    appStartedAt: "2026-03-24T10:00:00.000Z",
+    env,
+    openExternal: async () => {},
+    runtimeInfo: {
+      appVersion: "0.1.0",
+      electronVersion: "35.2.1",
+      platform: "darwin",
+      startedAt: "2026-03-24T10:00:00.000Z",
+    },
+  });
+
+  const result = await controller.runDesktopTask({
+    prompt: "Keep notes for this API-key session",
+  });
+
+  assert.equal(result.status, "started");
+  assert.equal(result.threadId, "thread-apikey-chat-1");
+  assert.equal(result.turnId, "turn-apikey-chat-1");
+  assert.equal(result.runContext?.actor.email, null);
+  assert.match(result.runContext?.actor.displayName ?? "", /\S/);
+  assertManagerMethods(managerCalls, ["account/read", "model/list", "thread/start", "turn/start"]);
 });
 
 test("runDesktopTask gates the first concrete execution-intent workspace request before starting a turn", async () => {

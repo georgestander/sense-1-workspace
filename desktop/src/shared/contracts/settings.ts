@@ -1,7 +1,10 @@
+export type DesktopVerbosity = "terse" | "balanced" | "detailed";
+
 export interface DesktopSettings {
   readonly model: string;
   readonly reasoningEffort: string;
   readonly serviceTier: "flex" | "fast";
+  readonly verbosity: DesktopVerbosity;
   readonly personality: "none" | "friendly" | "pragmatic";
   readonly defaultOperatingMode: "preview" | "auto" | "apply";
   readonly runtimeInstructions: string;

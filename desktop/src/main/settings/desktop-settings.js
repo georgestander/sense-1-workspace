@@ -4,6 +4,7 @@ export const DEFAULT_DESKTOP_SETTINGS = Object.freeze({
   model: "gpt-5.4-mini",
   reasoningEffort: "xhigh",
   serviceTier: "flex",
+  verbosity: "balanced",
   personality: "friendly",
   defaultOperatingMode: "auto",
   runtimeInstructions: DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS,
@@ -58,6 +59,25 @@ function normalizeServiceTier(value) {
   const resolved = firstString(value);
   if (resolved === "flex" || resolved === "fast") {
     return resolved;
+  }
+
+  return undefined;
+}
+
+function normalizeVerbosity(value) {
+  const resolved = firstString(value);
+  if (resolved === "terse" || resolved === "balanced" || resolved === "detailed") {
+    return resolved;
+  }
+
+  if (resolved === "low") {
+    return "terse";
+  }
+  if (resolved === "medium") {
+    return "balanced";
+  }
+  if (resolved === "high") {
+    return "detailed";
   }
 
   return undefined;
@@ -203,6 +223,7 @@ function normalizeWorkspaceDefaults(value) {
   const model = firstString(record.model);
   const reasoningEffort = firstString(record.reasoningEffort);
   const serviceTier = normalizeServiceTier(record.serviceTier);
+  const verbosity = normalizeVerbosity(record.verbosity);
   const personality = normalizePersonality(record.personality);
 
   if (model) {
@@ -213,6 +234,9 @@ function normalizeWorkspaceDefaults(value) {
   }
   if (serviceTier) {
     workspaceDefaults.serviceTier = serviceTier;
+  }
+  if (verbosity) {
+    workspaceDefaults.verbosity = verbosity;
   }
   if (personality) {
     workspaceDefaults.personality = personality;
@@ -382,6 +406,7 @@ function buildPatchLayer(patch = {}) {
       ...(patch.model !== undefined ? { model: patch.model } : {}),
       ...(patch.reasoningEffort !== undefined ? { reasoningEffort: patch.reasoningEffort } : {}),
       ...(patch.serviceTier !== undefined ? { serviceTier: patch.serviceTier } : {}),
+      ...(patch.verbosity !== undefined ? { verbosity: patch.verbosity } : {}),
       ...(patch.personality !== undefined ? { personality: normalizePersonality(patch.personality) } : {}),
       ...(patch.workspaceDefaults ?? {}),
     },

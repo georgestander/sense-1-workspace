@@ -1,11 +1,15 @@
-import type { ComponentProps, ReactNode } from "react";
+import { memo, type ComponentProps, type ReactNode } from "react";
 import { House, PanelLeft, PanelRight } from "lucide-react";
 
 import { Button } from "./ui/button";
+import { CrashRecoveryPrompt } from "./crash-recovery/CrashRecoveryPrompt";
 import { LeftSidebar, type LeftSidebarProps } from "./LeftSidebar";
 import { RightRail, type RightRailProps } from "./RightRail";
 import { SettingsModal, type SettingsModalProps } from "./SettingsModal";
+import { ReportBugModal } from "./bug-report/ReportBugModal";
 import { VersionBadgeLink } from "./VersionBadgeLink";
+import type { ReportBugController } from "../features/bug-report/use-report-bug-controller";
+import { useCrashRecoveryPrompt } from "../features/crash-recovery/use-crash-recovery-prompt";
 
 export interface DesktopAuthenticatedShellProps {
   showInstallUpdateAction: boolean;
@@ -21,9 +25,10 @@ export interface DesktopAuthenticatedShellProps {
   mainContent: ReactNode;
   rightRailProps: RightRailProps;
   settingsModalProps: SettingsModalProps;
+  reportBugController: ReportBugController;
 }
 
-export function DesktopAuthenticatedShell({
+export const DesktopAuthenticatedShell = memo(function DesktopAuthenticatedShell({
   showInstallUpdateAction,
   onInstallReadyUpdate,
   leftRailOpen,
@@ -37,7 +42,16 @@ export function DesktopAuthenticatedShell({
   mainContent,
   rightRailProps,
   settingsModalProps,
+  reportBugController,
 }: DesktopAuthenticatedShellProps) {
+  const crashRecovery = useCrashRecoveryPrompt();
+
+  const handleReportFromRecoveryPrompt = () => {
+    crashRecovery.clear();
+    void crashRecovery.dismiss();
+    reportBugController.openModal();
+  };
+
   return (
     <div className="flex h-screen overflow-hidden flex-col bg-canvas text-ink">
       <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between bg-surface-glass px-3 backdrop-blur-sm">
@@ -87,6 +101,14 @@ export function DesktopAuthenticatedShell({
         </div>
       </header>
 
+      <CrashRecoveryPrompt
+        onDismiss={() => {
+          void crashRecovery.dismiss();
+        }}
+        onReport={handleReportFromRecoveryPrompt}
+        suggestion={crashRecovery.suggestion}
+      />
+
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
         <LeftSidebar {...leftSidebarProps} />
 
@@ -98,6 +120,7 @@ export function DesktopAuthenticatedShell({
       </div>
 
       <SettingsModal {...settingsModalProps} />
+      <ReportBugModal controller={reportBugController} />
     </div>
   );
-}
+});

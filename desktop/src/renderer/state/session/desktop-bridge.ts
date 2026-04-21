@@ -15,9 +15,10 @@ export function getDesktopBridge(): DesktopBridge | null {
     typeof bridge.updates?.install !== "function" ||
     typeof bridge.session?.get !== "function" ||
     typeof bridge.session?.subscribe !== "function" ||
-    typeof bridge.auth?.launchChatgptSignIn !== "function" ||
-    typeof bridge.auth?.logoutChatgpt !== "function" ||
+    typeof bridge.auth?.startLogin !== "function" ||
+    typeof bridge.auth?.logout !== "function" ||
     typeof bridge.profiles?.select !== "function" ||
+    typeof bridge.profile?.completeDisplayName !== "function" ||
     typeof bridge.threads?.rememberLastSelected !== "function" ||
     typeof bridge.threads?.rename !== "function" ||
     typeof bridge.threads?.archive !== "function" ||

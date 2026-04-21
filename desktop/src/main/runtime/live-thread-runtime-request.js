@@ -61,6 +61,7 @@ export function buildCollaborationMode({
   model = null,
   reasoningEffort = null,
   serviceTier = "flex",
+  verbosity = null,
 } = {}) {
   return {
     mode,
@@ -69,6 +70,7 @@ export function buildCollaborationMode({
       model: firstString(model) ?? "",
       reasoning_effort: firstString(reasoningEffort),
       service_tier: firstString(serviceTier),
+      verbosity: firstString(verbosity),
     },
   };
 }

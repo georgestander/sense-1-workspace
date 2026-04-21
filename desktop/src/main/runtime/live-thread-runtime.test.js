@@ -529,6 +529,7 @@ test("runDesktopTask starts a new thread then starts a turn with prompt and cwd"
     cwd: workspaceRoot,
     model: "gpt-5.4",
     serviceTier: "fast",
+    verbosity: "terse",
     runContext,
     workspaceRoot,
   });
@@ -590,6 +591,7 @@ test("runDesktopTask starts a new thread then starts a turn with prompt and cwd"
             model: "gpt-5.4",
             reasoning_effort: null,
             service_tier: "fast",
+            verbosity: "terse",
           },
         },
         model: "gpt-5.4",
@@ -611,6 +613,7 @@ test("runDesktopTask starts a new thread then starts a turn with prompt and cwd"
             executionIntent,
             runContext,
             serviceTier: "fast",
+            verbosity: "terse",
           },
         },
       },
@@ -704,6 +707,16 @@ test("runDesktopTask sends attachments as turn/start input items", async () => {
     {
       type: "localImage",
       path: "/tmp/workspace/design.png",
+    },
+    {
+      type: "text",
+      text: [
+        "<sense1-attachment-context>",
+        "The user attached these files for this request. Treat them as part of the task even when they live outside the current workspace.",
+        "- notes.txt :: /tmp/workspace/notes.txt",
+        "- design.png :: /tmp/workspace/design.png",
+        "</sense1-attachment-context>",
+      ].join("\n"),
     },
     {
       type: "text",
@@ -808,6 +821,15 @@ test("runDesktopTask includes resolved shortcut mentions before attachments and 
     {
       type: "localImage",
       path: "/tmp/workspace/design.png",
+    },
+    {
+      type: "text",
+      text: [
+        "<sense1-attachment-context>",
+        "The user attached these files for this request. Treat them as part of the task even when they live outside the current workspace.",
+        "- design.png :: /tmp/workspace/design.png",
+        "</sense1-attachment-context>",
+      ].join("\n"),
     },
     {
       type: "text",
@@ -938,6 +960,7 @@ test("runDesktopTask does not bind a new chat-only thread to the desktop cwd", a
             model: "gpt-5.4",
             reasoning_effort: null,
             service_tier: "flex",
+            verbosity: null,
           },
         },
         model: "gpt-5.4",
@@ -964,6 +987,7 @@ test("runDesktopTask does not bind a new chat-only thread to the desktop cwd", a
             },
             runContext,
             serviceTier: "flex",
+            verbosity: "balanced",
           },
         },
       },
@@ -1350,6 +1374,7 @@ test("runDesktopTask keeps the same chat artifact instructions when it has to re
       model: "gpt-5.4",
       reasoning_effort: null,
       service_tier: "flex",
+      verbosity: null,
     },
   });
   assert.deepEqual(calls[1].params.sandboxPolicy, {
@@ -1371,6 +1396,7 @@ test("runDesktopTask keeps the same chat artifact instructions when it has to re
       model: "gpt-5.4",
       reasoning_effort: null,
       service_tier: "flex",
+      verbosity: null,
     },
   });
   assert.deepEqual(calls[3].params.sandboxPolicy, {
@@ -1506,6 +1532,7 @@ test("runDesktopTask resumes an existing thread before starting a turn", async (
             model: "gpt-5.4",
             reasoning_effort: null,
             service_tier: "flex",
+            verbosity: null,
           },
         },
         model: "gpt-5.4",
@@ -1532,6 +1559,7 @@ test("runDesktopTask resumes an existing thread before starting a turn", async (
             },
             runContext,
             serviceTier: "flex",
+            verbosity: "balanced",
           },
         },
       },
@@ -1707,6 +1735,7 @@ test("runDesktopTask keeps plainly read-only workspace conversation out of the p
       model: "gpt-5.4",
       reasoning_effort: null,
       service_tier: "flex",
+      verbosity: null,
     },
   });
   assert.deepEqual(calls[1].params.sandboxPolicy, {
@@ -2168,6 +2197,7 @@ test("runDesktopTask can start the first real turn on an approval-created thread
       model: "",
       reasoning_effort: null,
       service_tier: "flex",
+      verbosity: null,
     },
   });
   assert.deepEqual(calls[1].params.sandboxPolicy, {

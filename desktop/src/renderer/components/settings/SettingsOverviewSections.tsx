@@ -16,8 +16,8 @@ function SectionIntro({
 }) {
   return (
     <>
-      <h2 className="font-display text-[1.25rem] font-semibold leading-[1.35] tracking-[-0.015em]">{title}</h2>
-      <p className="mt-[0.2rem] text-[0.875rem] leading-[1.6] text-ink-muted">{description}</p>
+      <h2 className="font-display text-[1.05rem] font-semibold leading-[1.35] tracking-[-0.015em]">{title}</h2>
+      <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.55] text-ink-muted">{description}</p>
     </>
   );
 }
@@ -32,11 +32,11 @@ function InfoCard({
   detail?: string;
 }) {
   return (
-    <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.85rem]">
+    <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
       <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">{title}</p>
-      <p className="mt-[0.35rem] text-[0.9375rem] leading-[1.55] text-ink">{body}</p>
+      <p className="mt-[0.25rem] text-[0.875rem] leading-[1.5] text-ink">{body}</p>
       {detail ? (
-        <p className="mt-[0.35rem] text-[0.8125rem] leading-[1.52] text-ink-muted">{detail}</p>
+        <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.5] text-ink-muted">{detail}</p>
       ) : null}
     </div>
   );
@@ -148,7 +148,7 @@ export function McpServersSettingsSection() {
         title="MCP Servers"
       />
       {overview ? (
-        <div className="mt-[1.25rem] flex flex-col gap-[1rem]">
+        <div className="mt-[0.75rem] flex flex-col gap-[0.75rem]">
           <InfoCard
             title="Current provider"
             body={overview.provider.selectedProvider ? `${overview.provider.selectedProvider} is currently selected.` : "No provider is configured yet."}
@@ -170,7 +170,7 @@ export function McpServersSettingsSection() {
           )}
         </div>
       ) : (
-        <p className="mt-[1.25rem] text-[0.875rem] leading-[1.6] text-ink-muted">Loading MCP servers...</p>
+        <p className="mt-[0.75rem] text-[0.8125rem] leading-[1.55] text-ink-muted">Loading MCP servers...</p>
       )}
     </>
   );
@@ -189,7 +189,7 @@ export function GitSettingsSection() {
         description="Git behavior in desktop v1 stays folder-bound and intentionally quiet."
         title="Git"
       />
-      <div className="mt-[1.25rem] flex flex-col gap-[1rem]">
+      <div className="mt-[0.75rem] flex flex-col gap-[0.75rem]">
         <InfoCard
           title="How git runs here"
           body="Sense-1 executes git work inside the folder or worktree you attached to the thread."
@@ -216,7 +216,7 @@ export function EnvironmentsSettingsSection() {
         description="Desktop environments stay explicit: local runs, worktree runs, and automations that target them."
         title="Environments"
       />
-      <div className="mt-[1.25rem] flex flex-col gap-[1rem]">
+      <div className="mt-[0.75rem] flex flex-col gap-[0.75rem]">
         <InfoCard
           title="Local environment"
           body="Local runs stay attached to the folder you pick in the desktop app."
@@ -243,7 +243,7 @@ export function WorktreesSettingsSection() {
         title="Worktrees"
       />
       {snapshot ? (
-        <div className="mt-[1.25rem] flex flex-col gap-[1rem]">
+        <div className="mt-[0.75rem] flex flex-col gap-[0.75rem]">
           <InfoCard
             title="Active workspace roots"
             body={`${activeWorkspaces.length} active workspace root${activeWorkspaces.length === 1 ? "" : "s"} are currently remembered.`}
@@ -256,7 +256,7 @@ export function WorktreesSettingsSection() {
           />
         </div>
       ) : (
-        <p className="mt-[1.25rem] text-[0.875rem] leading-[1.6] text-ink-muted">Loading worktree context...</p>
+        <p className="mt-[0.75rem] text-[0.8125rem] leading-[1.55] text-ink-muted">Loading worktree context...</p>
       )}
     </>
   );
@@ -274,7 +274,7 @@ export function ArchivedChatsSettingsSection() {
         title="Archived Chats"
       />
       {snapshot ? (
-        <div className="mt-[1.25rem] flex flex-col gap-[1rem]">
+        <div className="mt-[0.75rem] flex flex-col gap-[0.75rem]">
           <InfoCard
             title="Archived chats"
             body={`${archivedSessions.length} archived chat${archivedSessions.length === 1 ? "" : "s"} are currently recorded.`}
@@ -287,7 +287,7 @@ export function ArchivedChatsSettingsSection() {
           />
         </div>
       ) : (
-        <p className="mt-[1.25rem] text-[0.875rem] leading-[1.6] text-ink-muted">Loading archive state...</p>
+        <p className="mt-[0.75rem] text-[0.8125rem] leading-[1.55] text-ink-muted">Loading archive state...</p>
       )}
     </>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   DesktopWorkspaceHydrateResult,
@@ -184,7 +184,7 @@ export function useWorkspaceActivity({
     };
   }, [hydrateWorkspace, selectedThreadWorkspaceRoot, workspacePolicy?.known_structure?.length, workspacePolicy?.read_granted]);
 
-  async function refreshWorkspaceStructure() {
+  const refreshWorkspaceStructure = useCallback(async () => {
     if (!selectedThreadWorkspaceRoot) {
       return;
     }
@@ -196,15 +196,21 @@ export function useWorkspaceActivity({
     } finally {
       setWorkspaceStructureRefreshing(false);
     }
-  }
+  }, [hydrateWorkspace, selectedThreadWorkspaceRoot]);
 
-  return {
+  return useMemo(() => ({
     persistedSessionActivityLoading,
     persistedSessionActivitySummary,
     persistedSessionWrittenPaths,
     refreshWorkspaceStructure,
     workspaceStructureRefreshing,
-  };
+  }), [
+    persistedSessionActivityLoading,
+    persistedSessionActivitySummary,
+    persistedSessionWrittenPaths,
+    refreshWorkspaceStructure,
+    workspaceStructureRefreshing,
+  ]);
 }
 
 function resolveSessionId(session: ProjectedSessionRecord | { id?: string | null } | null): string | null {

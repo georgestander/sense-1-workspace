@@ -1,4 +1,4 @@
-export type DesktopProviderId = "chatgpt" | "gemini" | "ollama";
+export type DesktopProviderId = "chatgpt" | "openai-api-key" | "gemini" | "ollama";
 
 export interface DesktopProviderOption {
   readonly id: DesktopProviderId;

@@ -4,6 +4,23 @@ All notable changes to Sense-1 Workspace are recorded here.
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-04-20
+
+### Added
+
+- Actionable desktop bug reporting backed by Sentry capture and optional Linear issue creation when the local environment is configured for ticket promotion.
+- Baseline Sentry coverage across the Electron main, preload, and renderer processes so desktop failures carry consistent runtime context.
+
+### Changed
+
+- Refined the dark theme with the Cool Atelier palette and a dedicated light token island for user messages so transcript bubbles stay distinct and readable.
+- Kept nested markdown inside user messages aligned with the light bubble treatment, including code blocks, tables, borders, and links.
+
+### Fixed
+
+- Preserved successful bug report submission when downstream Linear ticket creation is unavailable by returning a deferred result instead of failing the whole report.
+- Hardened local path redaction for Windows environments where `HOME` is unset so attachments, logs, and thread references avoid leaking full filesystem paths.
+
 ## [0.11.0] - 2026-04-17
 
 ### Added

@@ -498,23 +498,26 @@ body {
   list-style: none;
 }
 
-/* User message bubble — always white with dark text so user input stays
- * visually distinct from assistant output, in both light and dark themes.
- * Establishes a local light-token island so nested markdown (code blocks,
- * blockquotes, tables, links, hairlines) inherits light surfaces and dark
- * inks regardless of the outer theme. Mirrors the light-theme @theme block. */
+/* User message bubble — accent blue background with white text so user input
+ * stays visually distinct from assistant output, in both light and dark themes.
+ * Establishes a local inverted-ink island so nested markdown (bold, headings,
+ * lists, hairlines) reads coherently against the blue regardless of outer theme. */
 .user-bubble {
-  --color-ink: oklch(0.12 0 0);
-  --color-ink-soft: oklch(0.32 0 0);
-  --color-ink-faint: oklch(0.48 0 0);
-  --color-ink-muted: oklch(0.58 0 0);
-  --color-muted: oklch(0.58 0 0);
+  --color-ink: oklch(1 0 0);
+  --color-ink-soft: oklch(0.92 0 0);
+  --color-ink-faint: oklch(0.82 0 0);
+  --color-ink-muted: oklch(0.75 0 0);
+  --color-muted: oklch(0.75 0 0);
   --color-surface-soft: oklch(0.975 0 0);
   --color-surface-low: oklch(0.975 0 0);
-  --color-line: oklch(0.85 0 0 / 60%);
+  --color-line: oklch(1 0 0 / 30%);
   --color-accent: oklch(0.625 0.038 243);
   --color-accent-faint: oklch(0.625 0.038 243 / 10%);
-  background: oklch(1 0 0);
+  --thread-attachment-pill-surface: oklch(0.985 0 0);
+  --thread-attachment-pill-surface-hover: oklch(0.955 0 0);
+  --thread-attachment-pill-ink: oklch(0.18 0 0);
+  --thread-attachment-pill-ink-muted: oklch(0.36 0 0);
+  background: oklch(0.730 0.090 262);
   color: var(--color-ink);
 }
 

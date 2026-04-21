@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
+  DesktopAuthLoginMethod,
   DesktopBootstrap,
+  DesktopIdentityState,
   DesktopModelEntry,
   DesktopRunContext,
   DesktopBootstrapTeamSetup,
@@ -99,7 +101,11 @@ export function useDesktopSessionState({
   const [bootstrapLoading, setBootstrapLoading] = useState(true);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [taskError, setTaskError] = useState<string | null>(null);
+  const [authPendingMethod, setAuthPendingMethod] = useState<DesktopAuthLoginMethod | null>(null);
   const [signInPending, setSignInPending] = useState(false);
+  const [identity, setIdentity] = useState<DesktopIdentityState | null>(null);
+  const [identityCompletionPending, setIdentityCompletionPending] = useState(false);
+  const [identityCompletionError, setIdentityCompletionError] = useState<string | null>(null);
   const [logoutPending, setLogoutPending] = useState(false);
   const [continuePending, setContinuePending] = useState(false);
   const [taskPending, setTaskPending] = useState(false);
@@ -202,6 +208,7 @@ export function useDesktopSessionState({
         setAccountEmail,
         setAccountType,
         setActiveTurnIdsByThread,
+        setIdentity,
         setIsSignedIn,
         setPendingApprovals,
         setPerThreadSidebar,
@@ -279,14 +286,21 @@ export function useDesktopSessionState({
     });
   }, []);
 
-  const sessionView = perfMeasure("session-view.build", () => buildDesktopSessionViewState({
+  const sessionView = useMemo(() => perfMeasure("session-view.build", () => buildDesktopSessionViewState({
     activeTurnIdsByThread,
     pendingApprovals,
     perThreadSidebar,
     selectedThreadId,
     taskPending,
     threads,
-  }));
+  })), [
+    activeTurnIdsByThread,
+    pendingApprovals,
+    perThreadSidebar,
+    selectedThreadId,
+    taskPending,
+    threads,
+  ]);
   const {
     activeRoot,
     activeTurnId,
@@ -302,6 +316,7 @@ export function useDesktopSessionState({
     threadPlanState,
   } = sessionView;
   useSessionShellEffects({
+    accountType,
     activeRoot,
     applyBootstrap,
     bootstrapRequestIdRef,
@@ -320,7 +335,7 @@ export function useDesktopSessionState({
     setWorkspacePolicy,
   });
 
-  const sessionActions = createDesktopSessionActions({
+  const sessionActions = useMemo(() => createDesktopSessionActions({
     applyBootstrap,
     fetchWorkspacePolicy,
     flushPendingThreadDeltas,
@@ -345,6 +360,9 @@ export function useDesktopSessionState({
     setActiveTurnIdsByThread,
     setBootstrapError,
     setContinuePending,
+    setAuthPendingMethod,
+    setIdentityCompletionPending,
+    setIdentityCompletionError,
     setLogoutPending,
     setPendingPermission,
     setPerThreadSidebar,
@@ -361,16 +379,41 @@ export function useDesktopSessionState({
     setWorkspacePolicy,
     setWorkspaceHydrateSummary,
     setWorkspaceSidebarOrder,
-  });
+  }), [
+    activeTurnIdsByThread,
+    applyBootstrap,
+    fetchWorkspacePolicy,
+    flushPendingThreadDeltas,
+    hasRestoredInitialSelectionRef,
+    isSignedIn,
+    model,
+    pendingPermission,
+    profileFieldValue,
+    reasoningEffort,
+    refreshBootstrap,
+    rememberKnownThreadIds,
+    removeThreadFromLocalState,
+    removeWorkspaceFromLocalState,
+    runContext,
+    selectedProfileId,
+    selectedThreadId,
+    selectedThreadIdRef,
+    serviceTier,
+    workspaceSidebarOrder,
+  ]);
 
   return {
     accountEmail,
     accountType,
+    authPendingMethod,
     availableModels,
     bootstrapError,
     bootstrapLoading,
     ...sessionActions,
     continuePending,
+    identity,
+    identityCompletionError,
+    identityCompletionPending,
     isSignedIn,
     logoutPending,
     pendingApprovals,

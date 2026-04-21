@@ -34,6 +34,10 @@ export function resolveSentryRelease(appVersion: string): string {
   return `sense-1-workspace@${firstNonEmptyString(appVersion, "unknown") ?? "unknown"}`;
 }
 
+export function resolveSentryDist(buildId: string | null | undefined): string | undefined {
+  return firstNonEmptyString(buildId) ?? undefined;
+}
+
 export function shouldEnableSentryDebug(env: SentryEnv = {}): boolean {
   return env.SENSE1_SENTRY_DEBUG === "1";
 }

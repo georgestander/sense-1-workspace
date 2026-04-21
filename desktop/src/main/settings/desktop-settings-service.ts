@@ -18,8 +18,13 @@ import {
   resolveDesktopSettings,
   validateDesktopResolvedSettings,
 } from "./policy.js";
+import {
+  normalizeRuntimeModelCatalog,
+  projectSupportedRuntimeModels,
+} from "./runtime-model-catalog.js";
 import { describePolicyRules } from "../runtime/live-thread-runtime.js";
 import { buildDesktopRunContext } from "../session/run-context.ts";
+import { resolveSignedInAccount } from "../session/desktop-run-start-settings.ts";
 import {
   appendSubstrateEvent,
   ensureProfileSubstrate,
@@ -40,6 +45,7 @@ export const DESKTOP_DEFAULT_SETTINGS: DesktopSettings = {
   model: DEFAULT_DESKTOP_SETTINGS.model,
   reasoningEffort: DEFAULT_DESKTOP_SETTINGS.reasoningEffort,
   serviceTier: DEFAULT_DESKTOP_SETTINGS.serviceTier,
+  verbosity: DEFAULT_DESKTOP_SETTINGS.verbosity,
   personality: DEFAULT_DESKTOP_SETTINGS.personality,
   defaultOperatingMode: DEFAULT_DESKTOP_SETTINGS.defaultOperatingMode,
   runtimeInstructions: DEFAULT_DESKTOP_SETTINGS.runtimeInstructions,
@@ -268,6 +274,11 @@ export class DesktopSettingsService {
     try {
       const profile = await this.#resolveProfile();
       const settingsState = resolveStoredDesktopSettingsState(await loadDesktopSettings(profile.id, this.#env));
+      const auth = await resolveSignedInAccount({
+        env: this.#env,
+        manager: this.#manager,
+        profileId: profile.id,
+      });
       const result = await this.#manager.request("model/list", {}) as {
         data?: Array<{
           id?: string;
@@ -278,33 +289,11 @@ export class DesktopSettingsService {
         }>;
       };
 
-      const models = (Array.isArray(result?.data) ? result.data : [])
-        .map((entry) => {
-          const normalized = {
-            id: typeof entry?.id === "string" ? entry.id : "unknown",
-            name:
-              typeof entry?.name === "string"
-                ? entry.name
-                : (typeof entry?.id === "string" ? entry.id : "Unknown model"),
-            supportedReasoningEfforts: Array.isArray(entry?.supportedReasoningEfforts)
-              ? entry.supportedReasoningEfforts.filter((effort): effort is string => typeof effort === "string")
-              : [],
-          } as DesktopModelListResult["models"][number];
-
-          return {
-            ...normalized,
-            ...(typeof entry?.isDefault === "boolean" ? { isDefault: entry.isDefault } : {}),
-            ...(
-              typeof entry?.defaultReasoningEffort === "string" && entry.defaultReasoningEffort.trim()
-                ? { defaultReasoningEffort: entry.defaultReasoningEffort.trim() }
-                : {}
-            ),
-          };
-        })
-        .filter((entry) =>
-          !settingsState.modelRestrictions.allowedModels
-          || settingsState.modelRestrictions.allowedModels.includes(entry.id),
-        );
+      const models = normalizeRuntimeModelCatalog(Array.isArray(result?.data) ? result.data : [], {
+        accountType: auth.accountType,
+        authMode: auth.authMode,
+        allowedModels: settingsState.modelRestrictions.allowedModels,
+      }) as DesktopModelListResult["models"];
 
       return { models };
     } catch {
@@ -314,6 +303,12 @@ export class DesktopSettingsService {
 
   async #loadSupportedModels(): Promise<Array<{ id: string; supportedReasoningEfforts: string[] }>> {
     try {
+      const profile = await this.#resolveProfile();
+      const auth = await resolveSignedInAccount({
+        env: this.#env,
+        manager: this.#manager,
+        profileId: profile.id,
+      });
       const result = await this.#manager.request("model/list", {}) as {
         data?: Array<{
           id?: string;
@@ -321,14 +316,10 @@ export class DesktopSettingsService {
         }>;
       };
 
-      return (Array.isArray(result?.data) ? result.data : [])
-        .map((entry) => ({
-          id: typeof entry?.id === "string" ? entry.id : "",
-          supportedReasoningEfforts: Array.isArray(entry?.supportedReasoningEfforts)
-            ? entry.supportedReasoningEfforts.filter((effort): effort is string => typeof effort === "string")
-            : [],
-        }))
-        .filter((entry) => Boolean(entry.id));
+      return projectSupportedRuntimeModels(Array.isArray(result?.data) ? result.data : [], {
+        accountType: auth.accountType,
+        authMode: auth.authMode,
+      });
     } catch {
       return [];
     }

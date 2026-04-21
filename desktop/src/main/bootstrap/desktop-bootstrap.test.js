@@ -2055,6 +2055,63 @@ test("getDesktopBootstrap preserves the signed-in shell when an email is present
   assert.equal(bootstrap.auth.requiresOpenaiAuth, true);
 });
 
+test("getDesktopBootstrap treats apiKey auth as signed in even when no email is present", async () => {
+  const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-bootstrap-test-"));
+  const env = createTestEnv(runtimeRoot);
+
+  const manager = {
+    state: "ready",
+    lastError: null,
+    restartCount: 0,
+    lastStateAt: "2026-03-19T10:00:00.000Z",
+    handleProfileChange: async () => {},
+    start: async () => {},
+    request: async (method) => {
+      if (method === "account/read") {
+        return {
+          account: {
+            email: null,
+            type: "apiKey",
+          },
+          requiresOpenaiAuth: false,
+        };
+      }
+
+      if (method === "thread/list" || method === "thread/loaded/list") {
+        return {
+          data: [],
+        };
+      }
+
+      throw new Error(`Unexpected method: ${method}`);
+    },
+  };
+
+  const bootstrap = await getDesktopBootstrap(manager, {
+    env,
+    appStartedAt: "2026-03-19T10:00:00.000Z",
+    runtimeInfo: {
+      apiVersion: "1.0.0",
+      appVersion: "0.1.0",
+      electronVersion: "35.2.1",
+      platform: "darwin",
+    },
+  });
+
+  assert.equal(bootstrap.isSignedIn, true);
+  assert.equal(bootstrap.accountEmail, null);
+  assert.equal(bootstrap.auth.isSignedIn, true);
+  assert.equal(bootstrap.auth.email, null);
+  assert.equal(bootstrap.auth.accountType, "apiKey");
+  assert.deepEqual(bootstrap.teamSetup, {
+    mode: "local",
+    source: "desktopLocal",
+    canWorkLocally: true,
+    canCreateFirstTeam: false,
+    canManageTeam: false,
+  });
+});
+
 test("getDesktopBootstrap blocks startup when recent thread restore fails", async () => {
   const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-bootstrap-test-"));
   const env = createTestEnv(runtimeRoot);

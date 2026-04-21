@@ -4,6 +4,7 @@ import type {
   DesktopBootstrap,
   DesktopBootstrapTenant,
   DesktopBootstrapTeamSetup,
+  DesktopIdentityState,
   DesktopRunContext,
   DesktopWorkspacePolicyRecord,
 } from "../../../main/contracts";
@@ -52,6 +53,7 @@ export function applyBootstrap(
     setAccountEmail: Dispatch<SetStateAction<string | null>>;
     setAccountType: Dispatch<SetStateAction<string | null>>;
     setActiveTurnIdsByThread: Dispatch<SetStateAction<Record<string, string>>>;
+    setIdentity: Dispatch<SetStateAction<DesktopIdentityState | null>>;
     setIsSignedIn: Dispatch<SetStateAction<boolean>>;
     setPendingApprovals: Dispatch<SetStateAction<PendingApproval[]>>;
     setPerThreadSidebar: Dispatch<SetStateAction<Record<string, SidebarState>>>;
@@ -133,6 +135,7 @@ export function applyBootstrap(
   deps.setIsSignedIn(effectiveIsSignedIn);
   deps.setAccountEmail(effectiveAccountEmail);
   deps.setAccountType(effectiveAccountType);
+  deps.setIdentity(bootstrap.identity ?? null);
   deps.setProfileOptions(bootstrap.profileOptions);
   deps.setSelectedProfileId(bootstrap.profileId);
   deps.setProfileFieldValue((current) => (shouldReplaceSessionState ? bootstrap.profileId : current || bootstrap.profileId));

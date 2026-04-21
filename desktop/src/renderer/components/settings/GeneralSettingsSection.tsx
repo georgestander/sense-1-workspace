@@ -1,10 +1,10 @@
-import { Monitor, Moon, Sun } from "lucide-react";
+import { ChevronRight, Monitor, Moon, Sun } from "lucide-react";
 
 import { Button } from "../ui/button";
 import { cn } from "../../lib/cn";
 import { resolveSettingsUpdateSummary } from "../../features/updates/update-presentation.js";
 import { useTheme, type ThemePreference } from "../../lib/theme";
-import type { DesktopModelEntry, DesktopSettings, DesktopUpdateState } from "../../../main/contracts";
+import type { DesktopModelEntry, DesktopSettings, DesktopUpdateState, DesktopVerbosity } from "../../../main/contracts";
 import { matchesSkillApprovalPath, parseSkillApprovalKey } from "../../../shared/skill-approval-key.js";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: typeof Monitor }[] = [
@@ -20,6 +20,18 @@ const REASONING_LABELS: Record<string, string> = {
   medium: "Medium",
   high: "High",
   xhigh: "Max",
+};
+
+const VERBOSITY_OPTIONS: { value: DesktopVerbosity; label: string }[] = [
+  { value: "terse", label: "Terse" },
+  { value: "balanced", label: "Balanced" },
+  { value: "detailed", label: "Detailed" },
+];
+
+const VERBOSITY_HELP: Record<DesktopVerbosity, string> = {
+  terse: "Short answers. Sense-1 trims context and caveats — best when you just want the result.",
+  balanced: "Moderate explanations alongside the result. Good default for most work.",
+  detailed: "Longer, more thorough responses with reasoning and context. Uses more tokens.",
 };
 
 type SectionProps = {
@@ -44,7 +56,7 @@ export type GeneralSettingsSectionProps = SectionProps & {
 
 export function GeneralSettingsSection({
   availableModels,
-  checkForUpdates,
+  checkForUpdates: _checkForUpdates,
   currentVersion,
   modelOptions,
   openLatestRelease,
@@ -70,11 +82,11 @@ export function GeneralSettingsSection({
 
   return (
     <>
-      <h2 className="font-display text-[1.25rem] font-semibold leading-[1.35] tracking-[-0.015em]">General</h2>
-      <p className="mt-[0.2rem] text-[0.875rem] leading-[1.6] text-ink-muted">Core desktop defaults for updates, model selection, and reasoning depth.</p>
+      <h2 className="font-display text-[1.05rem] font-semibold leading-[1.35] tracking-[-0.015em]">General</h2>
+      <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.55] text-ink-muted">Core desktop defaults for manual alpha installs, model selection, and reasoning depth.</p>
       {settingsData ? (
-        <div className="mt-[1.25rem] flex flex-col gap-[1.25rem]">
-          <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.85rem]">
+        <div className="mt-[0.75rem] flex flex-col gap-[0.75rem]">
+          <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
             <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Appearance</p>
             <div className="mt-[0.55rem] inline-flex rounded-lg bg-surface p-[0.2rem]">
               {THEME_OPTIONS.map(({ value, label, icon: Icon }) => {
@@ -99,18 +111,24 @@ export function GeneralSettingsSection({
             <p className="mt-[0.4rem] text-[0.8125rem] leading-[1.52] text-ink-muted">System follows your operating system. Choose Light or Dark to override.</p>
           </div>
 
-          <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.85rem]">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+          <details className="group rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Current version</span>
+                <span className="text-[0.8125rem] font-medium leading-[1.4] text-ink">{currentVersion ? `v${currentVersion}` : "unavailable"}</span>
+              </div>
+              <ChevronRight className="size-3 text-ink-muted transition-transform group-open:rotate-90" />
+            </summary>
+            <div className="mt-[0.5rem] flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Current version</p>
-                <p className="mt-[0.35rem] text-[1rem] font-medium leading-[1.45] text-ink">
-                  {currentVersion ? `v${currentVersion}` : "Version unavailable"}
-                </p>
-                <p className={cn("mt-[0.55rem] text-[0.875rem] font-medium leading-[1.6]", updateSummary.isError ? "text-danger" : "text-ink")}>
+                <p className={cn("text-[0.875rem] font-medium leading-[1.6]", updateSummary.isError ? "text-danger" : "text-ink")}>
                   {updateSummary.title}
                 </p>
                 <p className="mt-[0.15rem] text-[0.8125rem] leading-[1.52] text-ink-muted">
                   {updateSummary.detail}
+                </p>
+                <p className="mt-[0.4rem] text-[0.75rem] leading-[1.5] text-ink-faint">
+                  Testers should install newer alpha builds manually from the shared download page. macOS users replace the app in Applications; Windows users rerun the installer.
                 </p>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
@@ -122,22 +140,11 @@ export function GeneralSettingsSection({
                   size="sm"
                   variant="secondary"
                 >
-                  Download latest release
-                </Button>
-                <Button
-                  className="rounded-full"
-                  disabled={updateState?.phase === "checking" || updateState?.phase === "downloading" || updateState?.phase === "installing"}
-                  onClick={() => {
-                    void checkForUpdates();
-                  }}
-                  size="sm"
-                  variant="secondary"
-                >
-                  Check for updates
+                  Open alpha downloads
                 </Button>
               </div>
             </div>
-          </div>
+          </details>
 
           <label className="flex flex-col gap-[0.4rem]">
             <span className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Default model</span>
@@ -158,7 +165,7 @@ export function GeneralSettingsSection({
               )}
             </select>
             {settingsError?.key === "model" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
+              <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-danger">{settingsError.message}</p>
             ) : null}
           </label>
 
@@ -181,17 +188,25 @@ export function GeneralSettingsSection({
               )}
             </select>
             {settingsError?.key === "reasoningEffort" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
+              <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-danger">{settingsError.message}</p>
             ) : (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">Higher reasoning uses more tokens but produces more thorough analysis.</p>
+              <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-ink-muted">Higher reasoning uses more tokens but produces more thorough analysis.</p>
             )}
           </label>
 
-          <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.85rem]">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+          <details className="group rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Trusted skills</span>
+                <span className="text-[0.8125rem] leading-[1.4] text-ink-muted">
+                  {trustedSkillApprovals.length > 0 ? `${trustedSkillApprovals.length} approved` : "none"}
+                </span>
+              </div>
+              <ChevronRight className="size-3 text-ink-muted transition-transform group-open:rotate-90" />
+            </summary>
+            <div className="mt-[0.5rem] flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Trusted skills</p>
-                <p className="mt-[0.35rem] text-[0.875rem] leading-[1.6] text-ink-muted">
+                <p className="text-[0.875rem] leading-[1.6] text-ink-muted">
                   Sense-1 remembers approved skills at the profile level and reuses them across threads and workspaces until the skill changes or you revoke trust.
                 </p>
               </div>
@@ -235,7 +250,7 @@ export function GeneralSettingsSection({
             {settingsError?.key === "trustedSkillApprovals" ? (
               <p className="mt-[0.65rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : null}
-          </div>
+          </details>
           <label className="flex flex-col gap-[0.4rem]">
             <span className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Service tier</span>
             <select
@@ -247,14 +262,36 @@ export function GeneralSettingsSection({
               <option value="fast">Fast</option>
             </select>
             {settingsError?.key === "serviceTier" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
+              <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-danger">{settingsError.message}</p>
             ) : (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">Fast mode prefers the low-latency service tier for new runs.</p>
+              <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-ink-muted">Fast mode prefers the low-latency service tier for new runs.</p>
+            )}
+          </label>
+
+          <label className="flex flex-col gap-[0.4rem]">
+            <span className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Response verbosity</span>
+            <select
+              className="rounded-md bg-surface-high px-[0.65rem] py-[0.4rem] text-[0.875rem] leading-[1.6] text-ink outline-none focus:ring-1 focus:ring-line"
+              onChange={(e) => void saveSettings({ verbosity: e.target.value as DesktopVerbosity })}
+              value={settingsData.verbosity}
+            >
+              {VERBOSITY_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            {settingsError?.key === "verbosity" ? (
+              <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-danger">{settingsError.message}</p>
+            ) : (
+              <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-ink-muted">
+                {VERBOSITY_HELP[settingsData.verbosity]} Affects answer length and style, not the model or its capabilities.
+              </p>
             )}
           </label>
         </div>
       ) : (
-        <p className="mt-[1.25rem] text-[0.875rem] leading-[1.6] text-ink-muted">Loading settings...</p>
+        <p className="mt-[0.75rem] text-[0.8125rem] leading-[1.55] text-ink-muted">Loading settings...</p>
       )}
     </>
   );

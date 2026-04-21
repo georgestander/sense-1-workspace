@@ -1,16 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useDesktopSessionState } from "./use-desktop-session-state.js";
 import { useSettingsController } from "./features/settings/use-settings-controller.js";
 import { useAuthenticatedDesktopApp } from "./features/app/use-authenticated-desktop-app.js";
 import { useDesktopManagement } from "./features/management/use-desktop-management.js";
 import { useDesktopAutomations } from "./features/automation/use-desktop-automations.js";
+import { useReportBugController } from "./features/bug-report/use-report-bug-controller.js";
 import { perfCount } from "./lib/perf-debug.ts";
 
 import { AutomationsPage } from "./components/AutomationsPage";
 import { AuthScreens } from "./components/AuthScreens";
 import { DesktopAuthenticatedShell } from "./components/DesktopAuthenticatedShell";
 import { PluginsPage } from "./components/PluginsPage";
+import { ProfileNamingStep } from "./components/ProfileNamingStep";
 import { StartSurface } from "./components/StartSurface";
 import { ThreadView } from "./components/ThreadView";
 import { shouldShowHomeRightRail } from "./features/app/app-view-visibility.js";
@@ -42,6 +44,10 @@ export default function App() {
   const [folderMenuOpen, setFolderMenuOpen] = useState(false);
   const [workspaceFolder, setWorkspaceFolder] = useState<string | null>(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const openAutomations = useCallback(() => setActiveView("automations"), []);
+  const openPlugins = useCallback(() => setActiveView("plugins"), []);
+  const toggleLeftRail = useCallback(() => setLeftRailOpen((value) => !value), []);
+  const toggleRightRail = useCallback(() => setRightRailOpen((value) => !value), []);
 
   const sessionState = useDesktopSessionState({ model, reasoningEffort: reasoning, serviceTier });
   const settingsController = useSettingsController({
@@ -57,6 +63,7 @@ export default function App() {
   const automations = useDesktopAutomations({
     isSignedIn: sessionState.isSignedIn,
   });
+  const reportBug = useReportBugController();
   const {
     leftSidebarProps,
     resetToStartSurface,
@@ -75,11 +82,12 @@ export default function App() {
     extensionOverview: management.overview,
     navigation: {
       activeView,
-      openAutomations: () => setActiveView("automations"),
-      openPlugins: () => setActiveView("plugins"),
+      openAutomations,
+      openPlugins,
     },
     sessionState,
     settingsController,
+    reportBug,
     ui: {
       accountMenuOpen,
       folderMenuOpen,
@@ -110,76 +118,61 @@ export default function App() {
     previousSelectedThreadIdRef.current = currentThreadId;
   }, [activeView, sessionState.selectedThreadId]);
 
-  // ── Auth gate ──
-  if (sessionState.bootstrapLoading || sessionState.runtimeSetup?.blocked || !sessionState.isSignedIn) {
-    return (
-      <AuthScreens
-        bootstrapLoading={sessionState.bootstrapLoading}
-        runtimeSetup={sessionState.runtimeSetup}
-        isSignedIn={sessionState.isSignedIn}
-        accountEmail={sessionState.accountEmail ?? ""}
-        handleLaunchSignIn={sessionState.handleLaunchSignIn}
-        signInPending={sessionState.signInPending}
-        bootstrapError={sessionState.bootstrapError}
-        runtimeStatus={sessionState.runtimeStatus}
-        providerState={management.overview?.provider ?? null}
-        refreshBootstrap={sessionState.refreshBootstrap}
-      />
-    );
-  }
-
   const createPluginPrompt = "$plugin-creator scaffold a new Sense-1 Workspace profile plugin and explain the inputs you need.";
   const createSkillPrompt = "$skill-creator create a new Sense-1 Workspace profile skill and keep the flow native to Codex.";
   const showHomeRightRail = shouldShowHomeRightRail(activeView, sessionState.showRightRail);
 
-  const mainContent = activeView === "plugins"
-    ? (
-      <PluginsPage
-        error={management.error}
-        loading={management.loading}
-        onCreatePlugin={() => {
-          setActiveView("home");
-          if (sessionState.selectedThread) {
-            setThreadPrompt(createPluginPrompt);
-            return;
-          }
-          setDraftPrompt(createPluginPrompt);
-        }}
-        onCreateSkill={() => {
-          setActiveView("home");
-          if (sessionState.selectedThread) {
-            setThreadPrompt(createSkillPrompt);
-            return;
-          }
-          setDraftPrompt(createSkillPrompt);
-        }}
-        onRefresh={() => {
-          void management.loadOverview(true);
-        }}
-        onTryInChat={(shortcut: DesktopPromptShortcutSuggestion) => {
-          setActiveView("home");
-          const prompt = `$${shortcut.token} `;
-          if (sessionState.selectedThread) {
-            setThreadPromptSeed(prompt, [shortcut.item]);
-            return;
-          }
-          setDraftPromptSeed(prompt, [shortcut.item]);
-        }}
-        installPlugin={management.installPlugin}
-        openAppInstall={management.openAppInstall}
-        overview={management.overview}
-        removeApp={management.removeApp}
-        setAppEnabled={management.setAppEnabled}
-        setMcpServerEnabled={management.setMcpServerEnabled}
-        setPluginEnabled={management.setPluginEnabled}
-        setSkillEnabled={management.setSkillEnabled}
-        startMcpServerAuth={management.startMcpServerAuth}
-        uninstallPlugin={management.uninstallPlugin}
-        uninstallSkill={management.uninstallSkill}
-      />
-    )
-    : activeView === "automations"
-      ? (
+  const mainContent = useMemo(() => {
+    if (activeView === "plugins") {
+      return (
+        <PluginsPage
+          error={management.error}
+          loading={management.loading}
+          onCreatePlugin={() => {
+            setActiveView("home");
+            if (sessionState.selectedThread) {
+              setThreadPrompt(createPluginPrompt);
+              return;
+            }
+            setDraftPrompt(createPluginPrompt);
+          }}
+          onCreateSkill={() => {
+            setActiveView("home");
+            if (sessionState.selectedThread) {
+              setThreadPrompt(createSkillPrompt);
+              return;
+            }
+            setDraftPrompt(createSkillPrompt);
+          }}
+          onRefresh={() => {
+            void management.loadOverview(true);
+          }}
+          onTryInChat={(shortcut: DesktopPromptShortcutSuggestion) => {
+            setActiveView("home");
+            const prompt = `$${shortcut.token} `;
+            if (sessionState.selectedThread) {
+              setThreadPromptSeed(prompt, [shortcut.item]);
+              return;
+            }
+            setDraftPromptSeed(prompt, [shortcut.item]);
+          }}
+          installPlugin={management.installPlugin}
+          openAppInstall={management.openAppInstall}
+          overview={management.overview}
+          removeApp={management.removeApp}
+          setAppEnabled={management.setAppEnabled}
+          setMcpServerEnabled={management.setMcpServerEnabled}
+          setPluginEnabled={management.setPluginEnabled}
+          setSkillEnabled={management.setSkillEnabled}
+          startMcpServerAuth={management.startMcpServerAuth}
+          uninstallPlugin={management.uninstallPlugin}
+          uninstallSkill={management.uninstallSkill}
+        />
+      );
+    }
+
+    if (activeView === "automations") {
+      return (
         <AutomationsPage
           automations={automations.automations}
           deleteAutomation={automations.deleteAutomation}
@@ -193,10 +186,84 @@ export default function App() {
           selectedAutomationId={automations.selectedAutomationId}
           setSelectedAutomationId={automations.setSelectedAutomationId}
         />
-      )
-      : sessionState.selectedThread && threadViewProps
-        ? <ThreadView {...threadViewProps} />
-        : <StartSurface {...startSurfaceProps} />;
+      );
+    }
+
+    if (sessionState.selectedThread && threadViewProps) {
+      return <ThreadView {...threadViewProps} />;
+    }
+
+    return <StartSurface {...startSurfaceProps} />;
+  }, [
+    activeView,
+    automations.automations,
+    automations.deleteAutomation,
+    automations.error,
+    automations.loading,
+    automations.runAutomationNow,
+    automations.saveAutomation,
+    automations.saving,
+    automations.selectedAutomation,
+    automations.selectedAutomationId,
+    automations.setSelectedAutomationId,
+    management.error,
+    management.installPlugin,
+    management.loadOverview,
+    management.loading,
+    management.openAppInstall,
+    management.overview,
+    management.removeApp,
+    management.setAppEnabled,
+    management.setMcpServerEnabled,
+    management.setPluginEnabled,
+    management.setSkillEnabled,
+    management.startMcpServerAuth,
+    management.uninstallPlugin,
+    management.uninstallSkill,
+    sessionState.recentFolders,
+    sessionState.selectedThread,
+    setDraftPrompt,
+    setDraftPromptSeed,
+    setThreadPrompt,
+    setThreadPromptSeed,
+    startSurfaceProps,
+    threadViewProps,
+  ]);
+  const shellRightRailProps = useMemo(
+    () => ({ ...rightRailProps, showRightRail: showHomeRightRail }),
+    [rightRailProps, showHomeRightRail],
+  );
+
+  // ── Auth gate ──
+  if (sessionState.bootstrapLoading || sessionState.runtimeSetup?.blocked || !sessionState.isSignedIn) {
+    return (
+      <AuthScreens
+        bootstrapLoading={sessionState.bootstrapLoading}
+        runtimeSetup={sessionState.runtimeSetup}
+        isSignedIn={sessionState.isSignedIn}
+        accountEmail={sessionState.accountEmail ?? ""}
+        handleStartAuthLogin={sessionState.handleStartAuthLogin}
+        authPendingMethod={sessionState.authPendingMethod}
+        signInPending={sessionState.signInPending}
+        bootstrapError={sessionState.bootstrapError}
+        runtimeStatus={sessionState.runtimeStatus}
+        providerState={management.overview?.provider ?? null}
+        refreshBootstrap={sessionState.refreshBootstrap}
+      />
+    );
+  }
+
+  if (sessionState.identity?.needsDisplayName) {
+    return (
+      <ProfileNamingStep
+        inferredDisplayName={sessionState.identity.inferredDisplayName}
+        submitting={sessionState.identityCompletionPending}
+        errorMessage={sessionState.identityCompletionError}
+        runtimeStatus={sessionState.runtimeStatus}
+        onSubmit={sessionState.handleCompleteDisplayName}
+      />
+    );
+  }
 
   return (
     <DesktopAuthenticatedShell
@@ -205,19 +272,20 @@ export default function App() {
         void sessionState.installReadyUpdate();
       }}
       leftRailOpen={leftRailOpen}
-      onToggleLeftRail={() => setLeftRailOpen((value) => !value)}
+      onToggleLeftRail={toggleLeftRail}
       onResetToStartSurface={() => {
         setActiveView("home");
         resetToStartSurface();
       }}
       showRightRail={showHomeRightRail}
       rightRailOpen={rightRailOpen}
-      onToggleRightRail={() => setRightRailOpen((value) => !value)}
+      onToggleRightRail={toggleRightRail}
       runtimeStatus={sessionState.runtimeStatus}
       leftSidebarProps={leftSidebarProps}
       mainContent={mainContent}
-      rightRailProps={{ ...rightRailProps, showRightRail: showHomeRightRail }}
+      rightRailProps={shellRightRailProps}
       settingsModalProps={settingsModalProps}
+      reportBugController={reportBug}
     />
   );
 }

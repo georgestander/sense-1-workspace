@@ -11,6 +11,7 @@ import { normalizeDesktopThreadSummary } from "./live-thread-runtime-summary.js"
 import { buildDesktopThreadSnapshot } from "./live-thread-runtime-transcript.js";
 import { classifyDesktopExecutionIntent } from "../settings/policy.js";
 import { resolveDesktopInteractionState } from "../session/interaction-state.ts";
+import { buildAttachmentContextNote, fileNameFromPath, isImageAttachmentPath } from "../../shared/thread-attachments.ts";
 
 export {
   DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS,
@@ -40,35 +41,6 @@ function firstString(...values) {
   }
 
   return null;
-}
-
-function fileNameFromPath(value) {
-  return value.split("/").filter(Boolean).at(-1) ?? "";
-}
-
-const LOCAL_IMAGE_EXTENSIONS = new Set([
-  ".apng",
-  ".avif",
-  ".bmp",
-  ".gif",
-  ".heic",
-  ".heif",
-  ".jpeg",
-  ".jpg",
-  ".png",
-  ".tif",
-  ".tiff",
-  ".webp",
-]);
-
-function isLocalImagePath(value) {
-  const fileName = fileNameFromPath(value).toLowerCase();
-  const extensionIndex = fileName.lastIndexOf(".");
-  if (extensionIndex < 0) {
-    return false;
-  }
-
-  return LOCAL_IMAGE_EXTENSIONS.has(fileName.slice(extensionIndex));
 }
 
 function pushStructuredInputItem(input, seenPaths, item) {
@@ -118,7 +90,7 @@ function buildTurnInput(promptText, attachments, inputItems) {
     pushStructuredInputItem(
       input,
       seenPaths,
-      isLocalImagePath(attachmentPath)
+      isImageAttachmentPath(attachmentPath)
         ? {
             type: "localImage",
             path: attachmentPath,
@@ -129,6 +101,14 @@ function buildTurnInput(promptText, attachments, inputItems) {
             path: attachmentPath,
           },
     );
+  }
+
+  const attachmentContextNote = buildAttachmentContextNote(Array.isArray(attachments) ? attachments : []);
+  if (attachmentContextNote) {
+    input.push({
+      type: "text",
+      text: attachmentContextNote,
+    });
   }
 
   input.push({
@@ -196,6 +176,7 @@ export async function runDesktopTask(
     prompt,
     reasoningEffort,
     serviceTier,
+    verbosity,
     runContext,
     runtimeInstructions = null,
     settings = null,
@@ -277,6 +258,7 @@ export async function runDesktopTask(
     model,
     reasoningEffort,
     serviceTier,
+    verbosity,
   });
 
   let turnResult;
@@ -296,6 +278,7 @@ export async function runDesktopTask(
           executionIntent,
           runContext: productRunContext,
           serviceTier: firstString(serviceTier) ?? "flex",
+          verbosity: firstString(verbosity, settings?.verbosity) ?? "balanced",
         },
       },
     });
@@ -333,6 +316,7 @@ export async function runDesktopTask(
             executionIntent,
             runContext: productRunContext,
             serviceTier: firstString(serviceTier) ?? "flex",
+            verbosity: firstString(verbosity, settings?.verbosity) ?? "balanced",
           },
         },
       });

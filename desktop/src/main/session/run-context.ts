@@ -81,10 +81,6 @@ export function buildDesktopRunContext({
 }: BuildDesktopRunContextOptions): DesktopRunContext | null {
   const resolvedEmail = firstString(email);
   const resolvedProfileId = firstString(profileId);
-  if (!resolvedEmail) {
-    return null;
-  }
-
   if (!resolvedProfileId) {
     return null;
   }
@@ -161,7 +157,7 @@ export function buildDesktopRunContext({
       id: firstString(tenant?.actorId, actor?.id, actorId) ?? actorId,
       kind: actorProfile.kind,
       displayName: firstString(tenant?.actorDisplayName, actor?.display_name, toDisplayName(resolvedEmail)) ?? "Signed-in user",
-      email: resolvedEmail,
+      email: resolvedEmail ?? null,
       homeScopeId: resolvedScopeId,
       role: firstString(tenant?.role, actorProfile.role) ?? actorProfile.role,
       capabilities: actorProfile.capabilities,

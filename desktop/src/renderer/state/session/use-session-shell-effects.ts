@@ -11,13 +11,10 @@ import type {
   SubstrateWorkspaceRecord,
 } from "../../../main/contracts";
 import { buildProgressSummary, formatUpdatedLabel } from "../../lib/live-thread-data.js";
-import {
-  normalizeModelCatalog,
-  writeCachedModelCatalog,
-} from "../../lib/model-catalog.js";
 import { listVisibleSubstrateSessions } from "../../features/workspace/substrate-thread-enrichment.js";
 import { folderDisplayName } from "./session-selectors.js";
 import { DESKTOP_BRIDGE_UNAVAILABLE_MESSAGE, getDesktopBridge, requireDesktopBridge } from "./desktop-bridge.js";
+import { syncRuntimeModelCatalog } from "./runtime-model-catalog-sync.js";
 import { sortThreads } from "../threads/thread-summary-state.js";
 import type { ThreadRecord } from "./session-types.js";
 
@@ -35,6 +32,7 @@ type ApplyBootstrapFn = (
 type FetchWorkspacePolicyFn = (rootPath: string) => Promise<DesktopWorkspacePolicyRecord | null>;
 
 type DesktopSessionEffectsOptions = {
+  accountType: string | null;
   activeRoot: string | null;
   applyBootstrap: ApplyBootstrapFn;
   bootstrapRequestIdRef: React.MutableRefObject<number>;
@@ -65,6 +63,7 @@ type DesktopSessionEffectsOptions = {
 };
 
 export function useSessionShellEffects({
+  accountType,
   activeRoot,
   applyBootstrap,
   bootstrapRequestIdRef,
@@ -152,20 +151,16 @@ export function useSessionShellEffects({
     }
 
     let isActive = true;
-    void bridge.models.list().then((result) => {
-      const normalizedModels = normalizeModelCatalog(result.models);
-      if (isActive && normalizedModels.length > 0) {
-        setAvailableModels(normalizedModels);
-        writeCachedModelCatalog(normalizedModels);
-      }
-    }).catch(() => {
-      // Non-fatal — the renderer will continue with the last known-good model catalog.
+    void syncRuntimeModelCatalog({
+      bridge,
+      setAvailableModels,
+      isActive: () => isActive,
     });
 
     return () => {
       isActive = false;
     };
-  }, [isSignedIn, setAvailableModels]);
+  }, [accountType, isSignedIn, setAvailableModels]);
 
   useEffect(() => {
     if (!isSignedIn) {

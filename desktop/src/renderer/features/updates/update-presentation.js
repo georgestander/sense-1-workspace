@@ -6,7 +6,8 @@
  * @param {DesktopUpdateState | null | undefined} updateState
  */
 export function shouldShowHeaderUpdateAction(updateState) {
-  return updateState?.phase === "readyToInstall";
+  void updateState;
+  return false;
 }
 
 /**
@@ -15,8 +16,8 @@ export function shouldShowHeaderUpdateAction(updateState) {
 export function resolveSettingsUpdateSummary(updateState) {
   if (!updateState) {
     return {
-      title: "Checking is unavailable right now.",
-      detail: "Sense-1 Workspace will check for updates automatically when the desktop bridge is ready.",
+      title: "Manual alpha installs only.",
+      detail: "Open the alpha downloads below once the desktop bridge is ready. Sense-1 will not update itself inside the app during this alpha.",
       isError: false,
     };
   }
@@ -24,76 +25,40 @@ export function resolveSettingsUpdateSummary(updateState) {
   switch (updateState.phase) {
     case "unsupported":
       return {
-        title: "In-app updates are unavailable in this build.",
-        detail: updateState.message ?? "Use “Download latest release” below to install a newer packaged build manually.",
+        title: "Manual alpha installs only.",
+        detail: updateState.message ?? "Open the alpha downloads below and install the matching macOS or Windows build manually.",
         isError: false,
       };
     case "idle":
-      return {
-        title: "Automatic updates are enabled.",
-        detail: "Sense-1 Workspace checks for stable GitHub releases when it launches.",
-        isError: false,
-      };
     case "checking":
-      return {
-        title: "Checking for updates…",
-        detail: "Looking for the latest stable Sense-1 Workspace release on GitHub.",
-        isError: false,
-      };
     case "available":
     case "downloading":
-      return {
-        title: updateState.availableVersion
-          ? `Downloading v${updateState.availableVersion}…`
-          : "Downloading the latest release…",
-        detail:
-          typeof updateState.progressPercent === "number"
-            ? `${updateState.progressPercent}% downloaded in the background.`
-            : "Sense-1 Workspace is downloading the latest stable release in the background.",
-        isError: false,
-      };
     case "downloadedWaitingForIdle":
-      return {
-        title: updateState.downloadedVersion
-          ? `v${updateState.downloadedVersion} is ready.`
-          : "Update is ready.",
-        detail: "Sense-1 Workspace will wait for active work to finish before it restarts to install.",
-        isError: false,
-      };
     case "readyToInstall":
-      return {
-        title: updateState.downloadedVersion
-          ? `v${updateState.downloadedVersion} is ready to install.`
-          : "Update ready to install.",
-        detail: "Use the blue Update button in the top-left when you're ready to restart.",
-        isError: false,
-      };
     case "installing":
       return {
-        title: updateState.downloadedVersion
-          ? `Installing v${updateState.downloadedVersion}…`
-          : "Installing update…",
-        detail: "Sense-1 Workspace is restarting into the latest release.",
+        title: "Install alpha builds manually.",
+        detail: "Use Open alpha downloads below, then replace your current app with the latest macOS build or Windows installer. Sense-1 will not download or restart into updates for this alpha.",
         isError: false,
       };
     case "upToDate":
       return {
-        title: "You're up to date.",
-        detail: "No newer stable Sense-1 Workspace release is available right now.",
+        title: "Manual alpha installs only.",
+        detail: "Sense-1 will not auto-update during this alpha. Open alpha downloads below whenever you need a newer macOS or Windows build.",
         isError: false,
       };
     case "error":
       return {
-        title: "Update failed.",
+        title: "Couldn't refresh alpha release status.",
         detail: updateState.message
-          ? `Try “Check for updates” again, or use “Download latest release.” ${updateState.message}`
-          : "Try “Check for updates” again, or use “Download latest release” from Settings.",
+          ? `Open alpha downloads below and install the latest build manually. ${updateState.message}`
+          : "Open alpha downloads below and install the latest build manually.",
         isError: true,
       };
     default:
       return {
-        title: "Updates are available.",
-        detail: "Sense-1 Workspace will keep checking for the latest stable release.",
+        title: "Manual alpha installs only.",
+        detail: "Open alpha downloads below and install the latest macOS or Windows build manually.",
         isError: false,
       };
   }

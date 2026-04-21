@@ -32,7 +32,22 @@ import { resolveDesktopInteractionState } from "./session/interaction-state.ts";
 import { ThreadInputQueueService } from "./session/thread-input-queue-service.ts";
 import { resolveBootstrapVisibleThreadId, shouldRestoreQueuedFollowUp } from "./session/thread-runtime-behavior.ts";
 import { RuntimeFileChangeTracker } from "./session/runtime-file-change-tracker.ts";
+import {
+  buildExhaustedCreditsEntry,
+  detectExhaustedCreditsFailure,
+  isApiKeyAccountType,
+} from "./session/api-key-credits-notification.ts";
 import { DesktopBugReportingService } from "./bug-reporting/desktop-bug-reporting-service.ts";
+import {
+  classifyBootstrapSetup,
+  classifyRenderProcessGone,
+  classifyRuntimeCrash,
+  classifyRuntimeErrored,
+  isRuntimeStateUsable,
+  type CrashClassSignal,
+} from "./bug-reporting/crash-class-detector.ts";
+import { CrashRecoveryTracker } from "./bug-reporting/crash-recovery-tracker.ts";
+import { CrashReportSuggestionStore } from "./bug-reporting/crash-report-suggestion-store.ts";
 import { redactSensitivePath, resolveRedactionHomeDir } from "./bug-reporting/redaction.ts";
 import { captureDesktopManualBugReport } from "./bug-reporting/sentry-reporting.ts";
 import { createDesktopLogBuffer, installDesktopLogBuffer } from "./logging/desktop-log-buffer.ts";
@@ -42,6 +57,7 @@ import {
 } from "./session/runtime-notification-coalescer.ts";
 import {
   resolveSentryDsn,
+  resolveSentryDist,
   resolveSentryEnvironment,
   resolveSentryRelease,
   shouldEnableSentryDebug,
@@ -51,10 +67,22 @@ import type { DesktopBootstrap, DesktopSteerTurnResult, DesktopTaskRunResult, De
 const DESKTOP_APP_NAME = "Sense-1 Workspace";
 const LATEST_RELEASE_URL = "https://github.com/georgestander/sense-1-workspace/releases/latest";
 const shouldEnforceSingleInstance = process.env.NODE_ENV !== "test";
+
+function resolveDesktopSentryDist(): string | undefined {
+  const injectedBuildId =
+    typeof __SENSE1_DESKTOP_BUILD_ID__ === "string"
+      ? __SENSE1_DESKTOP_BUILD_ID__
+      : process.env.SENSE1_DESKTOP_BUILD_ID;
+  return resolveSentryDist(injectedBuildId);
+}
+
+const SENTRY_DIST = resolveDesktopSentryDist();
+
 Sentry.init({
   dsn: resolveSentryDsn(process.env),
   environment: resolveSentryEnvironment(process.env),
   release: resolveSentryRelease(DESKTOP_APP_VERSION),
+  dist: SENTRY_DIST,
   debug: shouldEnableSentryDebug(process.env),
 });
 app.setName(DESKTOP_APP_NAME);
@@ -84,6 +112,46 @@ const workspaceState = new DesktopWorkspaceStateService({
 });
 let updateService = createDisabledUpdateService();
 let currentVisibleThreadId: string | null = null;
+let currentAccountType: string | null = null;
+let lastBlockingBootstrapSetupCode: string | null = null;
+let openBrowserWindowCount = 0;
+const crashReportSuggestionStore = new CrashReportSuggestionStore();
+const crashRecoveryTracker = new CrashRecoveryTracker((signal) => {
+  emitCrashReportSuggestedEvent(signal);
+});
+
+function emitCrashReportSuggestedEvent(signal: CrashClassSignal): void {
+  const suggestion = crashReportSuggestionStore.record(signal);
+  emitDesktopRuntimeEvent({
+    kind: "crashReportSuggested",
+    reason: suggestion.reason,
+    detail: suggestion.detail,
+    setupCode: suggestion.setupCode,
+    restartCount: suggestion.restartCount,
+    occurredAt: suggestion.occurredAt,
+  });
+}
+
+function attachCrashWatcherToWindow(window: BrowserWindow): void {
+  openBrowserWindowCount += 1;
+  crashRecoveryTracker.setWindowOpen(true);
+
+  window.webContents.on("render-process-gone", (_event, details) => {
+    crashRecoveryTracker.setWindowOpen(false);
+    const signal = classifyRenderProcessGone({
+      reason: details?.reason ?? null,
+      exitCode: typeof details?.exitCode === "number" ? details.exitCode : null,
+    });
+    if (signal) {
+      crashRecoveryTracker.recordSignal(signal);
+    }
+  });
+
+  window.on("closed", () => {
+    openBrowserWindowCount = Math.max(0, openBrowserWindowCount - 1);
+    crashRecoveryTracker.setWindowOpen(openBrowserWindowCount > 0);
+  });
+}
 const runtimePerfCounters = new Map<string, number>();
 let runtimePerfLastFlushAt = Date.now();
 let pendingAccumulatorNotifications: RuntimeNotification[] = [];
@@ -200,10 +268,7 @@ function createDisabledUpdateService() {
     currentVersion: DESKTOP_APP_VERSION,
     updater: createNoopUpdater(),
     enabled: false,
-    unsupportedMessage:
-      process.platform === "darwin"
-        ? "Updates are only available in packaged Sense-1 Workspace builds."
-        : "In-app updates are available on packaged macOS builds.",
+    unsupportedMessage: "This alpha uses manual installs only. Download the latest macOS or Windows build and replace your current app outside Sense-1.",
   });
 }
 
@@ -217,27 +282,8 @@ function bindUpdateService(service: DesktopUpdateService): void {
 }
 
 async function createUpdateService(): Promise<DesktopUpdateService> {
-  if (!app.isPackaged || process.platform !== "darwin") {
-    return createDisabledUpdateService();
-  }
-
-  try {
-    const { autoUpdater } = await import("electron-updater");
-    return new DesktopUpdateService({
-      currentVersion: DESKTOP_APP_VERSION,
-      updater: autoUpdater,
-      installUpdateAndRestart: async () => {
-        if (appServerManager.state !== "idle" && appServerManager.state !== "stopped") {
-          await appServerManager.stop();
-        }
-        unregisterDesktopIpcHandlers();
-        autoUpdater.quitAndInstall(false, true);
-      },
-    });
-  } catch (error) {
-    console.error(`[desktop:update] Failed to initialize updater: ${formatError(error)}`);
-    return createDisabledUpdateService();
-  }
+  // Alpha desktop distribution is still manual, so keep the updater disabled even in packaged builds.
+  return createDisabledUpdateService();
 }
 
 function syncUpdaterBusyState(): void {
@@ -297,6 +343,31 @@ function firstString(...values: Array<unknown>): string | null {
 
 function isNonEmptyString(value: string | null): value is string {
   return typeof value === "string" && value.length > 0;
+}
+
+function refreshCurrentAccountTypeFromNotification(
+  params: { threadId?: string; status?: string; turn?: { status?: string } | null } | null,
+): void {
+  if (!params || typeof params !== "object") {
+    return;
+  }
+  const source = params as Record<string, unknown>;
+  const authRecord =
+    source.auth && typeof source.auth === "object" ? (source.auth as Record<string, unknown>) : null;
+  const accountRecord =
+    source.account && typeof source.account === "object"
+      ? (source.account as Record<string, unknown>)
+      : authRecord?.account && typeof authRecord.account === "object"
+        ? (authRecord.account as Record<string, unknown>)
+        : null;
+  const candidate =
+    (typeof authRecord?.accountType === "string" && authRecord.accountType.trim()) ||
+    (typeof accountRecord?.type === "string" && accountRecord.type.trim()) ||
+    (typeof source.accountType === "string" && source.accountType.trim()) ||
+    null;
+  if (candidate) {
+    currentAccountType = candidate;
+  }
 }
 
 function completionStatusLabel(status: string | null | undefined): "completed" | "failed" | "interrupted" {
@@ -359,6 +430,7 @@ function decorateBootstrap(bootstrap: DesktopBootstrap): DesktopBootstrap {
     ...bootstrap,
     recentThreads: bootstrap.recentThreads.map((thread) => decorateThreadSummary(thread)),
     selectedThread: bootstrap.selectedThread ? decorateThreadSnapshot(bootstrap.selectedThread) : null,
+    crashReportSuggestion: crashReportSuggestionStore.get(),
   };
 }
 
@@ -595,16 +667,28 @@ const bugReportingService = new DesktopBugReportingService({
 let runtimeStartInFlight: Promise<void> | null = null;
 let isGracefulQuitInProgress = false;
 
+appServerManager.on("state", (summary) => {
+  crashRecoveryTracker.setRuntimeUsable(isRuntimeStateUsable(summary?.state));
+});
+
 appServerManager.on("state:crashed", (summary) => {
   console.error(
     `[desktop:runtime] App-server crashed (restartCount=${summary.restartCount}, lastError=${summary.lastError ?? "none"}).`,
   );
+  const signal = classifyRuntimeCrash(summary);
+  if (signal) {
+    crashRecoveryTracker.recordSignal(signal);
+  }
 });
 
 appServerManager.on("state:errored", (summary) => {
   console.error(
     `[desktop:runtime] App-server entered errored state (lastError=${summary.lastError ?? "unknown"}).`,
   );
+  const signal = classifyRuntimeErrored(summary);
+  if (signal) {
+    crashRecoveryTracker.recordSignal(signal);
+  }
 });
 
 appServerManager.on("transport:error", (error) => {
@@ -631,6 +715,9 @@ appServerManager.on("notification", (message) => {
 
   if (message.method === "account/login/completed") {
     focusMainWindow();
+  }
+  if (message.method === "account/login/completed" || message.method === "account/updated") {
+    refreshCurrentAccountTypeFromNotification(messageParams);
   }
   runtimeFileChangeTracker.observe(message);
   if (threadId) {
@@ -740,6 +827,18 @@ appServerManager.on("notification", (message) => {
     }
 
     const completionStatus = completionStatusLabel(messageParams?.turn?.status ?? messageParams?.status);
+    if (completionStatus === "failed" && isApiKeyAccountType(currentAccountType)) {
+      const detection = detectExhaustedCreditsFailure(message);
+      if (detection.matched) {
+        const creditsEntryDeltas = threadAccumulator.appendSyntheticEntry(
+          threadId,
+          buildExhaustedCreditsEntry({ threadId, reason: detection.reason }),
+        );
+        for (const delta of creditsEntryDeltas) {
+          emitDesktopThreadDelta(delta);
+        }
+      }
+    }
     const completionResult = threadInputQueue.handleTurnCompleted({
       threadId,
       visibleThreadId: currentVisibleThreadId,
@@ -802,15 +901,28 @@ async function bootstrapMainProcess(): Promise<void> {
     openLatestRelease: async () => {
       await shell.openExternal(LATEST_RELEASE_URL);
     },
-    launchChatgptSignIn: async () => await desktopSessionController.launchChatgptSignIn(),
-    logoutChatgpt: async () => await desktopSessionController.logoutChatgpt(),
+    startDesktopAuthLogin: async (request) => await desktopSessionController.startAuthLogin(request),
+    logoutDesktopAuth: async () => await desktopSessionController.logoutDesktopAuth(),
     getBootstrap: async () => {
       const bootstrap = await desktopSessionController.getBootstrap();
       updateVisibleThread(resolveBootstrapVisibleThreadId(bootstrap));
+      if (typeof bootstrap.auth?.accountType === "string" && bootstrap.auth.accountType.trim()) {
+        currentAccountType = bootstrap.auth.accountType;
+      }
+      const setup = bootstrap.runtimeSetup ?? null;
+      const setupSignal = classifyBootstrapSetup(setup);
+      if (setupSignal && setupSignal.setupCode !== lastBlockingBootstrapSetupCode) {
+        crashRecoveryTracker.recordSignal(setupSignal);
+      }
+      lastBlockingBootstrapSetupCode = setupSignal ? setupSignal.setupCode : null;
+      crashRecoveryTracker.setBootstrapUsable(!setup?.blocked);
       return decorateBootstrap(bootstrap);
     },
     submitDesktopBugReport: async (request) => await bugReportingService.submitReport(request),
     getDesktopBugReportingStatus: async () => bugReportingService.getStatus(),
+    acknowledgeDesktopCrashReport: async ({ occurredAt }) => ({
+      acknowledged: crashReportSuggestionStore.acknowledge(occurredAt),
+    }),
     rememberLastSelectedThread: async (request) => {
       await desktopSessionController.rememberLastSelectedThread(request);
       updateVisibleThread(request.threadId ?? null);
@@ -881,6 +993,7 @@ async function bootstrapMainProcess(): Promise<void> {
       syncUpdaterBusyState();
       return await desktopSessionController.selectDesktopProfile(profileId);
     },
+    completeDesktopDisplayName: async (request) => await desktopSessionController.completeDesktopDisplayName(request),
     listModels: async () => await desktopSessionController.listModels(),
     respondToInputRequest: async (request) => await desktopSessionController.respondToInputRequest(request),
     startDesktopVoice: async (request) => await desktopSessionController.startDesktopVoice(request),
@@ -929,7 +1042,8 @@ async function bootstrapMainProcess(): Promise<void> {
     deleteDesktopAutomation: async (request) => await desktopSessionController.deleteDesktopAutomation(request),
     runDesktopAutomationNow: async (request) => await desktopSessionController.runDesktopAutomationNow(request),
   });
-  createMainWindow();
+  const mainWindow = createMainWindow();
+  attachCrashWatcherToWindow(mainWindow);
   syncUpdaterBusyState();
   updateService.start();
 }
@@ -954,7 +1068,8 @@ app.on("second-instance", () => {
 app.on("activate", () => {
   const windows = BrowserWindow.getAllWindows();
   if (windows.length === 0) {
-    createMainWindow();
+    const mainWindow = createMainWindow();
+    attachCrashWatcherToWindow(mainWindow);
   } else {
     focusMainWindow();
   }

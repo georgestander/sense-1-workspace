@@ -6,9 +6,16 @@ import {
   type DesktopAppRemoveRequest,
   type DesktopAppInstallRequest,
   type DesktopAppEnabledRequest,
+  type DesktopAuthLoginRequest,
+  type DesktopAuthLogoutResult,
+  type DesktopAuthStartResult,
   type DesktopBugReportDraft,
+  type DesktopCompleteDisplayNameRequest,
+  type DesktopCompleteDisplayNameResult,
   type DesktopBugReportResult,
   type DesktopBugReportingStatus,
+  type DesktopCrashReportAcknowledgeRequest,
+  type DesktopCrashReportAcknowledgeResult,
   type DesktopMcpServerAuthRequest,
   type DesktopMcpServerAuthResult,
   type DesktopAutomationDeleteRequest,
@@ -67,8 +74,6 @@ import {
   type DesktopWorkspacePolicyResult,
   type DesktopWorkspaceRestoreRequest,
   type DesktopWorkspaceSidebarOrderRequest,
-  type LaunchChatgptSignInResult,
-  type LogoutChatgptResult,
   type ProjectedWorkspacesRequest,
   type ProjectedWorkspacesResult,
   type ProjectedWorkspaceByRootRequest,
@@ -101,13 +106,14 @@ type DesktopIpcServices = {
   getBootstrap(): Promise<DesktopBootstrap>;
   submitDesktopBugReport(request: DesktopBugReportDraft): Promise<DesktopBugReportResult>;
   getDesktopBugReportingStatus(): Promise<DesktopBugReportingStatus>;
+  acknowledgeDesktopCrashReport(request: DesktopCrashReportAcknowledgeRequest): Promise<DesktopCrashReportAcknowledgeResult>;
   getRuntimeInfo(): RuntimeInfoResult;
   getUpdateState(): Promise<DesktopUpdateState>;
   checkForUpdates(): Promise<DesktopUpdateState>;
   installUpdate(): Promise<void>;
   openLatestRelease(): Promise<void>;
-  launchChatgptSignIn(): Promise<LaunchChatgptSignInResult>;
-  logoutChatgpt(): Promise<LogoutChatgptResult>;
+  startDesktopAuthLogin(request: DesktopAuthLoginRequest): Promise<DesktopAuthStartResult>;
+  logoutDesktopAuth(): Promise<DesktopAuthLogoutResult>;
   rememberLastSelectedThread(request: DesktopLastSelectedThreadRequest): Promise<void>;
   renameDesktopThread(request: DesktopThreadRenameRequest): Promise<void>;
   archiveDesktopThread(request: DesktopThreadArchiveRequest): Promise<void>;
@@ -122,6 +128,7 @@ type DesktopIpcServices = {
   queueTurnInput(request: DesktopQueueTurnInputRequest): Promise<void>;
   respondToDesktopApproval(request: DesktopApprovalResponseRequest): Promise<void>;
   selectDesktopProfile(profileId: string): Promise<SelectDesktopProfileResult>;
+  completeDesktopDisplayName(request: DesktopCompleteDisplayNameRequest): Promise<DesktopCompleteDisplayNameResult>;
   listModels(): Promise<DesktopModelListResult>;
   respondToInputRequest(request: DesktopInputResponseRequest): Promise<void>;
   startDesktopVoice(request: DesktopVoiceStartRequest): Promise<void>;
@@ -211,6 +218,13 @@ export function registerDesktopIpcHandlers(services: DesktopIpcServices): void {
     IPC_CHANNELS.getDesktopBugReportingStatus,
     async (): Promise<DesktopBugReportingStatus> => {
       return await services.getDesktopBugReportingStatus();
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.acknowledgeDesktopCrashReport,
+    async (_event, request: DesktopCrashReportAcknowledgeRequest): Promise<DesktopCrashReportAcknowledgeResult> => {
+      return await services.acknowledgeDesktopCrashReport(request);
     },
   );
 
@@ -313,16 +327,23 @@ export function registerDesktopIpcHandlers(services: DesktopIpcServices): void {
   );
 
   ipcMain.handle(
-    IPC_CHANNELS.launchChatgptSignIn,
-    async (): Promise<LaunchChatgptSignInResult> => {
-      return await services.launchChatgptSignIn();
+    IPC_CHANNELS.completeDesktopDisplayName,
+    async (_event, request: DesktopCompleteDisplayNameRequest): Promise<DesktopCompleteDisplayNameResult> => {
+      return await services.completeDesktopDisplayName(request);
     },
   );
 
   ipcMain.handle(
-    IPC_CHANNELS.logoutChatgpt,
-    async (): Promise<LogoutChatgptResult> => {
-      return await services.logoutChatgpt();
+    IPC_CHANNELS.startDesktopAuthLogin,
+    async (_event, request: DesktopAuthLoginRequest): Promise<DesktopAuthStartResult> => {
+      return await services.startDesktopAuthLogin(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.logoutDesktopAuth,
+    async (): Promise<DesktopAuthLogoutResult> => {
+      return await services.logoutDesktopAuth();
     },
   );
 
