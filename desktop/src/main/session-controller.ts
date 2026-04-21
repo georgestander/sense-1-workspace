@@ -63,6 +63,7 @@ import type {
   DesktopTeamStateResult,
   DesktopCreateFirstTeamRequest,
   DesktopSaveTeamMemberRequest,
+  DesktopRemoveTeamMemberRequest,
   DesktopVoiceAppendAudioRequest,
   DesktopVoiceStartRequest,
   DesktopVoiceStopRequest,
@@ -951,6 +952,10 @@ export class DesktopSessionController {
 
   async saveDesktopTeamMember(request: DesktopSaveTeamMemberRequest): Promise<DesktopTeamStateResult> {
     return await this.#desktopTenant.saveTeamMember(request);
+  }
+
+  async removeDesktopTeamMember(request: DesktopRemoveTeamMemberRequest): Promise<DesktopTeamStateResult> {
+    return await this.#desktopTenant.removeTeamMember(request);
   }
 
   async listDesktopAutomations(): Promise<DesktopAutomationListResult> {

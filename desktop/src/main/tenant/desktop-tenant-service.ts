@@ -2,6 +2,7 @@ import type {
   DesktopBootstrapTeamSetup,
   DesktopBootstrapTenant,
   DesktopCreateFirstTeamRequest,
+  DesktopRemoveTeamMemberRequest,
   DesktopSaveTeamMemberRequest,
   DesktopTeamMemberRecord,
   DesktopTeamStateResult,
@@ -13,10 +14,12 @@ import {
   getTenant,
   listTenantMembers,
   persistActiveTenantMembership,
+  removeTenantMember,
   resolveTenantMembershipForProfile,
   sanitizeTenantId,
   type TenantMembershipRecord,
 } from "./tenant-state.ts";
+import { normalizeEmail } from "./tenant-state-support.ts";
 
 type DesktopTenantServiceOptions = {
   env?: NodeJS.ProcessEnv;
@@ -198,16 +201,79 @@ export class DesktopTenantService {
       throw new Error("Only admins can manage team members.");
     }
 
-    const email = request.email.trim();
-    if (!email) {
+    const nextEmail = normalizeEmail(request.email);
+    if (!nextEmail) {
       throw new Error("A member email is required.");
+    }
+
+    const previousEmail = normalizeEmail(request.previousEmail);
+    const isRename = previousEmail !== null && previousEmail !== nextEmail;
+
+    if (isRename) {
+      if (previousEmail === membership.email) {
+        throw new Error("You cannot change the email of your own membership.");
+      }
+
+      const members = await listTenantMembers({ tenantId: membership.tenantId, env: this.#env });
+      const source = members.find((candidate) => candidate.email === previousEmail);
+      if (!source) {
+        throw new Error("That member is not part of this team.");
+      }
+      const collision = members.find((candidate) => candidate.email === nextEmail);
+      if (collision) {
+        throw new Error(`Another member already uses ${nextEmail}.`);
+      }
+
+      await removeTenantMember({
+        tenantId: membership.tenantId,
+        email: previousEmail,
+        env: this.#env,
+      });
     }
 
     await addTenantMember({
       tenantId: membership.tenantId,
-      email,
+      email: nextEmail,
       role: request.role,
       displayName: request.displayName?.trim() || null,
+      env: this.#env,
+    });
+
+    return await this.getTeamState();
+  }
+
+  async removeTeamMember(request: DesktopRemoveTeamMemberRequest): Promise<DesktopTeamStateResult> {
+    const { accountEmail, membership } = await this.#resolveIdentity();
+    if (!accountEmail || !membership) {
+      throw new Error("Create or restore a team before managing members.");
+    }
+    if (membership.role !== "admin") {
+      throw new Error("Only admins can manage team members.");
+    }
+
+    const targetEmail = normalizeEmail(request.email);
+    if (!targetEmail) {
+      throw new Error("A member email is required.");
+    }
+    if (targetEmail === membership.email) {
+      throw new Error("You cannot remove yourself from the team.");
+    }
+
+    const members = await listTenantMembers({ tenantId: membership.tenantId, env: this.#env });
+    const target = members.find((candidate) => candidate.email === targetEmail);
+    if (!target) {
+      throw new Error("That member is not part of this team.");
+    }
+    if (target.role === "admin") {
+      const adminCount = members.filter((candidate) => candidate.role === "admin").length;
+      if (adminCount <= 1) {
+        throw new Error("Promote another admin before removing the last admin.");
+      }
+    }
+
+    await removeTenantMember({
+      tenantId: membership.tenantId,
+      email: targetEmail,
       env: this.#env,
     });
 

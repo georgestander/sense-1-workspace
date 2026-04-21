@@ -144,6 +144,25 @@ async function persistSharedTenantRegistryEntry(
   await fs.writeFile(registryFile, JSON.stringify(registry, null, 2), "utf8");
 }
 
+async function clearSharedTenantRegistryEntry(
+  { email, tenantId }: { email: string; tenantId: string },
+  env = process.env,
+): Promise<void> {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) {
+    return;
+  }
+  const registry = await loadSharedTenantRegistry(env);
+  const existing = registry[normalizedEmail];
+  if (!existing || existing.tenantId !== tenantId) {
+    return;
+  }
+  delete registry[normalizedEmail];
+  const registryFile = resolveSharedTenantRegistryFile(env);
+  await fs.mkdir(path.dirname(registryFile), { recursive: true });
+  await fs.writeFile(registryFile, JSON.stringify(registry, null, 2), "utf8");
+}
+
 export function sanitizeTenantId(value: string | null | undefined): string {
   return sanitizeTenantToken(value, "team");
 }
@@ -334,6 +353,33 @@ export async function addTenantMember({
   } finally {
     writeDb.close();
   }
+}
+
+export async function removeTenantMember({
+  tenantId,
+  email,
+  env = process.env,
+}: { tenantId: string; email: string; env?: NodeJS.ProcessEnv; }): Promise<boolean> {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) {
+    throw new Error("A member email is required to remove tenant membership.");
+  }
+  const resolvedTenantId = sanitizeTenantId(tenantId);
+  await ensureTenantStore(env);
+  const db = openTenantStore(env);
+  let deleted = false;
+  try {
+    const result = db.prepare(
+      `DELETE FROM memberships WHERE tenant_id = ? AND email = ?`,
+    ).run(resolvedTenantId, normalizedEmail);
+    deleted = (result.changes ?? 0) > 0;
+  } finally {
+    db.close();
+  }
+  if (deleted) {
+    await clearSharedTenantRegistryEntry({ email: normalizedEmail, tenantId: resolvedTenantId }, env);
+  }
+  return deleted;
 }
 
 export async function listTenantMembershipsByEmail({

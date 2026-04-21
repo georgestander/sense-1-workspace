@@ -104,6 +104,349 @@ test("DesktopTenantService can create the first team and promote the creator to 
   });
 });
 
+test("DesktopTenantService lets admins update an existing local member's role", async () => {
+  const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-runtime-"));
+  const tenantRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-cloud-"));
+  const env = createEnv(runtimeRoot, tenantRoot);
+
+  await createTenant({
+    tenantId: "ops-team",
+    displayName: "Ops Team",
+    env,
+    now: "2026-04-09T09:00:00.000Z",
+  });
+  const adminMembership = await addTenantMember({
+    tenantId: "ops-team",
+    email: "george@example.com",
+    role: "admin",
+    displayName: "George",
+    env,
+    now: "2026-04-09T09:01:00.000Z",
+  });
+  await addTenantMember({
+    tenantId: "ops-team",
+    email: "teammate@example.com",
+    role: "member",
+    displayName: "Teammate",
+    env,
+    now: "2026-04-09T09:02:00.000Z",
+  });
+  await persistActiveTenantMembership("default", adminMembership, env);
+
+  const service = new DesktopTenantService({
+    env,
+    resolveProfile: async () => ({ id: "default" }),
+    resolveSignedInAccount: async () => ({
+      accountType: "chatgpt",
+      authMode: "chatgpt",
+      email: "george@example.com",
+      isSignedIn: true,
+      requiresOpenaiAuth: false,
+    }),
+  });
+
+  const result = await service.saveTeamMember({
+    email: "teammate@example.com",
+    role: "admin",
+  });
+
+  const updated = result.members.find((member) => member.email === "teammate@example.com");
+  assert.equal(updated?.role, "admin");
+  assert.equal(result.members.length, 2);
+});
+
+test("DesktopTenantService renames an existing member when previousEmail differs", async () => {
+  const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-runtime-"));
+  const tenantRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-cloud-"));
+  const env = createEnv(runtimeRoot, tenantRoot);
+
+  await createTenant({
+    tenantId: "ops-team",
+    displayName: "Ops Team",
+    env,
+    now: "2026-04-09T09:00:00.000Z",
+  });
+  const adminMembership = await addTenantMember({
+    tenantId: "ops-team",
+    email: "george@example.com",
+    role: "admin",
+    displayName: "George",
+    env,
+    now: "2026-04-09T09:01:00.000Z",
+  });
+  await addTenantMember({
+    tenantId: "ops-team",
+    email: "rian@example.com",
+    role: "member",
+    displayName: "Rian",
+    env,
+    now: "2026-04-09T09:02:00.000Z",
+  });
+  await persistActiveTenantMembership("default", adminMembership, env);
+
+  const service = new DesktopTenantService({
+    env,
+    resolveProfile: async () => ({ id: "default" }),
+    resolveSignedInAccount: async () => ({
+      accountType: "chatgpt",
+      authMode: "chatgpt",
+      email: "george@example.com",
+      isSignedIn: true,
+      requiresOpenaiAuth: false,
+    }),
+  });
+
+  const result = await service.saveTeamMember({
+    previousEmail: "rian@example.com",
+    email: "riana@example.com",
+    role: "member",
+  });
+
+  const emails = result.members.map((member) => member.email).sort();
+  assert.deepEqual(emails, ["george@example.com", "riana@example.com"]);
+  assert.equal(result.members.length, 2);
+});
+
+test("DesktopTenantService refuses to rename to an email that collides with another member", async () => {
+  const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-runtime-"));
+  const tenantRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-cloud-"));
+  const env = createEnv(runtimeRoot, tenantRoot);
+
+  await createTenant({
+    tenantId: "ops-team",
+    displayName: "Ops Team",
+    env,
+    now: "2026-04-09T09:00:00.000Z",
+  });
+  const adminMembership = await addTenantMember({
+    tenantId: "ops-team",
+    email: "george@example.com",
+    role: "admin",
+    displayName: "George",
+    env,
+    now: "2026-04-09T09:01:00.000Z",
+  });
+  await addTenantMember({
+    tenantId: "ops-team",
+    email: "one@example.com",
+    role: "member",
+    displayName: "One",
+    env,
+    now: "2026-04-09T09:02:00.000Z",
+  });
+  await addTenantMember({
+    tenantId: "ops-team",
+    email: "two@example.com",
+    role: "member",
+    displayName: "Two",
+    env,
+    now: "2026-04-09T09:03:00.000Z",
+  });
+  await persistActiveTenantMembership("default", adminMembership, env);
+
+  const service = new DesktopTenantService({
+    env,
+    resolveProfile: async () => ({ id: "default" }),
+    resolveSignedInAccount: async () => ({
+      accountType: "chatgpt",
+      authMode: "chatgpt",
+      email: "george@example.com",
+      isSignedIn: true,
+      requiresOpenaiAuth: false,
+    }),
+  });
+
+  await assert.rejects(
+    () => service.saveTeamMember({
+      previousEmail: "one@example.com",
+      email: "two@example.com",
+      role: "member",
+    }),
+    /already uses/,
+  );
+});
+
+test("DesktopTenantService refuses to rename the signed-in admin's own email", async () => {
+  const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-runtime-"));
+  const tenantRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-cloud-"));
+  const env = createEnv(runtimeRoot, tenantRoot);
+
+  await createTenant({
+    tenantId: "ops-team",
+    displayName: "Ops Team",
+    env,
+    now: "2026-04-09T09:00:00.000Z",
+  });
+  const adminMembership = await addTenantMember({
+    tenantId: "ops-team",
+    email: "george@example.com",
+    role: "admin",
+    displayName: "George",
+    env,
+    now: "2026-04-09T09:01:00.000Z",
+  });
+  await persistActiveTenantMembership("default", adminMembership, env);
+
+  const service = new DesktopTenantService({
+    env,
+    resolveProfile: async () => ({ id: "default" }),
+    resolveSignedInAccount: async () => ({
+      accountType: "chatgpt",
+      authMode: "chatgpt",
+      email: "george@example.com",
+      isSignedIn: true,
+      requiresOpenaiAuth: false,
+    }),
+  });
+
+  await assert.rejects(
+    () => service.saveTeamMember({
+      previousEmail: "george@example.com",
+      email: "george.stander@example.com",
+      role: "admin",
+    }),
+    /your own membership/,
+  );
+});
+
+test("DesktopTenantService lets admins remove local team members", async () => {
+  const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-runtime-"));
+  const tenantRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-cloud-"));
+  const env = createEnv(runtimeRoot, tenantRoot);
+
+  await createTenant({
+    tenantId: "ops-team",
+    displayName: "Ops Team",
+    env,
+    now: "2026-04-09T09:00:00.000Z",
+  });
+  const adminMembership = await addTenantMember({
+    tenantId: "ops-team",
+    email: "george@example.com",
+    role: "admin",
+    displayName: "George",
+    env,
+    now: "2026-04-09T09:01:00.000Z",
+  });
+  await addTenantMember({
+    tenantId: "ops-team",
+    email: "teammate@example.com",
+    role: "member",
+    displayName: "Teammate",
+    env,
+    now: "2026-04-09T09:02:00.000Z",
+  });
+  await persistActiveTenantMembership("default", adminMembership, env);
+
+  const service = new DesktopTenantService({
+    env,
+    resolveProfile: async () => ({ id: "default" }),
+    resolveSignedInAccount: async () => ({
+      accountType: "chatgpt",
+      authMode: "chatgpt",
+      email: "george@example.com",
+      isSignedIn: true,
+      requiresOpenaiAuth: false,
+    }),
+  });
+
+  const result = await service.removeTeamMember({ email: "teammate@example.com" });
+
+  assert.equal(result.members.length, 1);
+  assert.equal(result.members[0]?.email, "george@example.com");
+});
+
+test("DesktopTenantService refuses to let an admin remove themselves", async () => {
+  const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-runtime-"));
+  const tenantRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-cloud-"));
+  const env = createEnv(runtimeRoot, tenantRoot);
+
+  await createTenant({
+    tenantId: "ops-team",
+    displayName: "Ops Team",
+    env,
+    now: "2026-04-09T09:00:00.000Z",
+  });
+  const adminMembership = await addTenantMember({
+    tenantId: "ops-team",
+    email: "george@example.com",
+    role: "admin",
+    displayName: "George",
+    env,
+    now: "2026-04-09T09:01:00.000Z",
+  });
+  await persistActiveTenantMembership("default", adminMembership, env);
+
+  const service = new DesktopTenantService({
+    env,
+    resolveProfile: async () => ({ id: "default" }),
+    resolveSignedInAccount: async () => ({
+      accountType: "chatgpt",
+      authMode: "chatgpt",
+      email: "george@example.com",
+      isSignedIn: true,
+      requiresOpenaiAuth: false,
+    }),
+  });
+
+  await assert.rejects(
+    () => service.removeTeamMember({ email: "george@example.com" }),
+    /yourself/,
+  );
+});
+
+test("DesktopTenantService refuses to remove the last admin", async () => {
+  const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-runtime-"));
+  const tenantRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-cloud-"));
+  const env = createEnv(runtimeRoot, tenantRoot);
+
+  await createTenant({
+    tenantId: "ops-team",
+    displayName: "Ops Team",
+    env,
+    now: "2026-04-09T09:00:00.000Z",
+  });
+  const adminMembership = await addTenantMember({
+    tenantId: "ops-team",
+    email: "lead@example.com",
+    role: "admin",
+    displayName: "Lead",
+    env,
+    now: "2026-04-09T09:01:00.000Z",
+  });
+  await addTenantMember({
+    tenantId: "ops-team",
+    email: "founder@example.com",
+    role: "admin",
+    displayName: "Founder",
+    env,
+    now: "2026-04-09T09:02:00.000Z",
+  });
+  await persistActiveTenantMembership("default", adminMembership, env);
+
+  const service = new DesktopTenantService({
+    env,
+    resolveProfile: async () => ({ id: "default" }),
+    resolveSignedInAccount: async () => ({
+      accountType: "chatgpt",
+      authMode: "chatgpt",
+      email: "lead@example.com",
+      isSignedIn: true,
+      requiresOpenaiAuth: false,
+    }),
+  });
+
+  // Removing the other admin leaves only "lead" as admin.
+  const afterOne = await service.removeTeamMember({ email: "founder@example.com" });
+  assert.equal(afterOne.members.length, 1);
+
+  // Now the sole admin cannot be removed by anyone (including self-guard, which also blocks this).
+  await assert.rejects(
+    () => service.removeTeamMember({ email: "lead@example.com" }),
+    /yourself|last admin/,
+  );
+});
+
 test("DesktopTenantService lets admins add local team members", async () => {
   const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-runtime-"));
   const tenantRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-cloud-"));

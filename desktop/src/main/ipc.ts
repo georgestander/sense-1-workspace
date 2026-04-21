@@ -46,6 +46,7 @@ import {
   type DesktopSettingsUpdateRequest,
   type DesktopCreateFirstTeamRequest,
   type DesktopSaveTeamMemberRequest,
+  type DesktopRemoveTeamMemberRequest,
   type DesktopTeamStateResult,
   IPC_CHANNELS,
   type DesktopBootstrap,
@@ -161,6 +162,7 @@ type DesktopIpcServices = {
   getDesktopTeamState(): Promise<DesktopTeamStateResult>;
   createDesktopFirstTeam(request: DesktopCreateFirstTeamRequest): Promise<DesktopTeamStateResult>;
   saveDesktopTeamMember(request: DesktopSaveTeamMemberRequest): Promise<DesktopTeamStateResult>;
+  removeDesktopTeamMember(request: DesktopRemoveTeamMemberRequest): Promise<DesktopTeamStateResult>;
   listDesktopAutomations(): Promise<DesktopAutomationListResult>;
   getDesktopAutomation(id: string): Promise<DesktopAutomationDetailResult>;
   saveDesktopAutomation(request: DesktopAutomationSaveRequest): Promise<DesktopAutomationDetailResult>;
@@ -512,6 +514,13 @@ export function registerDesktopIpcHandlers(services: DesktopIpcServices): void {
     IPC_CHANNELS.saveDesktopTeamMember,
     async (_event, request: DesktopSaveTeamMemberRequest): Promise<DesktopTeamStateResult> => {
       return await services.saveDesktopTeamMember(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.removeDesktopTeamMember,
+    async (_event, request: DesktopRemoveTeamMemberRequest): Promise<DesktopTeamStateResult> => {
+      return await services.removeDesktopTeamMember(request);
     },
   );
 

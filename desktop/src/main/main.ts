@@ -1036,6 +1036,7 @@ async function bootstrapMainProcess(): Promise<void> {
     getDesktopTeamState: async () => await desktopSessionController.getDesktopTeamState(),
     createDesktopFirstTeam: async (request) => await desktopSessionController.createDesktopFirstTeam(request),
     saveDesktopTeamMember: async (request) => await desktopSessionController.saveDesktopTeamMember(request),
+    removeDesktopTeamMember: async (request) => await desktopSessionController.removeDesktopTeamMember(request),
     listDesktopAutomations: async () => await desktopSessionController.listDesktopAutomations(),
     getDesktopAutomation: async (id) => await desktopSessionController.getDesktopAutomation(id),
     saveDesktopAutomation: async (request) => await desktopSessionController.saveDesktopAutomation(request),
