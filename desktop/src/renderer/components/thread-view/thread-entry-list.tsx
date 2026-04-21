@@ -4,10 +4,12 @@ import { Blocks, Check, ChevronRight, Copy, PlugZap, Sparkles } from "lucide-rea
 import { ThreadMarkdown } from "../../thread-markdown.js";
 import {
   coerceDisplayText,
+  describeCommandExecution,
   firstLinePreview,
   groupThreadEntries,
   reuseGroupedThreadEntries,
   resolveFileChangeTarget,
+  summarizeCommand,
   type ThreadGroupedEntry,
 } from "./thread-view-utils.js";
 import { type DesktopThreadEntry } from "../../lib/live-thread-data.js";
@@ -217,23 +219,28 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
   }
 
   if (entry.kind === "command") {
-    const commandPreview = firstLinePreview(entry.command, "Command execution");
+    const commandPreview = summarizeCommand(entry.command);
+    const { detail, emptyOutputHint } = describeCommandExecution(entry);
     return (
       <article className="px-4 py-1 text-xs">
         <details className="group">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs text-ink-muted">
-            <p className="min-w-0 truncate font-mono">{commandPreview}</p>
+            <div className="min-w-0">
+              <p className="truncate text-ink">{commandPreview}</p>
+              <p className="truncate font-mono text-[0.6875rem] text-ink-faint">{firstLinePreview(entry.command, "Command execution")}</p>
+            </div>
             <div className="flex shrink-0 items-center gap-1.5">
               <span className="text-[0.6875rem] text-ink-muted">{coerceDisplayText(entry.status, "running")}</span>
               <ChevronRight className="size-3 text-ink-muted transition-transform group-open:rotate-90" />
             </div>
           </summary>
           <div className="mt-1.5 space-y-1.5 pl-4">
+            {detail ? <p className="text-[0.6875rem] text-ink-faint">{detail}</p> : null}
             <p className="rounded bg-surface-soft px-2.5 py-1.5 font-mono text-[0.6875rem] text-ink">{coerceDisplayText(entry.command, "Command execution")}</p>
             {entryBody.trim() ? (
               <pre className="max-h-56 overflow-auto rounded-lg bg-surface-soft px-3 py-2 text-xs whitespace-pre-wrap text-ink">{entryBody}</pre>
             ) : (
-              <p className="text-xs text-muted">No command output captured yet.</p>
+              <p className="text-xs text-muted">{emptyOutputHint}</p>
             )}
           </div>
         </details>
