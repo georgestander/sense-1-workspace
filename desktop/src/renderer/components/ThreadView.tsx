@@ -1,4 +1,4 @@
-import type { Dispatch, RefObject, SetStateAction } from "react";
+import { memo, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { type DesktopApprovalDecision, type DesktopApprovalEvent, type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopExtensionOverviewResult, type DesktopInputQuestion, type DesktopInputRequestState, type DesktopModelEntry, type DesktopThreadChangeGroup, type DesktopThreadSnapshot } from "../../main/contracts";
 import { ThreadComposer } from "./thread-view/thread-composer.js";
 import { ThreadTranscript } from "./thread-view/thread-transcript.js";
@@ -66,7 +66,7 @@ export interface ThreadViewProps {
   onReportBug: () => void;
 }
 
-export function ThreadView(props: ThreadViewProps) {
+export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
   const {
     selectedThreadId,
     selectedThread,
@@ -182,4 +182,4 @@ export function ThreadView(props: ThreadViewProps) {
       />
     </>
   );
-}
+});

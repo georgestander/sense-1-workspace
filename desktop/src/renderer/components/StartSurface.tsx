@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { memo, type Dispatch, type SetStateAction } from "react";
 import type { DesktopBootstrapTeamSetup, DesktopBootstrapTenant, DesktopExtensionOverviewResult, DesktopModelEntry, DesktopThreadSnapshot, ProjectedSessionRecord, ProjectedWorkspaceRecord, SubstrateSessionRecord, SubstrateWorkspaceRecord } from "../../main/contracts";
 import type { ThreadRenameTarget } from "../features/threads/use-thread-shell.js";
 import { type FolderOption } from "../state/session/session-types.js";
@@ -81,7 +81,7 @@ export type StartSurfaceProps = {
   refreshBootstrap: () => Promise<unknown>;
 };
 
-export function StartSurface(props: StartSurfaceProps) {
+export const StartSurface = memo(function StartSurface(props: StartSurfaceProps) {
   const {
     accountEmail,
     tenant,
@@ -224,4 +224,4 @@ export function StartSurface(props: StartSurfaceProps) {
       />
     </>
   );
-}
+});

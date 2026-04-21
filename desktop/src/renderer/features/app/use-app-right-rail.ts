@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import type {
   DesktopApprovalEvent,
@@ -101,9 +101,10 @@ export function useAppRightRail({
   );
   const autoFollowFrameRef = useRef<number | null>(null);
 
-  const rightRailChangeGroups = Array.isArray(rightRailThread?.changeGroups)
-    ? rightRailThread.changeGroups
-    : [];
+  const rightRailChangeGroups = useMemo(
+    () => (Array.isArray(rightRailThread?.changeGroups) ? rightRailThread.changeGroups : []),
+    [rightRailThread?.changeGroups],
+  );
   const threadInteractionState = selectedThread?.interactionState ?? null;
   const effectiveThreadBusy =
     taskPending || selectedThread?.state === "active" || selectedThread?.state === "running";
@@ -121,16 +122,16 @@ export function useAppRightRail({
   const hasStructuredQuestions =
     structuredQuestions.length > 0 && structuredQuestions.some((question) => question.choices.length > 0);
 
-  function isRightRailSectionOpen(section: string): boolean {
-    return rightRailSectionsOpen[section] !== false;
-  }
+  const isRightRailSectionOpen = useCallback((section: string): boolean => (
+    rightRailSectionsOpen[section] !== false
+  ), [rightRailSectionsOpen]);
 
-  function toggleRightRailSection(section: string) {
+  const toggleRightRailSection = useCallback((section: string) => {
     setRightRailSectionsOpen((current) => ({
       ...current,
       [section]: current[section] === false,
     }));
-  }
+  }, []);
 
   const entryCount = selectedThread?.entries.length ?? 0;
   const lastEntry = selectedThread?.entries[entryCount - 1];
@@ -166,7 +167,7 @@ export function useAppRightRail({
     };
   }, [entryCount, lastEntryAnchor, transcriptContainerRef]);
 
-  const rightRailProps: RightRailProps = {
+  const rightRailProps: RightRailProps = useMemo(() => ({
     showRightRail,
     rightRailOpen,
     rightRailSectionsOpen,
@@ -199,7 +200,40 @@ export function useAppRightRail({
     workspaceSessions,
     resumeWorkspaceSession,
     isClarifying,
-  };
+  }), [
+    activeWorkspaceProjection,
+    attachedFiles,
+    inputResponsePending,
+    inputResponseText,
+    isClarifying,
+    isRightRailSectionOpen,
+    pendingApprovals,
+    persistedSessionActivityLoading,
+    persistedSessionActivitySummary,
+    persistedSessionWrittenPaths,
+    processingApprovalIds,
+    refreshWorkspaceStructure,
+    respondToApproval,
+    respondToInputRequest,
+    resumeWorkspaceSession,
+    rightRailChangeGroups,
+    rightRailOpen,
+    rightRailSectionsOpen,
+    rightRailThread,
+    selectedThread,
+    selectedThreadApprovals,
+    selectedThreadId,
+    setInputResponsePending,
+    setInputResponseText,
+    showRightRail,
+    threadInputRequest,
+    threadInteractionState,
+    threadPlanState,
+    toggleRightRailSection,
+    workspacePolicy,
+    workspaceSessions,
+    workspaceStructureRefreshing,
+  ]);
 
   return {
     effectiveThreadBusy,

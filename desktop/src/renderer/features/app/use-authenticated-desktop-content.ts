@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
 import type { useDesktopSessionState } from "../../use-desktop-session-state.js";
@@ -98,7 +98,10 @@ export function useAuthenticatedDesktopContent({
     workspaceFolder: ui.workspaceFolder,
   });
 
-  const activeWorkspaceRoot = sessionState.selectedThread?.workspaceRoot ?? (ui.workInFolder ? ui.workspaceFolder : null);
+  const activeWorkspaceRoot = useMemo(
+    () => sessionState.selectedThread?.workspaceRoot ?? (ui.workInFolder ? ui.workspaceFolder : null),
+    [sessionState.selectedThread?.workspaceRoot, ui.workInFolder, ui.workspaceFolder],
+  );
   const workspaceCollections = useWorkspaceCollections({
     activeWorkspaceRoot,
     isSignedIn: sessionState.isSignedIn,
@@ -107,13 +110,17 @@ export function useAuthenticatedDesktopContent({
 
   const trimmedSearchQuery = ui.searchQuery.trim();
   const normalizedSearchQuery = trimmedSearchQuery.toLowerCase();
-  const filteredThreads = perfMeasure("app-content.filter-threads", () => (
-    normalizedSearchQuery
-      ? sessionState.threads.filter((thread) => thread.title.toLowerCase().includes(normalizedSearchQuery))
-      : sessionState.threads
-  ));
-  const noThreadSearchMatches = Boolean(
-    normalizedSearchQuery && sessionState.threads.length > 0 && filteredThreads.length === 0,
+  const filteredThreads = useMemo(
+    () => perfMeasure("app-content.filter-threads", () => (
+      normalizedSearchQuery
+        ? sessionState.threads.filter((thread) => thread.title.toLowerCase().includes(normalizedSearchQuery))
+        : sessionState.threads
+    )),
+    [normalizedSearchQuery, sessionState.threads],
+  );
+  const noThreadSearchMatches = useMemo(
+    () => Boolean(normalizedSearchQuery && sessionState.threads.length > 0 && filteredThreads.length === 0),
+    [filteredThreads.length, normalizedSearchQuery, sessionState.threads.length],
   );
 
   const workspaceShell = useWorkspaceShell({

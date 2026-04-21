@@ -1,4 +1,4 @@
-import type { DragEvent } from "react";
+import { memo, type DragEvent } from "react";
 import { Bug, ChevronDown, Plus, PlugZap, CalendarClock, Settings, LogOut, UserCircle2 } from "lucide-react";
 
 import { Button } from "./ui/button";
@@ -86,7 +86,7 @@ function resolveAccountLabel(accountEmail: string | null | undefined, accountTyp
   return "Signed in";
 }
 
-export function LeftSidebar({
+export const LeftSidebar = memo(function LeftSidebar({
   activeView,
   leftRailOpen,
   filteredThreads,
@@ -305,4 +305,4 @@ export function LeftSidebar({
       </div>
     </aside>
   );
-}
+});

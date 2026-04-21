@@ -1,4 +1,4 @@
-import type { ComponentProps, Dispatch, SetStateAction } from "react";
+import { useCallback, useMemo, type ComponentProps, type Dispatch, type SetStateAction } from "react";
 
 import { LeftSidebar } from "../../components/LeftSidebar";
 import { SettingsModal } from "../../components/SettingsModal";
@@ -110,23 +110,23 @@ export function useAppShellProps({
   reportBug,
   resetComposerState,
 }: BuildAppShellPropsArgs) {
-  function resetToStartSurface() {
+  const resetToStartSurface = useCallback(() => {
     resetComposerState();
     workspace.resetWorkspaceShell();
     threadShell.resetThreadShell();
-  }
+  }, [resetComposerState, threadShell.resetThreadShell, workspace.resetWorkspaceShell]);
 
-  async function handleOpenSettings() {
+  const handleOpenSettings = useCallback(async () => {
     account.setAccountMenuOpen(false);
     await settings.openSettingsFromHook();
-  }
+  }, [account.setAccountMenuOpen, settings.openSettingsFromHook]);
 
-  function handleOpenReportBug() {
+  const handleOpenReportBug = useCallback(() => {
     account.setAccountMenuOpen(false);
     reportBug.openReportBug();
-  }
+  }, [account.setAccountMenuOpen, reportBug.openReportBug]);
 
-  const leftSidebarProps: LeftSidebarProps = {
+  const leftSidebarProps: LeftSidebarProps = useMemo(() => ({
     activeView: navigation.activeView,
     leftRailOpen: search.leftRailOpen,
     searchQuery: search.searchQuery,
@@ -179,9 +179,62 @@ export function useAppShellProps({
     openReportBug: handleOpenReportBug,
     handleLogout: account.handleLogout,
     logoutPending: account.logoutPending,
-  };
+  }), [
+    account.accountEmail,
+    account.accountMenuOpen,
+    account.accountType,
+    account.handleLogout,
+    account.logoutPending,
+    account.setAccountMenuOpen,
+    account.teamSetup,
+    account.tenant,
+    handleOpenReportBug,
+    handleOpenSettings,
+    navigation.activeView,
+    navigation.openAutomations,
+    navigation.openPlugins,
+    resetToStartSurface,
+    search.filteredThreads,
+    search.leftRailOpen,
+    search.noThreadSearchMatches,
+    search.searchQuery,
+    search.setSearchQuery,
+    search.trimmedSearchQuery,
+    threadShell.cancelThreadRename,
+    threadShell.handleArchiveThread,
+    threadShell.handleDeleteThread,
+    threadShell.openThreadRename,
+    threadShell.selectedThread,
+    threadShell.selectThread,
+    threadShell.setSidebarThreadMenu,
+    threadShell.setThreadRenameDraft,
+    threadShell.sidebarThreadMenuOpenId,
+    threadShell.submitThreadRename,
+    threadShell.threadArchivePendingId,
+    threadShell.threadDeletePendingId,
+    threadShell.threadRenameDraft,
+    threadShell.threadRenameId,
+    workspace.activeWorkspaceRoot,
+    workspace.dragOverRoot,
+    workspace.expandedWorkspaces,
+    workspace.handleArchiveWorkspace,
+    workspace.handleDeleteWorkspace,
+    workspace.handleWorkspaceDragEnd,
+    workspace.handleWorkspaceDragLeave,
+    workspace.handleWorkspaceDragOver,
+    workspace.handleWorkspaceDragStart,
+    workspace.handleWorkspaceDrop,
+    workspace.onNewThreadInWorkspace,
+    workspace.setSidebarWorkspaceMenu,
+    workspace.sidebarWorkspaceMenuOpenId,
+    workspace.toggleWorkspaceExpanded,
+    workspace.visibleWorkspaceThreadGroups,
+    workspace.workspaceArchivePendingId,
+    workspace.workspaceDeletePendingId,
+    workspace.workspaceIdByRoot,
+  ]);
 
-  const settingsModalProps: SettingsModalProps = {
+  const settingsModalProps: SettingsModalProps = useMemo(() => ({
     settingsOpen: settings.settingsOpen,
     setSettingsOpen: settings.setSettingsOpen,
     settingsSection: settings.settingsSection,
@@ -205,7 +258,31 @@ export function useAppShellProps({
     updateState: settings.updateState,
     checkForUpdates: settings.checkForUpdates,
     openLatestRelease: settings.openLatestRelease,
-  };
+  }), [
+    settings.accountEmail,
+    settings.availableModels,
+    settings.checkForUpdates,
+    settings.currentVersion,
+    settings.modelOptions,
+    settings.openLatestRelease,
+    settings.refreshBootstrap,
+    settings.saveSettings,
+    settings.saveSettingsModelSelection,
+    settings.setSettingsOpen,
+    settings.setSettingsSection,
+    settings.settingsData,
+    settings.settingsError,
+    settings.settingsModel,
+    settings.settingsOpen,
+    settings.settingsReasoning,
+    settings.settingsReasoningOptions,
+    settings.settingsSaving,
+    settings.settingsSection,
+    settings.settingsServiceTier,
+    settings.teamSetup,
+    settings.tenant,
+    settings.updateState,
+  ]);
 
   return {
     leftSidebarProps,

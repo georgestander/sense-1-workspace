@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   DesktopAuthLoginMethod,
@@ -286,14 +286,21 @@ export function useDesktopSessionState({
     });
   }, []);
 
-  const sessionView = perfMeasure("session-view.build", () => buildDesktopSessionViewState({
+  const sessionView = useMemo(() => perfMeasure("session-view.build", () => buildDesktopSessionViewState({
     activeTurnIdsByThread,
     pendingApprovals,
     perThreadSidebar,
     selectedThreadId,
     taskPending,
     threads,
-  }));
+  })), [
+    activeTurnIdsByThread,
+    pendingApprovals,
+    perThreadSidebar,
+    selectedThreadId,
+    taskPending,
+    threads,
+  ]);
   const {
     activeRoot,
     activeTurnId,
@@ -328,7 +335,7 @@ export function useDesktopSessionState({
     setWorkspacePolicy,
   });
 
-  const sessionActions = createDesktopSessionActions({
+  const sessionActions = useMemo(() => createDesktopSessionActions({
     applyBootstrap,
     fetchWorkspacePolicy,
     flushPendingThreadDeltas,
@@ -372,7 +379,28 @@ export function useDesktopSessionState({
     setWorkspacePolicy,
     setWorkspaceHydrateSummary,
     setWorkspaceSidebarOrder,
-  });
+  }), [
+    activeTurnIdsByThread,
+    applyBootstrap,
+    fetchWorkspacePolicy,
+    flushPendingThreadDeltas,
+    hasRestoredInitialSelectionRef,
+    isSignedIn,
+    model,
+    pendingPermission,
+    profileFieldValue,
+    reasoningEffort,
+    refreshBootstrap,
+    rememberKnownThreadIds,
+    removeThreadFromLocalState,
+    removeWorkspaceFromLocalState,
+    runContext,
+    selectedProfileId,
+    selectedThreadId,
+    selectedThreadIdRef,
+    serviceTier,
+    workspaceSidebarOrder,
+  ]);
 
   return {
     accountEmail,

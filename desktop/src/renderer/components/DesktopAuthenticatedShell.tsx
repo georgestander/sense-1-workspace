@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from "react";
+import { memo, type ComponentProps, type ReactNode } from "react";
 import { House, PanelLeft, PanelRight } from "lucide-react";
 
 import { Button } from "./ui/button";
@@ -26,7 +26,7 @@ export interface DesktopAuthenticatedShellProps {
   reportBugController: ReportBugController;
 }
 
-export function DesktopAuthenticatedShell({
+export const DesktopAuthenticatedShell = memo(function DesktopAuthenticatedShell({
   showInstallUpdateAction,
   onInstallReadyUpdate,
   leftRailOpen,
@@ -105,4 +105,4 @@ export function DesktopAuthenticatedShell({
       <ReportBugModal controller={reportBugController} />
     </div>
   );
-}
+});

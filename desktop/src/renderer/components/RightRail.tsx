@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import type {
   DesktopApprovalDecision,
   DesktopApprovalEvent,
@@ -59,7 +61,7 @@ export interface RightRailProps {
   isClarifying: boolean;
 }
 
-export function RightRail(props: RightRailProps) {
+export const RightRail = memo(function RightRail(props: RightRailProps) {
   const {
     showRightRail,
     rightRailOpen,
@@ -169,4 +171,4 @@ export function RightRail(props: RightRailProps) {
       </div>
     </aside>
   );
-}
+});
