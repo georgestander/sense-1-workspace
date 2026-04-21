@@ -1,5 +1,6 @@
 import type { DesktopAppServerInputItem, DesktopThreadDelta, DesktopThreadSummary, DesktopInputQuestion, DesktopInputRequestState, DesktopThreadInputState } from "./thread.js";
 import type { DesktopRunContext } from "./run.js";
+import type { DesktopVerbosity } from "./settings.js";
 import type { DesktopUpdateState } from "./runtime.js";
 import type { DesktopVoiceState } from "./voice.js";
 import type { DesktopWorkspacePermissionRequest } from "./workspace.js";
@@ -46,6 +47,7 @@ export interface DesktopTaskRunRequest {
   readonly personality?: string;
   readonly reasoningEffort?: string;
   readonly serviceTier?: "flex" | "fast";
+  readonly verbosity?: DesktopVerbosity;
   readonly attachments?: string[];
   readonly inputItems?: DesktopAppServerInputItem[];
   readonly runContext?: DesktopRunContext | null;

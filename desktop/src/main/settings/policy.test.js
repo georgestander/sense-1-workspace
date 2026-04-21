@@ -384,12 +384,14 @@ test("resolveDesktopSettings applies precedence from platform defaults through p
     platformDefaults: {
       model: "gpt-5.4-mini",
       reasoningEffort: "xhigh",
+      verbosity: "balanced",
       personality: "friendly",
       approvalPosture: "never",
       sandboxPosture: "workspaceWrite",
     },
     profileSettings: {
       model: "gpt-5.4",
+      verbosity: "terse",
       personality: "concise",
       sandboxPosture: "workspaceWrite",
     },
@@ -408,6 +410,7 @@ test("resolveDesktopSettings applies precedence from platform defaults through p
     personality: "pragmatic",
     reasoningEffort: "xhigh",
     sandboxPosture: "readOnly",
+    verbosity: "terse",
   });
   assert.deepEqual(resolved.sources, {
     approvalPosture: "rolePolicy",
@@ -415,6 +418,7 @@ test("resolveDesktopSettings applies precedence from platform defaults through p
     personality: "orgPolicy",
     reasoningEffort: "platformDefaults",
     sandboxPosture: "rolePolicy",
+    verbosity: "profileSettings",
   });
 });
 

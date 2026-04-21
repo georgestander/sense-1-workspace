@@ -162,6 +162,7 @@ async function resolveDesktopRealtimeAccessToken(codexHome: string, env: NodeJS.
 export class DesktopSessionController {
   static readonly DEFAULT_SETTINGS: DesktopSettings = {
     model: DEFAULT_DESKTOP_SETTINGS.model,
+    verbosity: DEFAULT_DESKTOP_SETTINGS.verbosity,
     reasoningEffort: DEFAULT_DESKTOP_SETTINGS.reasoningEffort,
     serviceTier: DEFAULT_DESKTOP_SETTINGS.serviceTier,
     personality: DEFAULT_DESKTOP_SETTINGS.personality,

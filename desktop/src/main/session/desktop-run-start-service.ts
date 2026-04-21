@@ -70,6 +70,7 @@ import { applyTenantMembershipToActor, resolveTenantMembershipForProfile } from 
 import type { DesktopExtensionService } from "../settings/desktop-extension-service.ts";
 import { extractPromptShortcutTokens, resolvePromptShortcutInputItems } from "./desktop-prompt-shortcuts.ts";
 import { collectSkillApprovalKeys } from "./skill-approval-state.ts";
+import type { DesktopVerbosity } from "../../shared/contracts/settings.js";
 
 const PROFILE_CODEX_HOME_SHORTCUTS = new Set([
   "plugin-creator",
@@ -119,6 +120,17 @@ function mergeRuntimeInstructions(baseInstructions: string, extraInstruction: st
     return trimmedExtra;
   }
   return `${trimmedBase}\n\n${trimmedExtra}`;
+}
+
+function resolveVerbosity(value: string | null | undefined): DesktopVerbosity {
+  switch (value) {
+    case "terse":
+    case "balanced":
+    case "detailed":
+      return value;
+    default:
+      return DESKTOP_DEFAULT_SETTINGS.verbosity;
+  }
 }
 
 function withAdditionalWritableRoots(
@@ -363,6 +375,7 @@ export class DesktopRunStartService {
       personality: request.personality,
       reasoningEffort: request.reasoningEffort,
       serviceTier: request.serviceTier,
+      verbosity: request.verbosity,
     });
     const resolvedSettings = resolveDesktopSettings({
       orgPolicy,
@@ -547,6 +560,7 @@ export class DesktopRunStartService {
           shortcutNames: profileCodexHomeShortcutNames,
         }),
       );
+      const resolvedVerbosity = resolveVerbosity(resolvedSettings.settings.verbosity);
       result = await executeDesktopTask(this.#manager, {
         ...request,
         attachments: normalizedAttachments.length > 0 ? normalizedAttachments : undefined,
@@ -560,6 +574,7 @@ export class DesktopRunStartService {
         personality: resolvedPersonality,
         reasoningEffort: resolvedEffort ?? undefined,
         serviceTier: resolvedSettings.settings.serviceTier === "fast" ? "fast" : "flex",
+        verbosity: resolvedVerbosity,
         runtimeInstructions: resolvedRuntimeInstructions,
         settings: resolvedSettings.settings as unknown as Record<string, unknown>,
         workspaceRoot: effectiveWorkspaceRoot,

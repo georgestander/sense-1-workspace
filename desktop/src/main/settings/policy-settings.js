@@ -22,6 +22,7 @@ const DESKTOP_SETTING_KEYS = Object.freeze([
   "model",
   "reasoningEffort",
   "serviceTier",
+  "verbosity",
   "personality",
   "runtimeInstructions",
   "approvalPosture",
@@ -57,6 +58,25 @@ function normalizeOperatingMode(value, fallback = "auto") {
   const resolved = firstString(value);
   if (resolved === "preview" || resolved === "auto" || resolved === "apply") {
     return resolved;
+  }
+
+  return fallback;
+}
+
+function normalizeVerbosity(value, fallback = "balanced") {
+  const resolved = firstString(value);
+  if (resolved === "terse" || resolved === "balanced" || resolved === "detailed") {
+    return resolved;
+  }
+
+  if (resolved === "low") {
+    return "terse";
+  }
+  if (resolved === "medium") {
+    return "balanced";
+  }
+  if (resolved === "high") {
+    return "detailed";
   }
 
   return fallback;
@@ -162,6 +182,10 @@ export function normalizeDesktopSettingsLayer(settings = {}) {
   const serviceTier = firstString(record.serviceTier);
   if (serviceTier === "flex" || serviceTier === "fast") {
     normalized.serviceTier = serviceTier;
+  }
+  const verbosity = normalizeVerbosity(record.verbosity, null);
+  if (verbosity) {
+    normalized.verbosity = verbosity;
   }
   const personality = normalizePersonality(record.personality, null);
   if (personality) {

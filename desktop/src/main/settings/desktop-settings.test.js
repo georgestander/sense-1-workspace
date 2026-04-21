@@ -13,6 +13,7 @@ test("resolveDesktopSettings lifts legacy flat settings into effective desktop d
     model: "gpt-5.4",
     reasoningEffort: "high",
     serviceTier: "fast",
+    verbosity: "detailed",
     personality: "formal",
     approvalPosture: "onRequest",
     sandboxPosture: "readOnly",
@@ -23,6 +24,7 @@ test("resolveDesktopSettings lifts legacy flat settings into effective desktop d
     model: "gpt-5.4",
     reasoningEffort: "high",
     serviceTier: "fast",
+    verbosity: "detailed",
     personality: "pragmatic",
     approvalPosture: "onRequest",
     sandboxPosture: "readOnly",
@@ -46,6 +48,7 @@ test("resolveDesktopSettingsState layers workspace defaults and model restrictio
             model: "gpt-5.4",
             reasoningEffort: "medium",
             serviceTier: "fast",
+            verbosity: "terse",
             personality: "formal",
           },
           approvalDefaults: {
@@ -71,6 +74,7 @@ test("resolveDesktopSettingsState layers workspace defaults and model restrictio
     model: "gpt-5.4-mini",
     reasoningEffort: "medium",
     serviceTier: "fast",
+    verbosity: "terse",
     personality: "pragmatic",
     approvalPosture: "onRequest",
     sandboxPosture: "readOnly",
@@ -190,6 +194,30 @@ test("applyDesktopSettingsPatch persists the default service tier under workspac
     },
   });
   assert.equal(resolveDesktopSettings(next).serviceTier, "fast");
+});
+
+test("applyDesktopSettingsPatch persists the default verbosity under workspace defaults", () => {
+  const next = applyDesktopSettingsPatch(
+    {
+      version: 2,
+      policy: {
+        system: null,
+        organization: null,
+        profile: null,
+        workspaces: {},
+      },
+    },
+    {
+      verbosity: "terse",
+    },
+  );
+
+  assert.deepEqual(next.policy.profile, {
+    workspaceDefaults: {
+      verbosity: "terse",
+    },
+  });
+  assert.equal(resolveDesktopSettings(next).verbosity, "terse");
 });
 
 test("applyDesktopSettingsPatch persists the default operating mode under general defaults", () => {

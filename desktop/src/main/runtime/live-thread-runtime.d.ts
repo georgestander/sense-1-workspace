@@ -9,6 +9,7 @@ import type {
   DesktopThreadSummary,
   DesktopRunContext,
 } from "../contracts";
+import type { DesktopVerbosity } from "../shared/contracts/settings.js";
 import type { AppServerProcessManager } from "./app-server-process-manager.js";
 import type { classifyDesktopExecutionIntent } from "../settings/policy.js";
 
@@ -112,6 +113,7 @@ export function runDesktopTask(
     readonly personality?: string | null;
     readonly runtimeInstructions?: string | null;
     readonly settings?: Record<string, unknown> | null;
+    readonly verbosity?: DesktopVerbosity | null;
   },
 ): Promise<DesktopStartedTaskRunResult>;
 

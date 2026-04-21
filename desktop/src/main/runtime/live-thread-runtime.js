@@ -196,6 +196,7 @@ export async function runDesktopTask(
     prompt,
     reasoningEffort,
     serviceTier,
+    verbosity,
     runContext,
     runtimeInstructions = null,
     settings = null,
@@ -277,6 +278,7 @@ export async function runDesktopTask(
     model,
     reasoningEffort,
     serviceTier,
+    verbosity,
   });
 
   let turnResult;
@@ -296,6 +298,7 @@ export async function runDesktopTask(
           executionIntent,
           runContext: productRunContext,
           serviceTier: firstString(serviceTier) ?? "flex",
+          verbosity: firstString(verbosity, settings?.verbosity) ?? "balanced",
         },
       },
     });
@@ -333,6 +336,7 @@ export async function runDesktopTask(
             executionIntent,
             runContext: productRunContext,
             serviceTier: firstString(serviceTier) ?? "flex",
+            verbosity: firstString(verbosity, settings?.verbosity) ?? "balanced",
           },
         },
       });
