@@ -6569,6 +6569,288 @@ test("runDesktopTask keeps folder-bound creator shortcuts inside the selected wo
   assert.match(developerInstructions, /or a draft left in the selected workspace for later move\/install/u);
 });
 
+test("runDesktopTask grants profile codex home writes for plain-language Skills library install requests", async () => {
+  const root = await makeTempRoot();
+  const env = createTestEnv(root);
+  const workspaceRoot = path.join(root, "workspace-profile-skill-library-request");
+  const managerCalls = [];
+  await fs.mkdir(workspaceRoot, { recursive: true });
+  await grantWorkspaceReadPermission(env, workspaceRoot);
+  const profileCodexHome = resolveProfileCodexHome(CANONICAL_PROFILE_ID, env);
+
+  const manager = {
+    handleProfileChange: async () => {},
+    off: () => {},
+    on: () => {},
+    request: async (method, params) => {
+      managerCalls.push({ method, params });
+
+      if (method === "account/read") {
+        return {
+          account: {
+            email: "george@example.com",
+            type: "chatgpt",
+          },
+          authMode: "chatgpt",
+          requiresOpenaiAuth: false,
+        };
+      }
+
+      if (method === "model/list") {
+        return {
+          data: [
+            {
+              id: "gpt-5.4-mini",
+              supportedReasoningEfforts: ["minimal", "low", "medium", "high", "xhigh"],
+            },
+          ],
+        };
+      }
+
+      if (method === "thread/start") {
+        return {
+          thread: {
+            id: "thread-profile-skill-library-request-1",
+            name: "Profile skill library request",
+            preview: "Profile skill library request",
+            updatedAt: Math.floor(Date.now() / 1000),
+            status: {
+              type: "active",
+              activeFlags: [],
+            },
+          },
+        };
+      }
+
+      if (method === "turn/start") {
+        return {
+          turn: {
+            id: "turn-profile-skill-library-request-1",
+          },
+        };
+      }
+
+      throw new Error(`Unexpected method: ${method}`);
+    },
+    start: async () => {},
+    respond: () => {},
+  };
+
+  const controller = new DesktopSessionController(manager, {
+    appStartedAt: "2026-03-24T10:00:00.000Z",
+    env,
+    openExternal: async () => {},
+    runtimeInfo: {
+      appVersion: "0.1.0",
+      electronVersion: "35.2.1",
+      platform: "darwin",
+      startedAt: "2026-03-24T10:00:00.000Z",
+    },
+  });
+
+  const result = await controller.runDesktopTask({
+    prompt: "Create a new report skill and install it in the Sense-1 Skills library so it shows up on the Skills page.",
+    workspaceRoot,
+  });
+
+  assert.equal(result.status, "started");
+
+  const threadStart = managerCalls.find((entry) => entry.method === "thread/start");
+  const turnStart = managerCalls.find((entry) => entry.method === "turn/start");
+  const developerInstructions =
+    threadStart?.params.developerInstructions
+    ?? threadStart?.params.config?.developer_instructions
+    ?? "";
+  assert.equal(await fs.realpath(turnStart?.params.cwd), await fs.realpath(workspaceRoot));
+  assert.deepEqual(
+    await Promise.all(
+      (turnStart?.params?.settings?.sense1?.runContext?.grants ?? []).map(async (grant) => await fs.realpath(grant.rootPath)),
+    ),
+    await Promise.all([fs.realpath(workspaceRoot), fs.realpath(profileCodexHome)]),
+  );
+  assert.deepEqual(
+    await Promise.all(
+      (turnStart?.params?.sandboxPolicy?.writableRoots ?? []).map(async (rootPath) => await fs.realpath(rootPath)),
+    ),
+    await Promise.all([fs.realpath(workspaceRoot), fs.realpath(profileCodexHome)]),
+  );
+  assert.match(developerInstructions, /profile CODEX_HOME/u);
+  assert.match(developerInstructions, /already has write access/u);
+  assert.match(developerInstructions, /Do not claim sandbox, workspace-boundary, or permission blocking/u);
+  assert.match(developerInstructions, /final installed skill exists/u);
+  assert.match(developerInstructions, /Do not stop at a TODO-only template/u);
+  assertManagerMethods(managerCalls, ["account/read", "model/list", "thread/start", "turn/start"]);
+});
+
+test("runDesktopTask grants profile codex home writes when editing an installed profile skill via shortcut", async () => {
+  const root = await makeTempRoot();
+  const env = createTestEnv(root);
+  const workspaceRoot = path.join(root, "workspace-profile-skill-edit");
+  const managerCalls = [];
+  await fs.mkdir(workspaceRoot, { recursive: true });
+  await grantWorkspaceReadPermission(env, workspaceRoot);
+  const profileCodexHome = resolveProfileCodexHome(CANONICAL_PROFILE_ID, env);
+  const skillRoot = path.join(profileCodexHome, "skills", "vir-report-docs");
+  const skillPath = path.join(skillRoot, "SKILL.md");
+  await fs.mkdir(skillRoot, { recursive: true });
+  await fs.writeFile(skillPath, "# vir-report-docs\n", "utf8");
+
+  const manager = {
+    handleProfileChange: async () => {},
+    off: () => {},
+    on: () => {},
+    request: async (method, params) => {
+      managerCalls.push({ method, params });
+
+      if (method === "account/read") {
+        return {
+          account: {
+            email: "george@example.com",
+            type: "chatgpt",
+          },
+          authMode: "chatgpt",
+          requiresOpenaiAuth: false,
+        };
+      }
+
+      if (method === "model/list") {
+        return {
+          data: [
+            {
+              id: "gpt-5.4-mini",
+              supportedReasoningEfforts: ["minimal", "low", "medium", "high", "xhigh"],
+            },
+          ],
+        };
+      }
+
+      if (method === "config/read") {
+        return { config: {} };
+      }
+
+      if (method === "plugin/list") {
+        return { marketplaces: [] };
+      }
+
+      if (method === "app/list") {
+        return { data: [] };
+      }
+
+      if (method === "mcpServerStatus/list") {
+        return { data: [] };
+      }
+
+      if (method === "skills/list") {
+        return {
+          data: [
+            {
+              cwd: profileCodexHome,
+              skills: [
+                {
+                  name: "vir-report-docs",
+                  path: skillPath,
+                  enabled: true,
+                },
+              ],
+            },
+          ],
+        };
+      }
+
+      if (method === "thread/start") {
+        return {
+          thread: {
+            id: "thread-profile-skill-edit-1",
+            name: "Profile skill edit",
+            preview: "Profile skill edit",
+            updatedAt: Math.floor(Date.now() / 1000),
+            status: {
+              type: "active",
+              activeFlags: [],
+            },
+          },
+        };
+      }
+
+      if (method === "turn/start") {
+        return {
+          turn: {
+            id: "turn-profile-skill-edit-1",
+          },
+        };
+      }
+
+      throw new Error(`Unexpected method: ${method}`);
+    },
+    start: async () => {},
+    respond: () => {},
+  };
+
+  const controller = new DesktopSessionController(manager, {
+    appStartedAt: "2026-03-24T10:00:00.000Z",
+    env,
+    openExternal: async () => {},
+    runtimeInfo: {
+      appVersion: "0.1.0",
+      electronVersion: "35.2.1",
+      platform: "darwin",
+      startedAt: "2026-03-24T10:00:00.000Z",
+    },
+  });
+
+  const result = await controller.runDesktopTask({
+    prompt: "Use $vir-report-docs to update the installed skill instructions for report generation.",
+    workspaceRoot,
+  });
+
+  assert.equal(result.status, "started");
+
+  const threadStart = managerCalls.find((entry) => entry.method === "thread/start");
+  const turnStart = managerCalls.find((entry) => entry.method === "turn/start");
+  const developerInstructions =
+    threadStart?.params.developerInstructions
+    ?? threadStart?.params.config?.developer_instructions
+    ?? "";
+  assert.equal(await fs.realpath(turnStart?.params.cwd), await fs.realpath(workspaceRoot));
+  assert.deepEqual(
+    await Promise.all(
+      (turnStart?.params?.settings?.sense1?.runContext?.grants ?? []).map(async (grant) => await fs.realpath(grant.rootPath)),
+    ),
+    await Promise.all([fs.realpath(workspaceRoot), fs.realpath(profileCodexHome)]),
+  );
+  assert.deepEqual(
+    await Promise.all(
+      (turnStart?.params?.sandboxPolicy?.writableRoots ?? []).map(async (rootPath) => await fs.realpath(rootPath)),
+    ),
+    await Promise.all([fs.realpath(workspaceRoot), fs.realpath(profileCodexHome)]),
+  );
+  assert.deepEqual(turnStart?.params.input, [
+    {
+      type: "mention",
+      name: "vir-report-docs",
+      path: skillPath,
+    },
+    {
+      type: "text",
+      text: "Use $vir-report-docs to update the installed skill instructions for report generation.",
+    },
+  ]);
+  assert.match(developerInstructions, /profile CODEX_HOME/u);
+  assert.match(developerInstructions, /already has write access/u);
+  assert.match(developerInstructions, /final installed skill exists/u);
+  assertManagerMethods(managerCalls, [
+    "account/read",
+    "model/list",
+    "config/read",
+    "plugin/list",
+    "app/list",
+    "mcpServerStatus/list",
+    "skills/list",
+    "thread/start",
+    "turn/start",
+  ]);
+});
+
 test("runDesktopTask falls back to plain text when shortcut overview lookup fails", async () => {
   const root = await makeTempRoot();
   const env = createTestEnv(root);
