@@ -4,7 +4,7 @@ import { Button } from "../ui/button";
 import { cn } from "../../lib/cn";
 import { resolveSettingsUpdateSummary } from "../../features/updates/update-presentation.js";
 import { useTheme, type ThemePreference } from "../../lib/theme";
-import type { DesktopModelEntry, DesktopSettings, DesktopUpdateState } from "../../../main/contracts";
+import type { DesktopModelEntry, DesktopSettings, DesktopUpdateState, DesktopVerbosity } from "../../../main/contracts";
 import { matchesSkillApprovalPath, parseSkillApprovalKey } from "../../../shared/skill-approval-key.js";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: typeof Monitor }[] = [
@@ -20,6 +20,18 @@ const REASONING_LABELS: Record<string, string> = {
   medium: "Medium",
   high: "High",
   xhigh: "Max",
+};
+
+const VERBOSITY_OPTIONS: { value: DesktopVerbosity; label: string }[] = [
+  { value: "terse", label: "Terse" },
+  { value: "balanced", label: "Balanced" },
+  { value: "detailed", label: "Detailed" },
+];
+
+const VERBOSITY_HELP: Record<DesktopVerbosity, string> = {
+  terse: "Short answers. Sense-1 trims context and caveats — best when you just want the result.",
+  balanced: "Moderate explanations alongside the result. Good default for most work.",
+  detailed: "Longer, more thorough responses with reasoning and context. Uses more tokens.",
 };
 
 type SectionProps = {
@@ -242,6 +254,28 @@ export function GeneralSettingsSection({
               <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
             ) : (
               <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">Fast mode prefers the low-latency service tier for new runs.</p>
+            )}
+          </label>
+
+          <label className="flex flex-col gap-[0.4rem]">
+            <span className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Response verbosity</span>
+            <select
+              className="rounded-md bg-surface-high px-[0.65rem] py-[0.4rem] text-[0.875rem] leading-[1.6] text-ink outline-none focus:ring-1 focus:ring-line"
+              onChange={(e) => void saveSettings({ verbosity: e.target.value as DesktopVerbosity })}
+              value={settingsData.verbosity}
+            >
+              {VERBOSITY_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            {settingsError?.key === "verbosity" ? (
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
+            ) : (
+              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">
+                {VERBOSITY_HELP[settingsData.verbosity]} Affects answer length and style, not the model or its capabilities.
+              </p>
             )}
           </label>
         </div>
