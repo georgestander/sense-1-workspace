@@ -1420,6 +1420,159 @@ test("listModels preserves runtime default metadata for the renderer", async () 
   ]);
 });
 
+test("listModels keeps the alpha OpenAI model surface identical across ChatGPT and API-key auth", async () => {
+  const root = await makeTempRoot();
+  const env = createTestEnv(root);
+  const runtimeCatalog = [
+    {
+      id: "gpt-5.4-mini",
+      name: "GPT-5.4 Mini",
+      supportedReasoningEfforts: ["minimal", "low", "medium", "high", "xhigh"],
+      defaultReasoningEffort: "medium",
+    },
+    {
+      id: "gpt-5.4",
+      isDefault: true,
+      name: "GPT-5.4",
+      supportedReasoningEfforts: ["low", "medium", "high"],
+      defaultReasoningEffort: "high",
+    },
+    {
+      id: "o3",
+      name: "o3",
+      supportedReasoningEfforts: ["high"],
+    },
+  ];
+
+  async function listModelsForAuth(account) {
+    const controller = new DesktopSessionController(
+      {
+        request: async (method) => {
+          if (method === "account/read") {
+            return account;
+          }
+
+          if (method === "model/list") {
+            return { data: runtimeCatalog };
+          }
+
+          throw new Error(`Unexpected method: ${method}`);
+        },
+      },
+      {
+        appStartedAt: "2026-03-25T10:00:00.000Z",
+        env,
+        openExternal: async () => {},
+        runtimeInfo: {
+          appVersion: "0.1.0",
+          electronVersion: "35.2.1",
+          platform: "darwin",
+          startedAt: "2026-03-25T10:00:00.000Z",
+        },
+      },
+    );
+
+    return await controller.listModels();
+  }
+
+  const chatgptResult = await listModelsForAuth({
+    account: {
+      email: "george@example.com",
+      type: "chatgpt",
+    },
+    authMode: "chatgpt",
+    requiresOpenaiAuth: false,
+  });
+  const apiKeyResult = await listModelsForAuth({
+    account: {
+      email: null,
+      type: "apiKey",
+    },
+    authMode: "apikey",
+    requiresOpenaiAuth: false,
+  });
+
+  assert.deepEqual(chatgptResult.models, apiKeyResult.models);
+  assert.deepEqual(chatgptResult.models, [
+    {
+      id: "gpt-5.4-mini",
+      name: "GPT-5.4 Mini",
+      supportedReasoningEfforts: ["minimal", "low", "medium", "high", "xhigh"],
+      defaultReasoningEffort: "medium",
+    },
+    {
+      id: "gpt-5.4",
+      isDefault: true,
+      name: "GPT-5.4",
+      supportedReasoningEfforts: ["low", "medium", "high"],
+      defaultReasoningEffort: "high",
+    },
+  ]);
+});
+
+test("updateDesktopSettings blocks OpenAI alpha models outside the shared auth-parity surface", async () => {
+  const root = await makeTempRoot();
+  const env = createTestEnv(root);
+  const controller = new DesktopSessionController(
+    {
+      request: async (method) => {
+        if (method === "account/read") {
+          return {
+            account: {
+              email: "george@example.com",
+              type: "chatgpt",
+            },
+            authMode: "chatgpt",
+            requiresOpenaiAuth: false,
+          };
+        }
+
+        if (method === "model/list") {
+          return {
+            data: [
+              {
+                id: "gpt-5.4-mini",
+                name: "GPT-5.4 Mini",
+                supportedReasoningEfforts: ["medium", "high", "xhigh"],
+              },
+              {
+                id: "gpt-5.4",
+                name: "GPT-5.4",
+                supportedReasoningEfforts: ["low", "medium", "high"],
+              },
+              {
+                id: "o3",
+                name: "o3",
+                supportedReasoningEfforts: ["high"],
+              },
+            ],
+          };
+        }
+
+        throw new Error(`Unexpected method: ${method}`);
+      },
+    },
+    {
+      appStartedAt: "2026-03-25T10:00:00.000Z",
+      env,
+      openExternal: async () => {},
+      runtimeInfo: {
+        appVersion: "0.1.0",
+        electronVersion: "35.2.1",
+        platform: "darwin",
+        startedAt: "2026-03-25T10:00:00.000Z",
+      },
+    },
+  );
+
+  await assert.rejects(
+    () => controller.updateDesktopSettings({
+      model: "o3",
+    }),
+    /does not list it as an available model/i,
+  );
+});
+
 test("runDesktopTask applies persisted workspace policy defaults to the runtime request", async () => {
   const root = await makeTempRoot();
   const env = createTestEnv(root);

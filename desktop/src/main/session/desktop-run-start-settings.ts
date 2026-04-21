@@ -6,6 +6,7 @@ import {
   normalizeDesktopSettingsLayer,
   resolveDesktopRoleSettingsPolicy,
 } from "../settings/policy.js";
+import { projectSupportedRuntimeModels } from "../settings/runtime-model-catalog.js";
 import { getSubstrateScope } from "../substrate/substrate.js";
 
 type AccountReadResult = {
@@ -159,6 +160,7 @@ export async function resolveSignedInAccount({
 
 export async function loadSupportedModels(
   manager: AppServerProcessManager,
+  signIn: Pick<ResolvedDesktopSignIn, "accountType" | "authMode"> = { accountType: null, authMode: null },
 ): Promise<Array<{ id: string; supportedReasoningEfforts: string[] }>> {
   try {
     const result = await manager.request("model/list", {}) as {
@@ -168,14 +170,10 @@ export async function loadSupportedModels(
       }>;
     };
 
-    return (Array.isArray(result?.data) ? result.data : [])
-      .map((entry) => ({
-        id: typeof entry?.id === "string" ? entry.id : "",
-        supportedReasoningEfforts: Array.isArray(entry?.supportedReasoningEfforts)
-          ? entry.supportedReasoningEfforts.filter((effort): effort is string => typeof effort === "string")
-          : [],
-      }))
-      .filter((entry) => Boolean(entry.id));
+    return projectSupportedRuntimeModels(Array.isArray(result?.data) ? result.data : [], {
+      accountType: signIn.accountType,
+      authMode: signIn.authMode,
+    });
   } catch {
     return [];
   }

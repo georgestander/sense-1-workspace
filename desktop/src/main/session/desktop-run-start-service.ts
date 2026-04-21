@@ -397,7 +397,7 @@ export class DesktopRunStartService {
 
     const runtimeSettingsValidation = validateDesktopResolvedSettings({
       settings: resolvedSettings.settings,
-      supportedModels: await loadSupportedModels(this.#manager),
+      supportedModels: await loadSupportedModels(this.#manager, auth),
     });
     if (runtimeSettingsValidation.decision !== "allow") {
       throw new Error(runtimeSettingsValidation.reason);
