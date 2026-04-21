@@ -82,11 +82,11 @@ export function GeneralSettingsSection({
 
   return (
     <>
-      <h2 className="font-display text-[1.25rem] font-semibold leading-[1.35] tracking-[-0.015em]">General</h2>
-      <p className="mt-[0.2rem] text-[0.875rem] leading-[1.6] text-ink-muted">Core desktop defaults for manual alpha installs, model selection, and reasoning depth.</p>
+      <h2 className="font-display text-[1.05rem] font-semibold leading-[1.35] tracking-[-0.015em]">General</h2>
+      <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.55] text-ink-muted">Core desktop defaults for manual alpha installs, model selection, and reasoning depth.</p>
       {settingsData ? (
-        <div className="mt-[1.25rem] flex flex-col gap-[1.25rem]">
-          <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.85rem]">
+        <div className="mt-[0.75rem] flex flex-col gap-[0.75rem]">
+          <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
             <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Appearance</p>
             <div className="mt-[0.55rem] inline-flex rounded-lg bg-surface p-[0.2rem]">
               {THEME_OPTIONS.map(({ value, label, icon: Icon }) => {
@@ -111,7 +111,7 @@ export function GeneralSettingsSection({
             <p className="mt-[0.4rem] text-[0.8125rem] leading-[1.52] text-ink-muted">System follows your operating system. Choose Light or Dark to override.</p>
           </div>
 
-          <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.85rem]">
+          <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Current version</p>
@@ -162,7 +162,7 @@ export function GeneralSettingsSection({
               )}
             </select>
             {settingsError?.key === "model" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
+              <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-danger">{settingsError.message}</p>
             ) : null}
           </label>
 
@@ -185,13 +185,13 @@ export function GeneralSettingsSection({
               )}
             </select>
             {settingsError?.key === "reasoningEffort" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
+              <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-danger">{settingsError.message}</p>
             ) : (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">Higher reasoning uses more tokens but produces more thorough analysis.</p>
+              <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-ink-muted">Higher reasoning uses more tokens but produces more thorough analysis.</p>
             )}
           </label>
 
-          <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.85rem]">
+          <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Trusted skills</p>
@@ -251,9 +251,9 @@ export function GeneralSettingsSection({
               <option value="fast">Fast</option>
             </select>
             {settingsError?.key === "serviceTier" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
+              <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-danger">{settingsError.message}</p>
             ) : (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">Fast mode prefers the low-latency service tier for new runs.</p>
+              <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-ink-muted">Fast mode prefers the low-latency service tier for new runs.</p>
             )}
           </label>
 
@@ -271,16 +271,16 @@ export function GeneralSettingsSection({
               ))}
             </select>
             {settingsError?.key === "verbosity" ? (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-danger">{settingsError.message}</p>
+              <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-danger">{settingsError.message}</p>
             ) : (
-              <p className="mt-[0.2rem] text-[0.8125rem] leading-[1.52] text-ink-muted">
+              <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-ink-muted">
                 {VERBOSITY_HELP[settingsData.verbosity]} Affects answer length and style, not the model or its capabilities.
               </p>
             )}
           </label>
         </div>
       ) : (
-        <p className="mt-[1.25rem] text-[0.875rem] leading-[1.6] text-ink-muted">Loading settings...</p>
+        <p className="mt-[0.75rem] text-[0.8125rem] leading-[1.55] text-ink-muted">Loading settings...</p>
       )}
     </>
   );

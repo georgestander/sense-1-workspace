@@ -131,7 +131,7 @@ export function SettingsModal({
         </nav>
 
         <main className="min-w-0 flex-1 overflow-y-auto bg-surface">
-          <div className="fade-up mx-auto max-w-2xl px-10 py-[1.75rem]">
+          <div className="fade-up mx-auto max-w-2xl px-10 py-[1rem]">
             {settingsSection === "general" ? (
               <GeneralSettingsSection
                 availableModels={availableModels}

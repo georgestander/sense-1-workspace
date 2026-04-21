@@ -25,7 +25,7 @@ function TeamCard({
   detail?: string;
 }) {
   return (
-    <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.85rem]">
+    <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
       <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">{title}</p>
       <p className="mt-[0.35rem] text-[0.9375rem] leading-[1.55] text-ink">{body}</p>
       {detail ? <p className="mt-[0.35rem] text-[0.8125rem] leading-[1.52] text-ink-muted">{detail}</p> : null}
@@ -144,15 +144,15 @@ export function TeamSettingsSection({
 
   return (
     <>
-      <h2 className="font-display text-[1.25rem] font-semibold leading-[1.35] tracking-[-0.015em]">Team</h2>
-      <p className="mt-[0.2rem] text-[0.875rem] leading-[1.6] text-ink-muted">
+      <h2 className="font-display text-[1.05rem] font-semibold leading-[1.35] tracking-[-0.015em]">Team</h2>
+      <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.55] text-ink-muted">
         Local mode works immediately on this Mac. Hosted invites and alpha downloads now live in the web portal, while this desktop team section remains a transitional local-only scaffold.
       </p>
 
       {loading ? (
-        <p className="mt-[1.25rem] text-[0.875rem] leading-[1.6] text-ink-muted">Loading team setup...</p>
+        <p className="mt-[0.75rem] text-[0.8125rem] leading-[1.55] text-ink-muted">Loading team setup...</p>
       ) : (
-        <div className="mt-[1.25rem] flex flex-col gap-[1rem]">
+        <div className="mt-[0.75rem] flex flex-col gap-[0.75rem]">
           <TeamCard
             title={effectiveTeamState.tenant ? "Active team" : "Current mode"}
             body={
@@ -168,7 +168,7 @@ export function TeamSettingsSection({
           />
 
           {!effectiveTeamState.tenant && effectiveTeamState.teamSetup.canCreateFirstTeam ? (
-            <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.85rem]">
+            <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
               <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Create your first team</p>
               <p className="mt-[0.35rem] text-[0.9375rem] leading-[1.55] text-ink">
                 Create a desktop-local team record and make this account the initial admin.
@@ -202,7 +202,7 @@ export function TeamSettingsSection({
               />
 
               {effectiveTeamState.teamSetup.canManageTeam ? (
-                <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.85rem]">
+                <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
                   <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Add member</p>
                   <p className="mt-[0.35rem] text-[0.9375rem] leading-[1.55] text-ink">
                     Add or update a local member record for this team on this machine.
@@ -240,7 +240,7 @@ export function TeamSettingsSection({
               )}
 
               {effectiveTeamState.members.length > 0 ? (
-                <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.85rem]">
+                <div className="rounded-xl bg-surface-low px-[0.9rem] py-[0.55rem]">
                   <p className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Members</p>
                   <div className="mt-3 flex flex-col gap-2">
                     {effectiveTeamState.members.map((member) => (
