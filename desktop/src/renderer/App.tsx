@@ -114,37 +114,6 @@ export default function App() {
     previousSelectedThreadIdRef.current = currentThreadId;
   }, [activeView, sessionState.selectedThreadId]);
 
-  // ── Auth gate ──
-  if (sessionState.bootstrapLoading || sessionState.runtimeSetup?.blocked || !sessionState.isSignedIn) {
-    return (
-      <AuthScreens
-        bootstrapLoading={sessionState.bootstrapLoading}
-        runtimeSetup={sessionState.runtimeSetup}
-        isSignedIn={sessionState.isSignedIn}
-        accountEmail={sessionState.accountEmail ?? ""}
-        handleStartAuthLogin={sessionState.handleStartAuthLogin}
-        authPendingMethod={sessionState.authPendingMethod}
-        signInPending={sessionState.signInPending}
-        bootstrapError={sessionState.bootstrapError}
-        runtimeStatus={sessionState.runtimeStatus}
-        providerState={management.overview?.provider ?? null}
-        refreshBootstrap={sessionState.refreshBootstrap}
-      />
-    );
-  }
-
-  if (sessionState.identity?.needsDisplayName) {
-    return (
-      <ProfileNamingStep
-        inferredDisplayName={sessionState.identity.inferredDisplayName}
-        submitting={sessionState.identityCompletionPending}
-        errorMessage={sessionState.identityCompletionError}
-        runtimeStatus={sessionState.runtimeStatus}
-        onSubmit={sessionState.handleCompleteDisplayName}
-      />
-    );
-  }
-
   const createPluginPrompt = "$plugin-creator scaffold a new Sense-1 Workspace profile plugin and explain the inputs you need.";
   const createSkillPrompt = "$skill-creator create a new Sense-1 Workspace profile skill and keep the flow native to Codex.";
   const showHomeRightRail = shouldShowHomeRightRail(activeView, sessionState.showRightRail);
@@ -260,6 +229,37 @@ export default function App() {
     () => ({ ...rightRailProps, showRightRail: showHomeRightRail }),
     [rightRailProps, showHomeRightRail],
   );
+
+  // ── Auth gate ──
+  if (sessionState.bootstrapLoading || sessionState.runtimeSetup?.blocked || !sessionState.isSignedIn) {
+    return (
+      <AuthScreens
+        bootstrapLoading={sessionState.bootstrapLoading}
+        runtimeSetup={sessionState.runtimeSetup}
+        isSignedIn={sessionState.isSignedIn}
+        accountEmail={sessionState.accountEmail ?? ""}
+        handleStartAuthLogin={sessionState.handleStartAuthLogin}
+        authPendingMethod={sessionState.authPendingMethod}
+        signInPending={sessionState.signInPending}
+        bootstrapError={sessionState.bootstrapError}
+        runtimeStatus={sessionState.runtimeStatus}
+        providerState={management.overview?.provider ?? null}
+        refreshBootstrap={sessionState.refreshBootstrap}
+      />
+    );
+  }
+
+  if (sessionState.identity?.needsDisplayName) {
+    return (
+      <ProfileNamingStep
+        inferredDisplayName={sessionState.identity.inferredDisplayName}
+        submitting={sessionState.identityCompletionPending}
+        errorMessage={sessionState.identityCompletionError}
+        runtimeStatus={sessionState.runtimeStatus}
+        onSubmit={sessionState.handleCompleteDisplayName}
+      />
+    );
+  }
 
   return (
     <DesktopAuthenticatedShell
