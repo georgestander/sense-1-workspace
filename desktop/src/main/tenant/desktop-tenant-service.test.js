@@ -5,7 +5,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 
 import { DesktopTenantService } from "./desktop-tenant-service.ts";
-import { createTenant, addTenantMember, persistActiveTenantMembership } from "./tenant-state.ts";
+import { createTenant, addTenantMember, listTenantMembers, persistActiveTenantMembership } from "./tenant-state.ts";
 
 function createEnv(runtimeRoot, tenantRoot = null) {
   return {
@@ -207,7 +207,7 @@ test("DesktopTenantService renames an existing member when previousEmail differs
   assert.equal(result.members.length, 2);
 });
 
-test("DesktopTenantService refuses to rename to an email that collides with another member", async () => {
+test("DesktopTenantService rolls the rename back when the new email collides so the old row survives", async () => {
   const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-runtime-"));
   const tenantRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-tenant-service-cloud-"));
   const env = createEnv(runtimeRoot, tenantRoot);
@@ -264,6 +264,10 @@ test("DesktopTenantService refuses to rename to an email that collides with anot
     }),
     /already uses/,
   );
+
+  const survivors = await listTenantMembers({ tenantId: "ops-team", env });
+  const emails = survivors.map((member) => member.email).sort();
+  assert.deepEqual(emails, ["george@example.com", "one@example.com", "two@example.com"]);
 });
 
 test("DesktopTenantService refuses to rename the signed-in admin's own email", async () => {

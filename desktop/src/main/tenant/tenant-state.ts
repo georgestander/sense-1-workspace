@@ -355,6 +355,135 @@ export async function addTenantMember({
   }
 }
 
+export async function renameTenantMember({
+  tenantId,
+  previousEmail,
+  nextEmail,
+  role = "member",
+  displayName = null,
+  now = new Date().toISOString(),
+  metadata = {},
+  env = process.env,
+}: {
+  tenantId: string;
+  previousEmail: string;
+  nextEmail: string;
+  role?: TenantRole;
+  displayName?: string | null;
+  now?: string;
+  metadata?: Record<string, unknown>;
+  env?: NodeJS.ProcessEnv;
+}): Promise<TenantMembershipRecord> {
+  const normalizedPrevious = normalizeEmail(previousEmail);
+  const normalizedNext = normalizeEmail(nextEmail);
+  if (!normalizedPrevious || !normalizedNext) {
+    throw new Error("Both previous and next emails are required to rename tenant membership.");
+  }
+  if (normalizedPrevious === normalizedNext) {
+    throw new Error("The next email must differ from the previous email to rename tenant membership.");
+  }
+  const resolvedTenantId = sanitizeTenantId(tenantId);
+  await ensureTenantStore(env);
+
+  const db = openTenantStore(env);
+  let membership: TenantMembershipRecord | null = null;
+  let committed = false;
+  try {
+    const tenant = mapTenantRow(
+      db.prepare(
+        `SELECT id, display_name, scope_id, scope_display_name, created_at, updated_at, metadata
+        FROM tenants
+        WHERE id = ?`,
+      ).get(resolvedTenantId),
+    );
+    if (!tenant) {
+      throw new Error(`Create tenant "${resolvedTenantId}" before renaming members.`);
+    }
+
+    const actorDisplayName = firstString(displayName) ?? normalizedNext.split("@")[0] ?? "Team member";
+    const actorId = buildActorId(tenant.id, normalizedNext);
+    const normalizedRole: TenantRole = role === "admin" ? "admin" : "member";
+    const nextMetadata = { ...metadata, tenantDisplayName: tenant.displayName };
+
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      const deletion = db.prepare(
+        `DELETE FROM memberships WHERE tenant_id = ? AND email = ?`,
+      ).run(resolvedTenantId, normalizedPrevious);
+      if ((deletion.changes ?? 0) === 0) {
+        throw new Error(`No membership found for "${normalizedPrevious}" in tenant "${tenant.id}".`);
+      }
+
+      const collision = db.prepare(
+        `SELECT email FROM memberships WHERE tenant_id = ? AND email = ?`,
+      ).get(resolvedTenantId, normalizedNext);
+      if (collision) {
+        throw new Error(`Another member already uses ${normalizedNext}.`);
+      }
+
+      db.prepare(
+        `INSERT INTO memberships (
+          tenant_id,
+          email,
+          actor_id,
+          actor_display_name,
+          role,
+          joined_at,
+          updated_at,
+          metadata
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        resolvedTenantId,
+        normalizedNext,
+        actorId,
+        actorDisplayName,
+        normalizedRole,
+        now,
+        now,
+        JSON.stringify(nextMetadata),
+      );
+
+      const row = db.prepare(
+        `SELECT
+          memberships.tenant_id,
+          tenants.display_name AS tenant_display_name,
+          tenants.scope_id,
+          tenants.scope_display_name,
+          memberships.actor_id,
+          memberships.actor_display_name,
+          memberships.email,
+          memberships.role,
+          memberships.joined_at,
+          memberships.updated_at,
+          memberships.metadata
+        FROM memberships
+        JOIN tenants ON tenants.id = memberships.tenant_id
+        WHERE memberships.tenant_id = ? AND memberships.email = ?`,
+      ).get(resolvedTenantId, normalizedNext);
+      membership = mapMembershipRow(row);
+      if (!membership) {
+        throw new Error(`Could not load membership for "${normalizedNext}" in tenant "${tenant.id}".`);
+      }
+
+      db.exec("COMMIT");
+      committed = true;
+    } finally {
+      if (!committed) {
+        try {
+          db.exec("ROLLBACK");
+        } catch {
+          // rollback may throw if the transaction already ended; ignore.
+        }
+      }
+    }
+  } finally {
+    db.close();
+  }
+
+  await clearSharedTenantRegistryEntry({ email: normalizedPrevious, tenantId: resolvedTenantId }, env);
+  return membership!;
+}
+
 export async function removeTenantMember({
   tenantId,
   email,

@@ -15,6 +15,7 @@ import {
   listTenantMembers,
   persistActiveTenantMembership,
   removeTenantMember,
+  renameTenantMember,
   resolveTenantMembershipForProfile,
   sanitizeTenantId,
   type TenantMembershipRecord,
@@ -214,30 +215,23 @@ export class DesktopTenantService {
         throw new Error("You cannot change the email of your own membership.");
       }
 
-      const members = await listTenantMembers({ tenantId: membership.tenantId, env: this.#env });
-      const source = members.find((candidate) => candidate.email === previousEmail);
-      if (!source) {
-        throw new Error("That member is not part of this team.");
-      }
-      const collision = members.find((candidate) => candidate.email === nextEmail);
-      if (collision) {
-        throw new Error(`Another member already uses ${nextEmail}.`);
-      }
-
-      await removeTenantMember({
+      await renameTenantMember({
         tenantId: membership.tenantId,
-        email: previousEmail,
+        previousEmail,
+        nextEmail,
+        role: request.role,
+        displayName: request.displayName?.trim() || null,
+        env: this.#env,
+      });
+    } else {
+      await addTenantMember({
+        tenantId: membership.tenantId,
+        email: nextEmail,
+        role: request.role,
+        displayName: request.displayName?.trim() || null,
         env: this.#env,
       });
     }
-
-    await addTenantMember({
-      tenantId: membership.tenantId,
-      email: nextEmail,
-      role: request.role,
-      displayName: request.displayName?.trim() || null,
-      env: this.#env,
-    });
 
     return await this.getTeamState();
   }

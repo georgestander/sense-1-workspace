@@ -334,7 +334,7 @@ export function TeamSettingsSection({
                                     {isEditing ? "Editing" : "Edit"}
                                   </Button>
                                   <Button
-                                    disabled={busyWithOther || isSelf}
+                                    disabled={busyWithOther || isSelf || isRemovingThis}
                                     onClick={() => void handleRemoveMember(member)}
                                     size="sm"
                                     title={isSelf ? "You cannot remove yourself." : undefined}
