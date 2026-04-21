@@ -4,6 +4,26 @@ All notable changes to Sense-1 Workspace are recorded here.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-04-21
+
+### Added
+
+- Desktop sign-in that lets API-key sessions unlock local work, start runs, and complete profile naming without requiring a ChatGPT email.
+- Inline skill and plugin detail views, plus a tighter automation editor, so setup and management stay inside Sense-1 instead of bouncing out to external tools.
+- Alpha verification and packaging guardrails for manual desktop distribution, including native smoke runbooks and release validation checks.
+
+### Changed
+
+- Kept model, reasoning, and alpha-update surfaces runtime-driven across auth modes so desktop settings stay honest to the active session.
+- Tightened settings, transcript, and automation layouts so more controls fit on screen and shell-heavy output stays readable.
+- Routed crash recovery prompts back into the bug report flow and kept recovery suggestions visible until the shell is usable again.
+
+### Fixed
+
+- Unblocked the shared ChatGPT and API-key auth flow so desktop sessions recover cleanly from missing-email, hook-order, and profile-name edge cases.
+- Improved light-mode transcript readability for user bubbles, attachment pills, and inline content across denser conversation layouts.
+- Reduced renderer lag during heavy shell updates and added regression checks to catch responsiveness issues earlier.
+
 ## [0.11.1] - 2026-04-20
 
 ### Added
