@@ -125,25 +125,6 @@ function resolveProfileCodexHomeShortcutNames(inputItems: DesktopAppServerInputI
   );
 }
 
-function isSubpath(parentPath: string, candidatePath: string): boolean {
-  const resolvedParent = path.resolve(parentPath);
-  const resolvedCandidate = path.resolve(candidatePath);
-  return resolvedCandidate === resolvedParent || resolvedCandidate.startsWith(`${resolvedParent}${path.sep}`);
-}
-
-function hasProfileSkillMention(
-  inputItems: DesktopAppServerInputItem[],
-  profileCodexHome: string,
-): boolean {
-  const profileSkillsRoot = path.join(profileCodexHome, "skills");
-  return inputItems.some((item) =>
-    item.type === "mention"
-    && typeof item.path === "string"
-    && item.path.trim().length > 0
-    && isSubpath(profileSkillsRoot, item.path),
-  );
-}
-
 function promptLooksLikeManagedProfileSkillRequest(prompt: string | null | undefined): boolean {
   const resolvedPrompt = firstString(prompt);
   if (!resolvedPrompt || !/\bskills?\b/iu.test(resolvedPrompt)) {
@@ -188,13 +169,11 @@ function resolveProfileCodexHomeAccess({
   shouldGrantProfileCodexHome: boolean;
 } {
   const shortcutNames = resolveProfileCodexHomeShortcutNames(inputItems);
-  const profileSkillMention = hasProfileSkillMention(inputItems, profileCodexHome);
   const managedSkillPrompt = promptLooksLikeManagedProfileSkillRequest(prompt);
   const managedSkillCreationPrompt = promptLooksLikeManagedProfileSkillCreation(prompt);
   const hasManagedSkillRequest =
     shortcutNames.has("skill-creator")
     || shortcutNames.has("skill-installer")
-    || profileSkillMention
     || managedSkillPrompt;
 
   return {
