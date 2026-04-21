@@ -81,5 +81,5 @@ Supported scenario statuses:
 
 ## Platform runbooks
 
-- [Native macOS desktop smoke runbook](/Users/georgestander/dev/tools/sense-1-workspace/docs/native-macos-desktop-smoke-runbook.md)
-- [Native Windows desktop smoke runbook](/Users/georgestander/dev/tools/sense-1-workspace/docs/native-windows-desktop-smoke-runbook.md)
+- [Native macOS desktop smoke runbook](/Users/georgestander/dev/tools/sense-1-workspace/desktop/docs/native-macos-desktop-smoke-runbook.md)
+- [Native Windows desktop smoke runbook](/Users/georgestander/dev/tools/sense-1-workspace/desktop/docs/native-windows-desktop-smoke-runbook.md)

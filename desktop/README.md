@@ -57,9 +57,9 @@ The gate writes `desktop/release/alpha-verification/alpha-verification-matrix.js
 
 Manual scenario instructions live in:
 
-- `/Users/georgestander/dev/tools/sense-1-workspace/docs/alpha-verification-matrix.md`
-- `/Users/georgestander/dev/tools/sense-1-workspace/docs/native-macos-desktop-smoke-runbook.md`
-- `/Users/georgestander/dev/tools/sense-1-workspace/docs/native-windows-desktop-smoke-runbook.md`
+- `/Users/georgestander/dev/tools/sense-1-workspace/desktop/docs/alpha-verification-matrix.md`
+- `/Users/georgestander/dev/tools/sense-1-workspace/desktop/docs/native-macos-desktop-smoke-runbook.md`
+- `/Users/georgestander/dev/tools/sense-1-workspace/desktop/docs/native-windows-desktop-smoke-runbook.md`
 
 ## Sentry releases and source maps
 
