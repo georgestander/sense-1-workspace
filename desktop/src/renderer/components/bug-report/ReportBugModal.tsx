@@ -181,13 +181,11 @@ function IntakeSummary({ controller }: { controller: ReportBugController }) {
   const status = controller.status;
   let note: string;
   if (!status) {
-    note = "Your report will be sent to our intake system for triage.";
+    note = "Your report will be sent to Sentry with any attachments and diagnostics we can safely include.";
   } else if (!status.sentryEnabled) {
     note = "Bug reporting isn't fully configured on this build — your report may not reach triage.";
-  } else if (status.linearIntegrationMode === "disabled" || !status.linearConfigured) {
-    note = "Your report will be sent to our intake system and reviewed by the team.";
   } else {
-    note = "Your report will be sent to our intake system, and a tracking ticket may be created automatically for the team.";
+    note = "Your report will be sent to Sentry with redacted diagnostics and any attachments for team review.";
   }
   return (
     <p className="mb-4 rounded-lg bg-surface-soft px-3 py-2 text-[13px] leading-snug text-ink-soft">

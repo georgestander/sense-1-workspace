@@ -7,8 +7,6 @@ import type {
 import type { DesktopBootstrap } from "../../shared/contracts/bootstrap.ts";
 import type { RuntimeInfoResult } from "../../shared/contracts/runtime.ts";
 import type { DesktopLogEntry } from "../logging/desktop-log-buffer.ts";
-import { decideDesktopBugPromotion } from "./bug-promotion-service.ts";
-import { LinearIssueAdapter } from "./linear-issue-adapter.ts";
 import { redactLogEntries, redactSensitivePath, redactSensitiveText, resolveRedactionHomeDir } from "./redaction.ts";
 
 export interface DesktopBugReportingThreadContext {
@@ -31,19 +29,6 @@ export interface CaptureManualBugReportInput {
 }
 
 type CaptureManualBugReport = (input: CaptureManualBugReportInput) => string;
-
-function firstNonEmptyString(...values: Array<unknown>): string | null {
-  for (const value of values) {
-    if (typeof value !== "string") {
-      continue;
-    }
-    const trimmed = value.trim();
-    if (trimmed) {
-      return trimmed;
-    }
-  }
-  return null;
-}
 
 function normalizeAttachment(attachment: DesktopBugAttachment, homeDir: string | null): DesktopBugAttachment {
   return {
@@ -74,7 +59,6 @@ export class DesktopBugReportingService {
   readonly #getVisibleThreadContext: () => DesktopBugReportingThreadContext | null;
   readonly #getRecentLogs: (limit?: number) => DesktopLogEntry[];
   readonly #captureManualBugReport: CaptureManualBugReport;
-  readonly #linearIssueAdapter: LinearIssueAdapter;
 
   constructor(options: {
     readonly env?: NodeJS.ProcessEnv;
@@ -83,7 +67,6 @@ export class DesktopBugReportingService {
     readonly getVisibleThreadContext: () => DesktopBugReportingThreadContext | null;
     readonly getRecentLogs: (limit?: number) => DesktopLogEntry[];
     readonly captureManualBugReport?: CaptureManualBugReport;
-    readonly linearIssueAdapter?: LinearIssueAdapter;
   }) {
     this.#env = options.env ?? process.env;
     this.#runtimeInfo = options.runtimeInfo;
@@ -93,14 +76,11 @@ export class DesktopBugReportingService {
     this.#captureManualBugReport = options.captureManualBugReport ?? (() => {
       throw new Error("captureManualBugReport must be provided by the Electron main process.");
     });
-    this.#linearIssueAdapter = options.linearIssueAdapter ?? new LinearIssueAdapter({ env: this.#env });
   }
 
   getStatus(): DesktopBugReportingStatus {
     return {
       sentryEnabled: true,
-      linearConfigured: this.#linearIssueAdapter.isConfigured(),
-      linearIntegrationMode: this.#linearIssueAdapter.isConfigured() ? "directApi" : "sentryIntegrationOnly",
     };
   }
 
@@ -118,14 +98,9 @@ export class DesktopBugReportingService {
     };
     const recentLogs = redactLogEntries(this.#getRecentLogs(25), homeDir);
 
-    const promotionDecision = decideDesktopBugPromotion({
-      linearConfigured: this.#linearIssueAdapter.isConfigured(),
-      report: sanitizedReport,
-    });
-
     const sentryEventId = this.#captureManualBugReport({
       report: sanitizedReport,
-      severity: promotionDecision.severity,
+      severity: sanitizedReport.severity ?? "medium",
       context: {
         runtimeInfo: this.#runtimeInfo,
         thread,
@@ -135,96 +110,9 @@ export class DesktopBugReportingService {
       },
     });
 
-    if (promotionDecision.disposition !== "create") {
-      return {
-        sentryEventId,
-        sentryIssueUrl: null,
-        promotionDisposition: promotionDecision.disposition,
-        promotionReason: promotionDecision.reason,
-        linearIssueId: null,
-        linearIssueUrl: null,
-      };
-    }
-
-    let linearIssue;
-    try {
-      linearIssue = await this.#linearIssueAdapter.createIssue({
-        title: sanitizedReport.title,
-        severity: promotionDecision.severity,
-        description: this.#buildLinearIssueDescription({
-          bootstrap,
-          recentLogs,
-          report: sanitizedReport,
-          sentryEventId,
-          thread,
-        }),
-      });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.warn(`[desktop:bug-reporting] Failed to create Linear issue after Sentry capture: ${errorMessage}`);
-      return {
-        sentryEventId,
-        sentryIssueUrl: null,
-        promotionDisposition: "deferred",
-        promotionReason: "Sentry captured the report, but Linear ticket creation failed and was deferred.",
-        linearIssueId: null,
-        linearIssueUrl: null,
-      };
-    }
-
     return {
       sentryEventId,
       sentryIssueUrl: null,
-      promotionDisposition: "create",
-      promotionReason: promotionDecision.reason,
-      linearIssueId: linearIssue.id,
-      linearIssueUrl: linearIssue.url,
     };
-  }
-
-  #buildLinearIssueDescription(options: {
-    readonly bootstrap: DesktopBootstrap;
-    readonly recentLogs: DesktopLogEntry[];
-    readonly report: DesktopBugReportDraft;
-    readonly sentryEventId: string;
-    readonly thread: DesktopBugReportingThreadContext | null;
-  }): string {
-    const { bootstrap, recentLogs, report, sentryEventId, thread } = options;
-    const details = [
-      report.description,
-      "",
-      "### Diagnostics",
-      `- Sentry event ID: \`${sentryEventId}\``,
-      `- App version: \`${this.#runtimeInfo.appVersion}\``,
-      `- Electron: \`${this.#runtimeInfo.electronVersion}\``,
-      `- Platform: \`${this.#runtimeInfo.platform}\``,
-      `- Account: ${bootstrap.accountEmail ?? "unknown"}`,
-      `- Tenant: ${bootstrap.tenant?.displayName ?? "local"}`,
-      `- Thread ID: ${thread?.id ?? "none"}`,
-      `- Workspace root: ${thread?.workspaceRoot ?? "none"}`,
-      `- CWD: ${thread?.cwd ?? "none"}`,
-    ];
-
-    if (report.expectedBehavior) {
-      details.push("", "### Expected behavior", report.expectedBehavior);
-    }
-    if (report.reproductionSteps) {
-      details.push("", "### Reproduction steps", report.reproductionSteps);
-    }
-    if (report.attachments.length > 0) {
-      details.push("", "### Attachment metadata");
-      for (const attachment of report.attachments) {
-        details.push(`- ${attachment.kind}: \`${attachment.path}\``);
-      }
-    }
-    if (recentLogs.length > 0) {
-      details.push("", "### Recent redacted logs", "```text");
-      for (const entry of recentLogs.slice(-10)) {
-        details.push(`[${entry.timestamp}] ${entry.level.toUpperCase()} ${entry.message}`);
-      }
-      details.push("```");
-    }
-
-    return details.join("\n");
   }
 }
