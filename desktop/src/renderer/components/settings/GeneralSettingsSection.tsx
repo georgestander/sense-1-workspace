@@ -269,7 +269,7 @@ export function GeneralSettingsSection({
           </label>
 
           <label className="flex flex-col gap-[0.4rem]">
-            <span className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Codex settings</span>
+            <span className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Response verbosity</span>
             <select
               className="rounded-md bg-surface-high px-[0.65rem] py-[0.4rem] text-[0.875rem] leading-[1.6] text-ink outline-none focus:ring-1 focus:ring-line"
               onChange={(e) => void saveSettings({ verbosity: e.target.value as DesktopVerbosity })}
@@ -285,7 +285,7 @@ export function GeneralSettingsSection({
               <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-danger">{settingsError.message}</p>
             ) : (
               <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-ink-muted">
-                {VERBOSITY_HELP[settingsData.verbosity]} These settings affect answer length and style, not the model or its capabilities.
+                {VERBOSITY_HELP[settingsData.verbosity]} Affects answer length and style, not the model or its capabilities.
               </p>
             )}
           </label>
