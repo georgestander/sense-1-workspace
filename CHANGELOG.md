@@ -4,6 +4,20 @@ All notable changes to Sense-1 Workspace are recorded here.
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-04-22
+
+### Added
+
+- No new user-visible additions were captured in this release range.
+
+### Changed
+
+- Refreshed thread transcript typography and response-structure guidance for a clearer reading experience.
+
+### Fixed
+
+- No user-visible fixes were captured in this release range.
+
 ## [0.13.0] - 2026-04-22
 
 ### Added
