@@ -31,7 +31,7 @@ const VERBOSITY_OPTIONS: { value: DesktopVerbosity; label: string }[] = [
 const VERBOSITY_HELP: Record<DesktopVerbosity, string> = {
   terse: "Short answers. Sense-1 trims context and caveats — best when you just want the result.",
   balanced: "Moderate explanations alongside the result. Good default for most work.",
-  detailed: "Longer, more thorough responses with reasoning and context. Uses more tokens.",
+  detailed: "Longer, more thorough responses with explanations and context. Uses more tokens.",
 };
 
 type SectionProps = {

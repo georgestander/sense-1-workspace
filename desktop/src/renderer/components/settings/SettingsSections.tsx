@@ -14,15 +14,15 @@ export function ConfigurationSettingsSection({ saveSettings, settingsData, setti
   return (
     <>
       <h2 className="font-display text-[1.05rem] font-semibold leading-[1.35] tracking-[-0.015em]">Configuration</h2>
-      <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.55] text-ink-muted">Session startup defaults, workspace attachment behavior, and runtime instructions.</p>
+      <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.55] text-ink-muted">Session startup defaults, workspace attachment behavior, and custom instructions.</p>
       {settingsData ? (
         <div className="mt-[0.75rem] flex flex-col gap-[0.75rem]">
           <label className="flex flex-col gap-[0.4rem]">
-            <span className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Runtime instructions</span>
+            <span className="text-[0.75rem] font-medium uppercase leading-[1.2] tracking-[0.05em] text-ink-faint">Custom Instructions</span>
             <textarea
               className="min-h-[8rem] rounded-md bg-surface-high px-[0.65rem] py-[0.55rem] font-mono text-[0.8125rem] leading-[1.5] text-ink outline-none placeholder:text-ink-muted focus:ring-1 focus:ring-line"
               onChange={(e) => void saveSettings({ runtimeInstructions: e.target.value })}
-              placeholder="Leave blank to use the built-in runtime contract."
+              placeholder="Your guidance for Sense-1. Leave blank to rely on just the built-in workspace and safety rules."
               spellCheck={false}
               value={settingsData.runtimeInstructions ?? ""}
             />
@@ -30,7 +30,7 @@ export function ConfigurationSettingsSection({ saveSettings, settingsData, setti
               <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-danger">{settingsError.message}</p>
             ) : (
               <p className="mt-[0.1rem] text-[0.8125rem] leading-[1.5] text-ink-muted">
-                Custom instructions prepended to the built-in workspace and safety rules for each run.
+                Added to every run alongside the built-in workspace and safety rules — it does not replace them. For durable project-level guidance, use AGENTS.md or .codex/config.toml in the workspace.
               </p>
             )}
           </label>
