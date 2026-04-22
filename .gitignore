@@ -8,6 +8,7 @@
 /.pnpm-store/
 
 # Local editor and tool state
+.agent/
 .claude/
 CLAUDE.md
 .omx/
