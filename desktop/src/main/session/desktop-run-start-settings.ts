@@ -37,7 +37,7 @@ const DESKTOP_SETTING_LABELS: Record<string, string> = Object.freeze({
   model: "model",
   personality: "personality",
   reasoningEffort: "reasoning effort",
-  runtimeInstructions: "runtime instructions",
+  runtimeInstructions: "custom instructions",
   verbosity: "verbosity",
   roleApprovalLevel: "role approval level",
   sandboxPosture: "sandbox posture",

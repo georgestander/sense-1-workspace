@@ -56,6 +56,23 @@ function cloneRunContext(runContext) {
 
 const DEFAULT_DESKTOP_SERVICE_NAME = "sense_1";
 
+function mapDesktopVerbosityToModelVerbosity(verbosity = null) {
+  const resolved = firstString(verbosity);
+  if (resolved === "terse" || resolved === "low") {
+    return "low";
+  }
+
+  if (resolved === "balanced" || resolved === "medium") {
+    return "medium";
+  }
+
+  if (resolved === "detailed" || resolved === "high") {
+    return "high";
+  }
+
+  return null;
+}
+
 export function buildCollaborationMode({
   mode = "default",
   model = null,
@@ -70,7 +87,7 @@ export function buildCollaborationMode({
       model: firstString(model) ?? "",
       reasoning_effort: firstString(reasoningEffort),
       service_tier: firstString(serviceTier),
-      verbosity: firstString(verbosity),
+      verbosity: mapDesktopVerbosityToModelVerbosity(verbosity),
     },
   };
 }
@@ -237,6 +254,7 @@ export function buildDesktopThreadRequest({
   runContext = null,
   runtimeInstructions = null,
   settings = null,
+  verbosity = null,
   workspaceRoot = null,
 } = {}) {
   const resolvedModel = firstString(model) || DEFAULT_DESKTOP_MODEL;
@@ -248,8 +266,10 @@ export function buildDesktopThreadRequest({
   const instructionSet = buildInstructionSet({
     authority: describeAuthority(runContext),
     cwd,
+    // The settings field is additive developer guidance, not an editor for the base product prompt.
     runtimeInstructions,
     settings,
+    verbosity,
     workspaceContextInstruction: firstString(workspaceRoot)
       ? buildWorkspaceContextInstruction(contextPaths, workspaceRoot)
       : null,
@@ -260,6 +280,7 @@ export function buildDesktopThreadRequest({
     baseInstructions: instructionSet.baseInstructions,
     config: {
       ...cloneDesktopThreadConfig(),
+      // Keep user guidance additive in developer_instructions while the base product prompt stays in instructions.
       developer_instructions: instructionSet.developerInstructions,
       instructions: instructionSet.baseInstructions,
       model: resolvedModel,

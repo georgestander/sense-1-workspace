@@ -233,6 +233,7 @@ export async function runDesktopTask(
     runContext: productRunContext,
     runtimeInstructions,
     settings,
+    verbosity,
     threadId: resolvedThreadId,
     workspaceRoot: resolvedWorkspaceRoot,
   });
@@ -297,6 +298,7 @@ export async function runDesktopTask(
         runContext: productRunContext,
         runtimeInstructions,
         settings,
+        verbosity,
         workspaceRoot: resolvedWorkspaceRoot,
       });
       thread = restartedThread.thread;
@@ -381,6 +383,7 @@ export async function ensureDesktopThread(
     runContext = null,
     runtimeInstructions = null,
     settings = null,
+    verbosity = null,
     threadId = null,
     workspaceRoot = null,
   },
@@ -421,6 +424,7 @@ export async function ensureDesktopThread(
           runContext: productRunContext,
           runtimeInstructions,
           settings,
+          verbosity,
           workspaceRoot: resolvedWorkspaceRoot,
         }),
         threadId: nextThreadId,
@@ -443,6 +447,7 @@ export async function ensureDesktopThread(
         runContext: productRunContext,
         runtimeInstructions,
         settings,
+        verbosity,
         workspaceRoot: resolvedWorkspaceRoot,
       }),
       settings: {

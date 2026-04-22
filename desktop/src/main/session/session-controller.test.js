@@ -1679,6 +1679,7 @@ test("runDesktopTask applies persisted workspace policy defaults to the runtime 
   assert.equal(turnStart?.params.model, "gpt-5.4-mini");
   assert.equal(turnStart?.params.personality, "pragmatic");
   assert.equal(turnStart?.params.reasoningEffort, "high");
+  assert.equal(turnStart?.params.collaborationMode?.settings?.verbosity, "high");
   assert.equal(turnStart?.params.settings?.sense1?.verbosity, "detailed");
   assert.deepEqual(turnStart?.params.sandboxPolicy, {
     type: "workspaceWrite",
