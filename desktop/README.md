@@ -50,17 +50,6 @@ Use the explicit alpha gate before inviting testers:
 pnpm -C desktop verify:alpha -- --desktop-build-id alpha-001
 ```
 
-The gate writes `desktop/release/alpha-verification/alpha-verification-matrix.json` plus a summary README and exits non-zero until:
-
-- all repo-local automated checks pass, and
-- all required packaged manual scenarios are marked `pass`
-
-Manual scenario instructions live in:
-
-- `/Users/georgestander/dev/tools/sense-1-workspace/desktop/docs/alpha-verification-matrix.md`
-- `/Users/georgestander/dev/tools/sense-1-workspace/desktop/docs/native-macos-desktop-smoke-runbook.md`
-- `/Users/georgestander/dev/tools/sense-1-workspace/desktop/docs/native-windows-desktop-smoke-runbook.md`
-
 ## Sentry releases and source maps
 
 Desktop production bundles now emit source maps for main, preload, and renderer. Release packaging injects Sentry Debug IDs into the built JavaScript bundles, and packaged apps exclude raw `.map` files so source maps are available for upload without shipping them inside the installed app.
