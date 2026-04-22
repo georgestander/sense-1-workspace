@@ -18,6 +18,7 @@ import {
   type ReportBugDraft,
   type ReportBugPhase,
 } from "./report-bug-state.js";
+import { getReportBugCorrelationSnapshot, recordReportBugAction } from "./report-bug-correlation.js";
 
 export interface ReportBugController {
   open: boolean;
@@ -60,6 +61,7 @@ export function useReportBugController(): ReportBugController {
 
   const openModal = useCallback(() => {
     resetState();
+    recordReportBugAction("action", "started", "bug report modal", "opened");
     setOpen(true);
     const requestId = ++statusRequestRef.current;
     const bridge = window.sense1Desktop;
@@ -166,14 +168,17 @@ export function useReportBugController(): ReportBugController {
     setPhase("submitting");
     setErrorMessage(null);
     try {
-      const payload = buildDraftPayload(draft);
+      recordReportBugAction("action", "started", "bug report submit");
+      const payload = buildDraftPayload(draft, getReportBugCorrelationSnapshot());
       const nextResult = await bridge.reports.submit(payload);
+      recordReportBugAction("action", "succeeded", "bug report submit", nextResult.sentryEventId);
       setResult(nextResult);
       setPhase("success");
     } catch (error) {
       const message = sanitizeReportErrorMessage(
         error instanceof Error ? error.message : "Could not submit this bug report.",
       );
+      recordReportBugAction("action", "failed", "bug report submit", message);
       setErrorMessage(message.length > 0 ? message : "Could not submit this bug report.");
       setPhase("error");
     }

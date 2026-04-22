@@ -60,6 +60,7 @@ import {
   resolveSentryRelease,
   shouldEnableSentryDebug,
 } from "../shared/sentry.ts";
+import { RecentSentryEventBuffer } from "../shared/bug-report-correlation.ts";
 import type { DesktopBootstrap, DesktopSteerTurnResult, DesktopTaskRunResult, DesktopThreadInputState, DesktopThreadReadResult, DesktopThreadSnapshot, DesktopThreadSummary } from "../shared/contracts/index";
 
 const DESKTOP_APP_NAME = "Sense-1 Workspace";
@@ -75,6 +76,7 @@ function resolveDesktopSentryDist(): string | undefined {
 }
 
 const SENTRY_DIST = resolveDesktopSentryDist();
+const recentMainSentryEvents = new RecentSentryEventBuffer("main");
 
 Sentry.init({
   dsn: resolveSentryDsn(process.env),
@@ -82,6 +84,10 @@ Sentry.init({
   release: resolveSentryRelease(DESKTOP_APP_VERSION),
   dist: SENTRY_DIST,
   debug: shouldEnableSentryDebug(process.env),
+  beforeSend(event) {
+    recentMainSentryEvents.record(event);
+    return event;
+  },
 });
 app.setName(DESKTOP_APP_NAME);
 const isSingleInstance = shouldEnforceSingleInstance ? app.requestSingleInstanceLock() : true;
@@ -656,6 +662,7 @@ const bugReportingService = new DesktopBugReportingService({
   getBootstrap: async () => await desktopSessionController.getBootstrap(),
   getVisibleThreadContext: () => getVisibleThreadBugContext(),
   getRecentLogs: (limit) => desktopLogBuffer.list(limit),
+  getRecentMainSentryEvents: () => recentMainSentryEvents.snapshot(),
   captureManualBugReport: captureDesktopManualBugReport,
 });
 let runtimeStartInFlight: Promise<void> | null = null;

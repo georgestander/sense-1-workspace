@@ -1,5 +1,6 @@
 import type {
   DesktopBugAttachment,
+  DesktopBugCorrelation,
   DesktopBugReportDraft,
   DesktopBugReportResult,
   DesktopBugSeverity,
@@ -43,7 +44,10 @@ export function canSubmit(draft: ReportBugDraft): boolean {
   return draft.title.trim().length > 0 && draft.description.trim().length > 0;
 }
 
-export function buildDraftPayload(draft: ReportBugDraft): DesktopBugReportDraft {
+export function buildDraftPayload(
+  draft: ReportBugDraft,
+  correlation: DesktopBugCorrelation | null = null,
+): DesktopBugReportDraft {
   const expected = draft.expectedBehavior.trim();
   const reproduction = draft.reproductionSteps.trim();
   return {
@@ -54,6 +58,7 @@ export function buildDraftPayload(draft: ReportBugDraft): DesktopBugReportDraft 
     reproductionSteps: reproduction.length > 0 ? reproduction : null,
     severity: draft.severity === "" ? null : draft.severity,
     attachments: draft.attachments,
+    correlation,
   };
 }
 

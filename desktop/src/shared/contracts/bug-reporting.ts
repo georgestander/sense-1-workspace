@@ -3,11 +3,43 @@ export type DesktopBugReportType = "manual" | "automatic";
 export type DesktopBugSeverity = "low" | "medium" | "high" | "critical";
 
 export type DesktopBugAttachmentKind = "screenshot" | "file";
+export type DesktopBugCorrelationActionKind = "click" | "view" | "action";
+export type DesktopBugCorrelationActionStatus = "observed" | "started" | "succeeded" | "failed" | "no-op";
+export type DesktopBugCorrelationEventSource = "renderer" | "main";
 
 export interface DesktopBugAttachment {
   readonly kind: DesktopBugAttachmentKind;
   readonly path: string;
   readonly mimeType: string | null;
+}
+
+export interface DesktopBugCorrelationView {
+  readonly view: string | null;
+  readonly url: string | null;
+  readonly documentTitle: string | null;
+  readonly selectedThreadId: string | null;
+}
+
+export interface DesktopBugCorrelationAction {
+  readonly kind: DesktopBugCorrelationActionKind;
+  readonly status: DesktopBugCorrelationActionStatus;
+  readonly name: string;
+  readonly detail: string | null;
+  readonly timestamp: string;
+}
+
+export interface DesktopBugCorrelationEvent {
+  readonly eventId: string;
+  readonly source: DesktopBugCorrelationEventSource;
+  readonly title: string | null;
+  readonly level: string | null;
+  readonly timestamp: string;
+}
+
+export interface DesktopBugCorrelation {
+  readonly view: DesktopBugCorrelationView | null;
+  readonly recentActions: DesktopBugCorrelationAction[];
+  readonly recentEvents: DesktopBugCorrelationEvent[];
 }
 
 export interface DesktopBugReportDraft {
@@ -18,6 +50,7 @@ export interface DesktopBugReportDraft {
   readonly reproductionSteps: string | null;
   readonly severity?: DesktopBugSeverity | null;
   readonly attachments: DesktopBugAttachment[];
+  readonly correlation?: DesktopBugCorrelation | null;
 }
 
 export interface DesktopBugReportingStatus {

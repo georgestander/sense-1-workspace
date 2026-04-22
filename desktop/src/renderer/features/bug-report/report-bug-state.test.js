@@ -42,6 +42,7 @@ test("buildDraftPayload trims text fields and converts empty optionals to null",
   assert.equal(payload.reproductionSteps, "1. open app\n2. see crash");
   assert.equal(payload.severity, null);
   assert.deepEqual(payload.attachments, []);
+  assert.equal(payload.correlation, null);
 });
 
 test("buildDraftPayload preserves severity when chosen", () => {
@@ -52,6 +53,41 @@ test("buildDraftPayload preserves severity when chosen", () => {
     severity: "high",
   });
   assert.equal(payload.severity, "high");
+});
+
+test("buildDraftPayload includes a correlation snapshot when provided", () => {
+  const correlation = {
+    view: {
+      view: "thread",
+      url: "http://localhost:5173/",
+      documentTitle: "Sense-1 Workspace",
+      selectedThreadId: "thread-1",
+    },
+    recentActions: [{
+      kind: "click",
+      status: "observed",
+      name: "Send prompt",
+      detail: null,
+      timestamp: "2026-04-20T07:10:00.000Z",
+    }],
+    recentEvents: [{
+      eventId: "evt_1",
+      source: "renderer",
+      title: "Error: composer crashed",
+      level: "error",
+      timestamp: "2026-04-20T07:09:59.000Z",
+    }],
+  };
+  const payload = buildDraftPayload(
+    {
+      ...EMPTY_DRAFT,
+      title: "t",
+      description: "d",
+    },
+    correlation,
+  );
+
+  assert.deepEqual(payload.correlation, correlation);
 });
 
 test("inferAttachmentFromPath marks image files as screenshots with a mimeType", () => {

@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/electron/main";
 
-import type { DesktopBugReportDraft } from "../../shared/contracts/bug-reporting.ts";
+import type { DesktopBugCorrelationEvent, DesktopBugReportDraft } from "../../shared/contracts/bug-reporting.ts";
 import type { RuntimeInfoResult } from "../../shared/contracts/runtime.ts";
 
 export interface DesktopCapturedBugContext {
@@ -14,6 +14,7 @@ export interface DesktopCapturedBugContext {
   readonly accountEmail: string | null;
   readonly tenantName: string | null;
   readonly recentLogs: Array<{ readonly level: string; readonly message: string; readonly timestamp: string }>;
+  readonly recentMainSentryEvents: DesktopBugCorrelationEvent[];
 }
 
 function normalizeFingerprintValue(value: string): string {
@@ -48,6 +49,13 @@ export function captureDesktopManualBugReport(options: {
       reproductionSteps: report.reproductionSteps,
       attachmentPaths: report.attachments.map((entry) => entry.path),
     });
+    if (report.correlation) {
+      scope.setContext("sense1Correlation", {
+        view: report.correlation.view ? { ...report.correlation.view } : null,
+        recentActions: report.correlation.recentActions.map((entry) => ({ ...entry })),
+        recentEvents: report.correlation.recentEvents.map((entry) => ({ ...entry })),
+      });
+    }
     scope.setContext("sense1Diagnostics", {
       appVersion: context.runtimeInfo.appVersion,
       electronVersion: context.runtimeInfo.electronVersion,
@@ -56,7 +64,15 @@ export function captureDesktopManualBugReport(options: {
       thread: context.thread,
       tenantName: context.tenantName,
       recentLogs: context.recentLogs,
+      recentMainSentryEvents: context.recentMainSentryEvents,
     });
+    const latestRelatedEventId =
+      report.correlation?.recentEvents[0]?.eventId
+      ?? context.recentMainSentryEvents[0]?.eventId
+      ?? null;
+    if (latestRelatedEventId) {
+      scope.setTag("sense1.related_event_id", latestRelatedEventId);
+    }
     if (context.accountEmail) {
       scope.setUser({ email: context.accountEmail });
     }

@@ -74,6 +74,13 @@ test("DesktopBugReportingService submits reports to Sentry with redacted diagnos
       message: "OPENAI_API_KEY=abc123",
       timestamp: "2026-04-20T07:10:00.000Z",
     }],
+    getRecentMainSentryEvents: () => [{
+      eventId: "main_evt_1",
+      source: "main",
+      title: "Error: runtime bridge failed at /Users/george/project",
+      level: "error",
+      timestamp: "2026-04-20T07:09:00.000Z",
+    }],
     captureManualBugReport: ({ report, context }) => {
       captured.push({ report, context });
       return "evt_123";
@@ -91,12 +98,37 @@ test("DesktopBugReportingService submits reports to Sentry with redacted diagnos
       path: "/Users/george/Desktop/screenshot.png",
       mimeType: "image/png",
     }],
+    correlation: {
+      view: {
+        view: "thread",
+        url: "http://localhost:5173/",
+        documentTitle: "Sense-1 Workspace",
+        selectedThreadId: "thread-1",
+      },
+      recentActions: [{
+        kind: "click",
+        status: "observed",
+        name: "Send prompt",
+        detail: "/Users/george/project",
+        timestamp: "2026-04-20T07:09:30.000Z",
+      }],
+      recentEvents: [{
+        eventId: "renderer_evt_1",
+        source: "renderer",
+        title: "Error: Composer failed at /Users/george/project",
+        level: "error",
+        timestamp: "2026-04-20T07:09:20.000Z",
+      }],
+    },
   });
 
   assert.equal(captured.length, 1);
   assert.equal(captured[0]?.report.attachments[0]?.path, "~/Desktop/screenshot.png");
+  assert.equal(captured[0]?.report.correlation?.recentActions[0]?.detail, "~/project");
+  assert.equal(captured[0]?.report.correlation?.recentEvents[0]?.title, "Error: Composer failed at ~/project");
   assert.equal(captured[0]?.context.thread?.workspaceRoot, "~/project");
   assert.equal(captured[0]?.context.thread?.cwd, "~/project");
+  assert.equal(captured[0]?.context.recentMainSentryEvents[0]?.title, "Error: runtime bridge failed at ~/project");
   assert.equal(result.sentryEventId, "evt_123");
   assert.equal(result.sentryIssueUrl, null);
 });
@@ -172,6 +204,13 @@ test("DesktopBugReportingService redacts Windows paths before sending Sentry int
       message: "OPENAI_API_KEY=abc123 C:\\Users\\George\\project",
       timestamp: "2026-04-20T07:10:00.000Z",
     }],
+    getRecentMainSentryEvents: () => [{
+      eventId: "main_evt_2",
+      source: "main",
+      title: "Error: write EPIPE in C:\\Users\\George\\project",
+      level: "fatal",
+      timestamp: "2026-04-20T07:09:00.000Z",
+    }],
     captureManualBugReport: ({ report, context }) => {
       captured.push({ report, context });
       return "evt_456";
@@ -190,12 +229,30 @@ test("DesktopBugReportingService redacts Windows paths before sending Sentry int
       path: "C:\\Users\\George\\Desktop\\screenshot.png",
       mimeType: "image/png",
     }],
+    correlation: {
+      view: {
+        view: "automations",
+        url: "http://localhost:5173/",
+        documentTitle: "Sense-1 Workspace",
+        selectedThreadId: "thread-2",
+      },
+      recentActions: [{
+        kind: "action",
+        status: "failed",
+        name: "Create automation",
+        detail: "C:\\Users\\George\\project",
+        timestamp: "2026-04-20T07:09:30.000Z",
+      }],
+      recentEvents: [],
+    },
   });
 
   assert.equal(captured.length, 1);
   assert.equal(captured[0]?.report.attachments[0]?.path, "~\\Desktop\\screenshot.png");
+  assert.equal(captured[0]?.report.correlation?.recentActions[0]?.detail, "~\\project");
   assert.equal(captured[0]?.context.thread?.workspaceRoot, "~\\project");
   assert.equal(captured[0]?.context.thread?.cwd, "~\\project");
+  assert.equal(captured[0]?.context.recentMainSentryEvents[0]?.title, "Error: write EPIPE in ~\\project");
   assert.equal(result.sentryEventId, "evt_456");
   assert.equal(result.sentryIssueUrl, null);
 });

@@ -5,6 +5,7 @@ import { useSettingsController } from "./features/settings/use-settings-controll
 import { useAuthenticatedDesktopApp } from "./features/app/use-authenticated-desktop-app.js";
 import { useDesktopManagement } from "./features/management/use-desktop-management.js";
 import { useDesktopAutomations } from "./features/automation/use-desktop-automations.js";
+import { updateReportBugViewContext } from "./features/bug-report/report-bug-correlation.js";
 import { useReportBugController } from "./features/bug-report/use-report-bug-controller.js";
 import { installPerfTraceMonitor, perfCount } from "./lib/perf-debug.ts";
 
@@ -117,6 +118,17 @@ export default function App() {
       setActiveView("home");
     }
     previousSelectedThreadIdRef.current = currentThreadId;
+  }, [activeView, sessionState.selectedThreadId]);
+
+  useEffect(() => {
+    const view =
+      activeView === "home"
+        ? (sessionState.selectedThreadId ? "thread" : "start")
+        : activeView;
+    updateReportBugViewContext({
+      view,
+      selectedThreadId: sessionState.selectedThreadId,
+    });
   }, [activeView, sessionState.selectedThreadId]);
 
   const createPluginPrompt = "$plugin-creator scaffold a new Sense-1 Workspace profile plugin and explain the inputs you need.";

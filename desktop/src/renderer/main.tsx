@@ -3,12 +3,19 @@ import { createRoot } from "react-dom/client";
 import * as Sentry from "@sentry/electron/renderer";
 
 import App from "./App";
+import { installReportBugCorrelationCapture, recordReportBugRendererEvent } from "./features/bug-report/report-bug-correlation.js";
 import { applyTheme, readStoredTheme } from "./lib/theme";
 import "./styles.css";
 
-Sentry.init();
+Sentry.init({
+  beforeSend(event) {
+    recordReportBugRendererEvent(event);
+    return event;
+  },
+});
 
 applyTheme(readStoredTheme());
+installReportBugCorrelationCapture();
 
 const rootElement = document.getElementById("root");
 
