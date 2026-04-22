@@ -40,6 +40,7 @@ export const DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS = "Follow the Sense-1 desktop 
 const DEFAULT_DESKTOP_APPROVAL_POSTURE = "onRequest";
 const DEFAULT_DESKTOP_SANDBOX_POSTURE = "workspaceWrite";
 const DEFAULT_DESKTOP_OPERATING_MODE = "auto";
+const DEFAULT_DESKTOP_VERBOSITY = "medium";
 const DESKTOP_THREAD_CONFIG = Object.freeze({
   developer_instructions: "",
   instructions: "",
@@ -145,10 +146,32 @@ function normalizeOperatingMode(value) {
   return DEFAULT_DESKTOP_OPERATING_MODE;
 }
 
-function resolvePolicyRuleSettings(settings = null, runtimeInstructions = null) {
+export function normalizeDesktopVerbosity(value, fallback = DEFAULT_DESKTOP_VERBOSITY) {
+  const resolved = firstString(value);
+  if (resolved === "low" || resolved === "medium" || resolved === "high") {
+    return resolved;
+  }
+
+  if (resolved === "terse") {
+    return "low";
+  }
+
+  if (resolved === "balanced") {
+    return "medium";
+  }
+
+  if (resolved === "detailed") {
+    return "high";
+  }
+
+  return fallback;
+}
+
+function resolvePolicyRuleSettings(settings = null, runtimeInstructions = null, verbosity = null) {
   const record = asRecord(settings) ?? {};
   return {
     personality: normalizeDesktopPersonality(record.personality),
+    verbosity: normalizeDesktopVerbosity(verbosity ?? record.verbosity),
     defaultOperatingMode: normalizeOperatingMode(record.defaultOperatingMode),
     runtimeInstructions: resolveDesktopRuntimeInstructions(runtimeInstructions ?? record.runtimeInstructions),
     approvalPosture: normalizeApprovalPosture(record.approvalPosture),
@@ -174,6 +197,33 @@ function describePersonalityRule(personality) {
   return {
     currentValue: "Friendly",
     description: "Sense-1 uses a friendly, direct tone while still keeping answers calm and clear.",
+  };
+}
+
+function describeVerbosityRule(verbosity) {
+  if (verbosity === "low") {
+    return {
+      currentValue: "Low",
+      description: "Sense-1 keeps replies compact and expands only when accuracy or the user requires more detail.",
+      developerInstruction:
+        "Prefer short answers by default. Keep updates brief, skip unnecessary preamble, and expand only when needed for accuracy or when the user asks for more detail.",
+    };
+  }
+
+  if (verbosity === "high") {
+    return {
+      currentValue: "High",
+      description: "Sense-1 includes more explanation and context by default when it helps the user follow the work.",
+      developerInstruction:
+        "When it helps, provide a bit more explanation and context so the user can follow the work and tradeoffs.",
+    };
+  }
+
+  return {
+    currentValue: "Medium",
+    description: "Sense-1 aims for concise but sufficient detail by default.",
+    developerInstruction:
+      "Default to concise but sufficient answers. Use enough detail to be clear without over-explaining.",
   };
 }
 
@@ -237,13 +287,15 @@ function buildPolicyRuleGroups({
   cwd = null,
   runtimeInstructions = null,
   settings = null,
+  verbosity = null,
   workspaceContextInstruction = null,
   workspaceRoot = null,
 } = {}) {
   const resolvedWorkspaceRoot = firstString(workspaceRoot);
   const resolvedCwd = firstString(cwd);
-  const resolvedSettings = resolvePolicyRuleSettings(settings, runtimeInstructions);
+  const resolvedSettings = resolvePolicyRuleSettings(settings, runtimeInstructions, verbosity);
   const personalityRule = describePersonalityRule(resolvedSettings.personality);
+  const verbosityRule = describeVerbosityRule(resolvedSettings.verbosity);
   const approvalRule = describeApprovalPostureRule(resolvedSettings.approvalPosture);
   const sandboxRule = describeSandboxPostureRule(resolvedSettings.sandboxPosture);
   const operatingModeRule = describeOperatingModeRule(resolvedSettings.defaultOperatingMode);
@@ -254,13 +306,13 @@ function buildPolicyRuleGroups({
       rules: [
         {
           id: "runtime-guidance",
-          label: "Runtime guidance",
+          label: "Custom instructions",
           currentValue:
             resolvedSettings.runtimeInstructions === DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS ? "Default" : "Custom",
           description:
             resolvedSettings.runtimeInstructions === DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS
-              ? "Sense-1 follows the default desktop runtime contract unless extra guidance is configured."
-              : "Sense-1 follows custom desktop runtime guidance that has been configured for every run.",
+              ? "Sense-1 uses the default desktop custom-instruction contract unless extra guidance is configured."
+              : "Sense-1 merges custom user guidance into every run alongside the built-in workspace and safety rules.",
           developerInstruction: resolvedSettings.runtimeInstructions,
         },
         {
@@ -268,6 +320,13 @@ function buildPolicyRuleGroups({
           label: "Voice",
           currentValue: personalityRule.currentValue,
           description: personalityRule.description,
+        },
+        {
+          id: "verbosity",
+          label: "Response detail",
+          currentValue: verbosityRule.currentValue,
+          description: verbosityRule.description,
+          developerInstruction: verbosityRule.developerInstruction,
         },
       ],
     },
@@ -410,6 +469,7 @@ function collectDeveloperInstructions(groups) {
 
   return [
     "runtime-guidance",
+    "verbosity",
     "selected-folder-scope",
     "deliverable-formats",
     "file-names",
@@ -429,6 +489,7 @@ export function buildInstructionSet({
   cwd = null,
   runtimeInstructions = null,
   settings = null,
+  verbosity = null,
   workspaceContextInstruction = null,
   workspaceRoot = null,
 } = {}) {
@@ -453,6 +514,7 @@ export function buildInstructionSet({
       cwd: resolvedCwd,
       runtimeInstructions: resolvedRuntimeInstructions,
       settings,
+      verbosity,
       workspaceContextInstruction,
       workspaceRoot: resolvedWorkspaceRoot,
     }),

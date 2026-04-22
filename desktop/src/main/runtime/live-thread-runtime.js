@@ -1,4 +1,9 @@
-import { buildExecutionOverrides, DEFAULT_DESKTOP_MODEL, normalizeDesktopPersonality } from "./live-thread-runtime-policy.js";
+import {
+  buildExecutionOverrides,
+  DEFAULT_DESKTOP_MODEL,
+  normalizeDesktopPersonality,
+  normalizeDesktopVerbosity,
+} from "./live-thread-runtime-policy.js";
 import {
   buildCollaborationMode,
   buildDesktopThreadRequest,
@@ -233,6 +238,7 @@ export async function runDesktopTask(
     runContext: productRunContext,
     runtimeInstructions,
     settings,
+    verbosity,
     threadId: resolvedThreadId,
     workspaceRoot: resolvedWorkspaceRoot,
   });
@@ -278,7 +284,7 @@ export async function runDesktopTask(
           executionIntent,
           runContext: productRunContext,
           serviceTier: firstString(serviceTier) ?? "flex",
-          verbosity: firstString(verbosity, settings?.verbosity) ?? "balanced",
+          verbosity: normalizeDesktopVerbosity(firstString(verbosity, settings?.verbosity)),
         },
       },
     });
@@ -297,6 +303,7 @@ export async function runDesktopTask(
         runContext: productRunContext,
         runtimeInstructions,
         settings,
+        verbosity,
         workspaceRoot: resolvedWorkspaceRoot,
       });
       thread = restartedThread.thread;
@@ -316,7 +323,7 @@ export async function runDesktopTask(
             executionIntent,
             runContext: productRunContext,
             serviceTier: firstString(serviceTier) ?? "flex",
-            verbosity: firstString(verbosity, settings?.verbosity) ?? "balanced",
+            verbosity: normalizeDesktopVerbosity(firstString(verbosity, settings?.verbosity)),
           },
         },
       });
@@ -381,6 +388,7 @@ export async function ensureDesktopThread(
     runContext = null,
     runtimeInstructions = null,
     settings = null,
+    verbosity = null,
     threadId = null,
     workspaceRoot = null,
   },
@@ -421,6 +429,7 @@ export async function ensureDesktopThread(
           runContext: productRunContext,
           runtimeInstructions,
           settings,
+          verbosity,
           workspaceRoot: resolvedWorkspaceRoot,
         }),
         threadId: nextThreadId,
@@ -443,6 +452,7 @@ export async function ensureDesktopThread(
         runContext: productRunContext,
         runtimeInstructions,
         settings,
+        verbosity,
         workspaceRoot: resolvedWorkspaceRoot,
       }),
       settings: {

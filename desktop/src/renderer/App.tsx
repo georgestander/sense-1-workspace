@@ -6,7 +6,7 @@ import { useAuthenticatedDesktopApp } from "./features/app/use-authenticated-des
 import { useDesktopManagement } from "./features/management/use-desktop-management.js";
 import { useDesktopAutomations } from "./features/automation/use-desktop-automations.js";
 import { useReportBugController } from "./features/bug-report/use-report-bug-controller.js";
-import { perfCount } from "./lib/perf-debug.ts";
+import { installPerfTraceMonitor, perfCount } from "./lib/perf-debug.ts";
 
 import { AutomationsPage } from "./components/AutomationsPage";
 import { AuthScreens } from "./components/AuthScreens";
@@ -34,6 +34,7 @@ export default function App() {
   perfCount("render.App");
   // ── Local UI state ──
   const previousSelectedThreadIdRef = useRef<string | null>(null);
+  const perfTraceContextRef = useRef<Record<string, unknown>>({});
   const [activeView, setActiveView] = useState<"home" | "plugins" | "automations">("home");
   const [leftRailOpen, setLeftRailOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -121,6 +122,16 @@ export default function App() {
   const createPluginPrompt = "$plugin-creator scaffold a new Sense-1 Workspace profile plugin and explain the inputs you need.";
   const createSkillPrompt = "$skill-creator create a new Sense-1 Workspace profile skill and keep the flow native to Codex.";
   const showHomeRightRail = shouldShowHomeRightRail(activeView, sessionState.showRightRail);
+  perfTraceContextRef.current = {
+    activeView,
+    pendingApprovalCount: sessionState.pendingApprovals.length,
+    selectedThreadId: sessionState.selectedThreadId,
+    showRightRail: sessionState.showRightRail,
+    taskPending: sessionState.taskPending,
+    threadCount: sessionState.threads.length,
+  };
+
+  useEffect(() => installPerfTraceMonitor(() => perfTraceContextRef.current), []);
 
   const mainContent = useMemo(() => {
     if (activeView === "plugins") {

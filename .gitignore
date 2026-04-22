@@ -13,6 +13,7 @@ CLAUDE.md
 .omx/
 .env*.local
 /docs/*
+.agent/
 
 # Build output
 /desktop/dist/

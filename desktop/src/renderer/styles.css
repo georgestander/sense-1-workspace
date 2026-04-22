@@ -258,6 +258,32 @@ body {
   margin-top: 0.4rem;
 }
 
+.thread-markdown-plain-preview {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.thread-markdown-virtualized > p,
+.thread-markdown-virtualized > pre,
+.thread-markdown-virtualized > blockquote,
+.thread-markdown-virtualized > table,
+.thread-markdown-virtualized > ul > li,
+.thread-markdown-virtualized > ol > li {
+  content-visibility: auto;
+}
+
+.thread-markdown-virtualized > p,
+.thread-markdown-virtualized > ul > li,
+.thread-markdown-virtualized > ol > li,
+.thread-markdown-virtualized > blockquote {
+  contain-intrinsic-size: auto 1.75rem;
+}
+
+.thread-markdown-virtualized > pre,
+.thread-markdown-virtualized > table {
+  contain-intrinsic-size: auto 12rem;
+}
+
 .thread-markdown ul,
 .thread-markdown ol {
   margin: 0.35rem 0;

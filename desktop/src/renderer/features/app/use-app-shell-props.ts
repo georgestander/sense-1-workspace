@@ -26,7 +26,7 @@ type BuildAppShellPropsArgs = {
     openReportBug: () => void;
   };
   search: {
-    filteredThreads: LeftSidebarProps["filteredThreads"];
+    filteredThreadCount: LeftSidebarProps["filteredThreadCount"];
     leftRailOpen: LeftSidebarProps["leftRailOpen"];
     noThreadSearchMatches: LeftSidebarProps["noThreadSearchMatches"];
     searchQuery: LeftSidebarProps["searchQuery"];
@@ -66,7 +66,7 @@ type BuildAppShellPropsArgs = {
     openThreadRename: LeftSidebarProps["openThreadRename"];
     resetThreadShell: () => void;
     selectThread: LeftSidebarProps["selectThread"];
-    selectedThread: LeftSidebarProps["selectedThread"];
+    selectedThreadId: LeftSidebarProps["selectedThreadId"];
     setSidebarThreadMenu: LeftSidebarProps["setThreadMenuOpenId"];
     setThreadRenameDraft: LeftSidebarProps["setThreadRenameDraft"];
     sidebarThreadMenuOpenId: LeftSidebarProps["threadMenuOpenId"];
@@ -131,14 +131,14 @@ export function useAppShellProps({
     leftRailOpen: search.leftRailOpen,
     searchQuery: search.searchQuery,
     setSearchQuery: search.setSearchQuery,
-    filteredThreads: search.filteredThreads,
+    filteredThreadCount: search.filteredThreadCount,
     noThreadSearchMatches: search.noThreadSearchMatches,
     trimmedSearchQuery: search.trimmedSearchQuery,
     workspaceThreadGroups: workspace.visibleWorkspaceThreadGroups,
     expandedWorkspaces: workspace.expandedWorkspaces,
     toggleWorkspaceExpanded: workspace.toggleWorkspaceExpanded,
     activeWorkspaceRoot: workspace.activeWorkspaceRoot,
-    selectedThread: threadShell.selectedThread,
+    selectedThreadId: threadShell.selectedThreadId,
     selectThread: threadShell.selectThread,
     openThreadRename: threadShell.openThreadRename,
     threadRenameId: threadShell.threadRenameId,
@@ -194,7 +194,7 @@ export function useAppShellProps({
     navigation.openAutomations,
     navigation.openPlugins,
     resetToStartSurface,
-    search.filteredThreads,
+    search.filteredThreadCount,
     search.leftRailOpen,
     search.noThreadSearchMatches,
     search.searchQuery,
@@ -204,7 +204,7 @@ export function useAppShellProps({
     threadShell.handleArchiveThread,
     threadShell.handleDeleteThread,
     threadShell.openThreadRename,
-    threadShell.selectedThread,
+    threadShell.selectedThreadId,
     threadShell.selectThread,
     threadShell.setSidebarThreadMenu,
     threadShell.setThreadRenameDraft,

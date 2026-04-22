@@ -24,7 +24,7 @@ test("resolveDesktopSettings lifts legacy flat settings into effective desktop d
     model: "gpt-5.4",
     reasoningEffort: "high",
     serviceTier: "fast",
-    verbosity: "detailed",
+    verbosity: "high",
     personality: "pragmatic",
     approvalPosture: "onRequest",
     sandboxPosture: "readOnly",
@@ -74,7 +74,7 @@ test("resolveDesktopSettingsState layers workspace defaults and model restrictio
     model: "gpt-5.4-mini",
     reasoningEffort: "medium",
     serviceTier: "fast",
-    verbosity: "terse",
+    verbosity: "low",
     personality: "pragmatic",
     approvalPosture: "onRequest",
     sandboxPosture: "readOnly",
@@ -208,16 +208,16 @@ test("applyDesktopSettingsPatch persists the default verbosity under workspace d
       },
     },
     {
-      verbosity: "terse",
+      verbosity: "low",
     },
   );
 
   assert.deepEqual(next.policy.profile, {
     workspaceDefaults: {
-      verbosity: "terse",
+      verbosity: "low",
     },
   });
-  assert.equal(resolveDesktopSettings(next).verbosity, "terse");
+  assert.equal(resolveDesktopSettings(next).verbosity, "low");
 });
 
 test("applyDesktopSettingsPatch persists the default operating mode under general defaults", () => {

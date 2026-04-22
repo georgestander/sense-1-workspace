@@ -41,6 +41,7 @@ import type {
   DesktopMcpServerAuthRequest,
   DesktopMcpServerAuthResult,
   DesktopMcpServerEnabledRequest,
+  DesktopInteractionState,
   DesktopRuntimeEvent,
   DesktopRunContext,
   DesktopPolicyRulesResult,
@@ -820,6 +821,14 @@ export class DesktopSessionController {
   async rememberWorkspaceFolder(folderPath: string): Promise<void> {
     await this.#workspacePermissionRestoreReady;
     await this.#workspaceService.rememberWorkspaceFolder(folderPath);
+  }
+
+  async rememberThreadInteractionState(
+    threadId: string,
+    interactionState: DesktopInteractionState,
+  ): Promise<void> {
+    await this.#workspacePermissionRestoreReady;
+    await this.#workspaceService.rememberThreadInteractionState(threadId, interactionState);
   }
 
   async getWorkspacePolicy(rootPath: string): Promise<DesktopWorkspacePolicyResult> {

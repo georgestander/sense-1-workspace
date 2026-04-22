@@ -16,6 +16,7 @@ import type {
 } from "../../../main/contracts";
 import { requireDesktopBridge } from "../../state/session/desktop-bridge.js";
 import { shouldReloadManagementOverviewForRuntimeEvent } from "./management-runtime-events.ts";
+import { tracePerfEvent } from "../../lib/perf-debug.ts";
 
 export function useDesktopManagement({
   enabled,
@@ -34,10 +35,26 @@ export function useDesktopManagement({
       return null;
     }
     setLoading(true);
+    const startedAt = performance.now();
     try {
       const bridge = requireDesktopBridge();
       const nextOverview = await bridge.management.getOverview({
         forceRefetch,
+      });
+      const durationMs = Number((performance.now() - startedAt).toFixed(2));
+      tracePerfEvent("management-overview", {
+        appCount: nextOverview.apps.length,
+        forceRefetch,
+        loading: true,
+        managedExtensionCount: nextOverview.managedExtensions.length,
+        mcpServerCount: nextOverview.mcpServers.length,
+        pluginCount: nextOverview.plugins.length,
+        skillCount: nextOverview.skills.length,
+        durationMs,
+      }, {
+        level: durationMs >= 100 ? "warn" : "info",
+        minIntervalMs: 250,
+        throttleKey: `management-overview:${forceRefetch ? "force" : "cached"}`,
       });
       setOverview(nextOverview);
       setError(null);
@@ -62,6 +79,13 @@ export function useDesktopManagement({
     const bridge = requireDesktopBridge();
     const unsubscribe = bridge.session.onRuntimeEvent((event) => {
       if (shouldReloadManagementOverviewForRuntimeEvent(event)) {
+        tracePerfEvent("management-runtime-event", {
+          eventKind: event.kind,
+        }, {
+          level: "warn",
+          minIntervalMs: 250,
+          throttleKey: "management-runtime-event",
+        });
         void loadOverview(true);
       }
     });

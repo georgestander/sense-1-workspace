@@ -1,17 +1,27 @@
 import type { DesktopBootstrap, DesktopThreadSummary } from "../../../main/contracts";
 import { buildChangeGroups, buildProgressSummary, normalizeDesktopSummary } from "../../lib/live-thread-data.js";
+import { perfMeasure } from "../../lib/perf-debug.ts";
 import { folderDisplayName } from "../session/session-selectors.js";
 import { type FolderOption, type ThreadRecord } from "../session/session-types.js";
 
 function sortThreads(threads: ThreadRecord[]): ThreadRecord[] {
-  return [...threads].sort((left, right) => {
-    const updatedDelta = Date.parse(right.updatedAt) - Date.parse(left.updatedAt);
-    if (!Number.isNaN(updatedDelta) && updatedDelta !== 0) {
-      return updatedDelta;
-    }
+  return perfMeasure(
+    "thread-summary.sort",
+    () => [...threads].sort((left, right) => {
+      const updatedDelta = Date.parse(right.updatedAt) - Date.parse(left.updatedAt);
+      if (!Number.isNaN(updatedDelta) && updatedDelta !== 0) {
+        return updatedDelta;
+      }
 
-    return left.title.localeCompare(right.title);
-  });
+      return left.title.localeCompare(right.title);
+    }),
+    {
+      logThresholdMs: 12,
+      details: () => ({
+        threadCount: threads.length,
+      }),
+    },
+  );
 }
 
 function preserveRunningState(existing: ThreadRecord | undefined, nextState: ThreadRecord["state"]): ThreadRecord["state"] {
@@ -94,20 +104,43 @@ export function mergeThreadDetails(existing: ThreadRecord | undefined, incoming:
 }
 
 function upsertThread(current: ThreadRecord[], nextThread: ThreadRecord): ThreadRecord[] {
-  return sortThreads([nextThread, ...current.filter((thread) => thread.id !== nextThread.id)]);
+  return perfMeasure(
+    "thread-summary.upsert",
+    () => sortThreads([nextThread, ...current.filter((thread) => thread.id !== nextThread.id)]),
+    {
+      logThresholdMs: 20,
+      details: () => ({
+        currentCount: current.length,
+        nextThreadId: nextThread.id,
+        nextUpdatedAt: nextThread.updatedAt,
+      }),
+    },
+  );
 }
 
 function mergeThreadSummaries(current: ThreadRecord[], summaries: ThreadRecord[]): ThreadRecord[] {
-  const currentById = new Map(current.map((thread) => [thread.id, thread]));
-  const summaryIds = new Set(summaries.map((summary) => summary.id));
+  return perfMeasure(
+    "thread-summary.merge-summaries",
+    () => {
+      const currentById = new Map(current.map((thread) => [thread.id, thread]));
+      const summaryIds = new Set(summaries.map((summary) => summary.id));
 
-  return sortThreads([
-    ...summaries.map((summary) => {
-      const existing = currentById.get(summary.id);
-      return createThreadRecord(summary, existing);
-    }),
-    ...current.filter((thread) => !summaryIds.has(thread.id)),
-  ]);
+      return sortThreads([
+        ...summaries.map((summary) => {
+          const existing = currentById.get(summary.id);
+          return createThreadRecord(summary, existing);
+        }),
+        ...current.filter((thread) => !summaryIds.has(thread.id)),
+      ]);
+    },
+    {
+      logThresholdMs: 20,
+      details: () => ({
+        currentCount: current.length,
+        summaryCount: summaries.length,
+      }),
+    },
+  );
 }
 
 export function reconcileThreadSummariesWithBootstrap(
@@ -119,9 +152,22 @@ export function reconcileThreadSummariesWithBootstrap(
     return mergeThreadSummaries(current, summaries);
   }
 
-  const currentById = new Map(current.map((thread) => [thread.id, thread]));
-  return sortThreads(
-    summaries.map((summary) => createThreadRecord(summary, currentById.get(summary.id))),
+  return perfMeasure(
+    "thread-summary.reconcile-bootstrap",
+    () => {
+      const currentById = new Map(current.map((thread) => [thread.id, thread]));
+      return sortThreads(
+        summaries.map((summary) => createThreadRecord(summary, currentById.get(summary.id))),
+      );
+    },
+    {
+      logThresholdMs: 24,
+      details: () => ({
+        currentCount: current.length,
+        pruneMissing: true,
+        summaryCount: summaries.length,
+      }),
+    },
   );
 }
 

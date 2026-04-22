@@ -384,7 +384,7 @@ test("resolveDesktopSettings applies precedence from platform defaults through p
     platformDefaults: {
       model: "gpt-5.4-mini",
       reasoningEffort: "xhigh",
-      verbosity: "balanced",
+      verbosity: "medium",
       personality: "friendly",
       approvalPosture: "never",
       sandboxPosture: "workspaceWrite",
@@ -410,7 +410,7 @@ test("resolveDesktopSettings applies precedence from platform defaults through p
     personality: "pragmatic",
     reasoningEffort: "xhigh",
     sandboxPosture: "readOnly",
-    verbosity: "terse",
+    verbosity: "low",
   });
   assert.deepEqual(resolved.sources, {
     approvalPosture: "rolePolicy",

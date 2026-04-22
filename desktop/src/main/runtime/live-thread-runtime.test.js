@@ -16,6 +16,7 @@ import {
 function buildSettings(overrides = {}) {
   return {
     personality: "friendly",
+    verbosity: "medium",
     defaultOperatingMode: "auto",
     runtimeInstructions: DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS,
     approvalPosture: "onRequest",
@@ -24,16 +25,30 @@ function buildSettings(overrides = {}) {
   };
 }
 
+function buildExpectedVerbosityInstruction(verbosity = "medium") {
+  if (verbosity === "low") {
+    return "Prefer short answers by default. Keep updates brief, skip unnecessary preamble, and expand only when needed for accuracy or when the user asks for more detail.";
+  }
+
+  if (verbosity === "high") {
+    return "When it helps, provide a bit more explanation and context so the user can follow the work and tradeoffs.";
+  }
+
+  return "Default to concise but sufficient answers. Use enough detail to be clear without over-explaining.";
+}
+
 function buildExpectedInstructions({
   cwd = null,
   contextPaths = [],
   runContext = null,
   runtimeInstructions = DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS,
   settings = buildSettings(),
+  verbosity = null,
   workspaceRoot = null,
 }) {
   const actorLabel = runContext?.actor?.displayName ?? runContext?.actor?.email ?? "the signed-in user";
   const scopeLabel = runContext?.scope?.displayName ?? runContext?.scope?.id ?? "the private profile scope";
+  const resolvedVerbosity = verbosity ?? settings.verbosity ?? "medium";
   const contextInstruction = workspaceRoot && Array.isArray(contextPaths) && contextPaths.length > 0
     ? `Key files in this workspace: ${contextPaths
       .slice(0, 10)
@@ -56,6 +71,7 @@ function buildExpectedInstructions({
       .join(" "),
     developerInstructions: [
       runtimeInstructions.trim() || DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS,
+      buildExpectedVerbosityInstruction(resolvedVerbosity),
       workspaceRoot
         ? `Work inside the granted workspace folder at ${workspaceRoot}. Do not create, modify, or delete files outside this folder. If the user asks to write to a path outside ${workspaceRoot}, refuse and explain that the current session is bound to this folder.`
         : "Do not describe the run as workspace-bound unless a workspaceRoot is explicitly provided.",
@@ -94,6 +110,7 @@ test("describePolicyRules returns stable grouped rules for the default desktop s
 test("describePolicyRules reflects behavior-affecting settings changes in plain English", () => {
   const groups = describePolicyRules(buildSettings({
     personality: "pragmatic",
+    verbosity: "high",
     runtimeInstructions: "Use the operator tone from the desktop playbook.",
     approvalPosture: "unlessTrusted",
     sandboxPosture: "readOnly",
@@ -106,6 +123,7 @@ test("describePolicyRules reflects behavior-affecting settings changes in plain 
 
   assert.equal(identity?.rules[0]?.currentValue, "Custom");
   assert.equal(identity?.rules[1]?.currentValue, "Pragmatic");
+  assert.equal(identity?.rules[2]?.currentValue, "High");
   assert.match(approvals?.rules[0]?.description ?? "", /trusted contexts/i);
   assert.match(approvals?.rules[1]?.description ?? "", /read-only posture/i);
   assert.equal(workspace?.rules.at(-1)?.currentValue, "Preview");
@@ -493,6 +511,7 @@ test("runDesktopTask starts a new thread then starts a turn with prompt and cwd"
   const instructions = buildExpectedInstructions({
     cwd: workspaceRoot,
     runContext,
+    verbosity: "low",
     workspaceRoot,
   });
   const manager = {
@@ -591,7 +610,7 @@ test("runDesktopTask starts a new thread then starts a turn with prompt and cwd"
             model: "gpt-5.4",
             reasoning_effort: null,
             service_tier: "fast",
-            verbosity: "terse",
+            verbosity: "low",
           },
         },
         model: "gpt-5.4",
@@ -613,7 +632,7 @@ test("runDesktopTask starts a new thread then starts a turn with prompt and cwd"
             executionIntent,
             runContext,
             serviceTier: "fast",
-            verbosity: "terse",
+            verbosity: "low",
           },
         },
       },
@@ -627,6 +646,7 @@ test("runDesktopTask starts a new thread then starts a turn with prompt and cwd"
   assert.equal(result.thread.state, "running");
   assert.equal(result.thread.title, "New thread");
   assert.equal(result.thread.workspaceRoot, workspaceRoot);
+  assert.match(calls[0]?.params.developerInstructions ?? "", /Prefer short answers by default\./);
 });
 
 test("runDesktopTask sends attachments as turn/start input items", async () => {
@@ -987,7 +1007,7 @@ test("runDesktopTask does not bind a new chat-only thread to the desktop cwd", a
             },
             runContext,
             serviceTier: "flex",
-            verbosity: "balanced",
+            verbosity: "medium",
           },
         },
       },
@@ -1559,7 +1579,7 @@ test("runDesktopTask resumes an existing thread before starting a turn", async (
             },
             runContext,
             serviceTier: "flex",
-            verbosity: "balanced",
+            verbosity: "medium",
           },
         },
       },

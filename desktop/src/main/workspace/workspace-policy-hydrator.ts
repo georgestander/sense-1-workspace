@@ -32,6 +32,23 @@ export type WorkspaceHydrationOptions = {
   readonly suppressErrors?: boolean;
 };
 
+function logSlowWorkspaceHydration(
+  operation: string,
+  startedAt: number,
+  details: Record<string, unknown>,
+): void {
+  const durationMs = Date.now() - startedAt;
+  if (durationMs < 100) {
+    return;
+  }
+
+  console.warn("[sense1:perf:main]", {
+    operation,
+    durationMs,
+    ...details,
+  });
+}
+
 async function loadDefaultOperatingMode(profileId: string, env: NodeJS.ProcessEnv): Promise<DesktopOperatingMode> {
   const storedSettings = await loadDesktopSettings(profileId, env);
   return resolveStoredDesktopSettings(storedSettings as unknown as Record<string, unknown>).defaultOperatingMode ?? "auto";
@@ -80,6 +97,7 @@ export async function hydrateWorkspacePolicyRecord(
   workspaceRoot: string,
   options: WorkspaceHydrationOptions = {},
 ): Promise<DesktopWorkspacePolicyRecord> {
+  const startedAt = Date.now();
   const resolvedWorkspaceRoot = path.resolve(workspaceRoot);
   const dbPath = resolveProfileSubstrateDbPath(profileId, env);
   await ensureProfileSubstrate({
@@ -115,10 +133,11 @@ export async function hydrateWorkspacePolicyRecord(
   }
 
   try {
+    const readDirectoryStartedAt = Date.now();
     const directoryResult = await readWorkspaceDirectory(resolvedWorkspaceRoot);
     const knownStructure = normalizeWorkspaceDirectoryEntries(resolvedWorkspaceRoot, directoryResult);
     const now = new Date().toISOString();
-    return await upsertWorkspacePolicy({
+    const policy = await upsertWorkspacePolicy({
       contextPaths: collectWorkspaceContextPaths(resolvedWorkspaceRoot, knownStructure),
       dbPath,
       knownStructure,
@@ -129,6 +148,19 @@ export async function hydrateWorkspacePolicyRecord(
       readGrantedAt: options.readGrantedAt,
       workspaceRoot: resolvedWorkspaceRoot,
     });
+    logSlowWorkspaceHydration("workspace.readDirectory", readDirectoryStartedAt, {
+      contextPathCount: policy.context_paths.length,
+      force: options.force === true,
+      knownStructureCount: policy.known_structure.length,
+      workspaceRoot: resolvedWorkspaceRoot,
+    });
+    logSlowWorkspaceHydration("workspace.hydratePolicyRecord", startedAt, {
+      contextPathCount: policy.context_paths.length,
+      force: options.force === true,
+      knownStructureCount: policy.known_structure.length,
+      workspaceRoot: resolvedWorkspaceRoot,
+    });
+    return policy;
   } catch (error) {
     if (options.suppressErrors === true) {
       console.warn(
@@ -142,7 +174,7 @@ export async function hydrateWorkspacePolicyRecord(
         return existingPolicy;
       }
 
-      return await upsertWorkspacePolicy({
+      const policy = await upsertWorkspacePolicy({
         dbPath,
         operatingMode: seededOperatingMode,
         readGrantMode: options.readGrantMode,
@@ -150,6 +182,13 @@ export async function hydrateWorkspacePolicyRecord(
         readGrantedAt: options.readGrantedAt,
         workspaceRoot: resolvedWorkspaceRoot,
       });
+      logSlowWorkspaceHydration("workspace.hydratePolicyRecord", startedAt, {
+        force: options.force === true,
+        knownStructureCount: policy.known_structure.length,
+        suppressedError: true,
+        workspaceRoot: resolvedWorkspaceRoot,
+      });
+      return policy;
     }
     throw error;
   }

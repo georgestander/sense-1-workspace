@@ -131,6 +131,7 @@ export function ensureDesktopThread(
     runContext?: DesktopRunContext | null;
     runtimeInstructions?: string | null;
     settings?: Record<string, unknown> | null;
+    verbosity?: DesktopVerbosity | null;
     threadId?: string | null;
     workspaceRoot?: string | null;
   },

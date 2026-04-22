@@ -63,20 +63,20 @@ function normalizeOperatingMode(value, fallback = "auto") {
   return fallback;
 }
 
-function normalizeVerbosity(value, fallback = "balanced") {
+function normalizeVerbosity(value, fallback = "medium") {
   const resolved = firstString(value);
-  if (resolved === "terse" || resolved === "balanced" || resolved === "detailed") {
+  if (resolved === "low" || resolved === "medium" || resolved === "high") {
     return resolved;
   }
 
-  if (resolved === "low") {
-    return "terse";
+  if (resolved === "terse") {
+    return "low";
   }
-  if (resolved === "medium") {
-    return "balanced";
+  if (resolved === "balanced") {
+    return "medium";
   }
-  if (resolved === "high") {
-    return "detailed";
+  if (resolved === "detailed") {
+    return "high";
   }
 
   return fallback;

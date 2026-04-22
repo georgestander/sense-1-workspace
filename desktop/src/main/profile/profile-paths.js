@@ -11,6 +11,8 @@ const ACTIVE_PROFILE_FILE = "_active.json";
 const ARTIFACT_ROOT_FILE = "artifact-root.json";
 const SUBSTRATE_DB_FILE = "sense1.db";
 const AUTH_FILE = "auth.json";
+const ensuredProfileDirectoriesCache = new Map();
+const runtimeStateRootCache = new Map();
 const SENSE1_SKILL_CREATOR_OVERRIDE_MARKER = "## Sense-1 Workspace Desktop Override";
 const SENSE1_SKILL_CREATOR_OVERRIDE = [
   SENSE1_SKILL_CREATOR_OVERRIDE_MARKER,
@@ -104,10 +106,32 @@ export function sanitizeProfileId(value) {
   return cleaned || DEFAULT_PROFILE_ID;
 }
 
-export function resolveRuntimeStateRoot(env = process.env) {
+function buildRuntimeStateRootCacheKey(env = process.env) {
   const explicitRoot = env.SENSE1_RUNTIME_STATE_ROOT?.trim();
   if (explicitRoot) {
-    return path.resolve(explicitRoot);
+    return `explicit:${process.platform}:${path.resolve(explicitRoot)}`;
+  }
+
+  return JSON.stringify({
+    home: env.HOME?.trim() || os.homedir(),
+    localAppData: env.LOCALAPPDATA?.trim() || "",
+    platform: process.platform,
+    xdgDataHome: env.XDG_DATA_HOME?.trim() || "",
+  });
+}
+
+export function resolveRuntimeStateRoot(env = process.env) {
+  const cacheKey = buildRuntimeStateRootCacheKey(env);
+  const cachedRoot = runtimeStateRootCache.get(cacheKey);
+  if (cachedRoot) {
+    return cachedRoot;
+  }
+
+  const explicitRoot = env.SENSE1_RUNTIME_STATE_ROOT?.trim();
+  if (explicitRoot) {
+    const resolvedRoot = path.resolve(explicitRoot);
+    runtimeStateRootCache.set(cacheKey, resolvedRoot);
+    return resolvedRoot;
   }
 
   if (process.platform === "darwin") {
@@ -125,6 +149,7 @@ export function resolveRuntimeStateRoot(env = process.env) {
           exactMatches.map((entryName) => path.join(appSupportRoot, entryName)),
         );
         if (preferredExactMatch) {
+          runtimeStateRootCache.set(cacheKey, preferredExactMatch);
           return preferredExactMatch;
         }
       }
@@ -134,21 +159,29 @@ export function resolveRuntimeStateRoot(env = process.env) {
           (entryName) => entryName.toLowerCase() === candidateName.toLowerCase(),
         );
         if (looseMatch) {
-          return path.join(appSupportRoot, looseMatch);
+          const resolvedRoot = path.join(appSupportRoot, looseMatch);
+          runtimeStateRootCache.set(cacheKey, resolvedRoot);
+          return resolvedRoot;
         }
       }
     }
 
-    return path.join(appSupportRoot, DARWIN_RUNTIME_STATE_ROOT_NAMES[0]);
+    const resolvedRoot = path.join(appSupportRoot, DARWIN_RUNTIME_STATE_ROOT_NAMES[0]);
+    runtimeStateRootCache.set(cacheKey, resolvedRoot);
+    return resolvedRoot;
   }
 
   if (process.platform === "win32") {
     const localAppData = env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local");
-    return path.join(localAppData, APP_NAME);
+    const resolvedRoot = path.join(localAppData, APP_NAME);
+    runtimeStateRootCache.set(cacheKey, resolvedRoot);
+    return resolvedRoot;
   }
 
   const xdgDataHome = env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share");
-  return path.join(xdgDataHome, APP_NAME);
+  const resolvedRoot = path.join(xdgDataHome, APP_NAME);
+  runtimeStateRootCache.set(cacheKey, resolvedRoot);
+  return resolvedRoot;
 }
 
 export function resolveProfilesDir(env = process.env) {
@@ -318,25 +351,39 @@ export async function ensureProfileDirectories(profileId, env = process.env) {
   const profile = sanitizeProfileId(profileId);
   const profileRoot = resolveProfileRoot(profile, env);
   const codexHome = resolveProfileCodexHome(profile, env);
-  await fs.mkdir(profileRoot, { recursive: true });
-  await fs.mkdir(codexHome, { recursive: true });
-  await healProfileAuthFromLegacyDesktopRoot(profile, env);
-  try {
-    await syncProfileSystemSkills(codexHome, env);
-  } catch (error) {
-    if (!isMissingPathError(error)) {
-      throw error;
-    }
-    console.warn(
-      `[desktop:profile] Skipping transient system skill sync failure for profile "${profile}". ${error.message}`,
-    );
+  const cacheKey = `${profileRoot}::${codexHome}`;
+  const cached = ensuredProfileDirectoriesCache.get(cacheKey);
+  if (cached) {
+    return await cached;
   }
 
-  return {
-    profileId: profile,
-    profileRoot,
-    codexHome,
-  };
+  const ensurePromise = (async () => {
+    await fs.mkdir(profileRoot, { recursive: true });
+    await fs.mkdir(codexHome, { recursive: true });
+    await healProfileAuthFromLegacyDesktopRoot(profile, env);
+    try {
+      await syncProfileSystemSkills(codexHome, env);
+    } catch (error) {
+      if (!isMissingPathError(error)) {
+        throw error;
+      }
+      console.warn(
+        `[desktop:profile] Skipping transient system skill sync failure for profile "${profile}". ${error.message}`,
+      );
+    }
+
+    return {
+      profileId: profile,
+      profileRoot,
+      codexHome,
+    };
+  })().catch((error) => {
+    ensuredProfileDirectoriesCache.delete(cacheKey);
+    throw error;
+  });
+
+  ensuredProfileDirectoriesCache.set(cacheKey, ensurePromise);
+  return await ensurePromise;
 }
 
 function resolveArtifactRootFile(profileId, env = process.env) {

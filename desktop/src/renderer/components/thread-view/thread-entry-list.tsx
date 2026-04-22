@@ -1,4 +1,4 @@
-import { memo, useRef, useState } from "react";
+import { memo, useDeferredValue, useRef, useState } from "react";
 import { Blocks, Check, ChevronRight, Copy, PlugZap, Sparkles } from "lucide-react";
 
 import { ThreadMarkdown } from "../../thread-markdown.js";
@@ -18,6 +18,7 @@ import { resolveWorkspaceFilePath } from "../right-rail/RightRailSection";
 import { useStreamingEntryBody } from "../../state/session/session-stream-live-bodies.ts";
 import type { DesktopExtensionOverviewResult } from "../../../main/contracts";
 import { stripResolvedPromptShortcutText } from "../../../shared/prompt-shortcuts.ts";
+import { buildStreamingAssistantPreview } from "./streaming-assistant-preview.js";
 
 type ThreadEntryListProps = {
   entries: DesktopThreadEntry[];
@@ -203,6 +204,29 @@ function ActivityGroupCard({
   );
 }
 
+function areThreadEntryCardPropsEqual(
+  previousProps: {
+    entry: DesktopThreadEntry;
+    extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
+    threadId: string;
+    workspaceRoot: string | null;
+  },
+  nextProps: {
+    entry: DesktopThreadEntry;
+    extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
+    threadId: string;
+    workspaceRoot: string | null;
+  },
+): boolean {
+  return previousProps.entry === nextProps.entry
+    && previousProps.threadId === nextProps.threadId
+    && previousProps.workspaceRoot === nextProps.workspaceRoot
+    && (
+      previousProps.entry.kind !== "user"
+      || previousProps.extensionOverview === nextProps.extensionOverview
+    );
+}
+
 const ThreadEntryCard = memo(function ThreadEntryCard({
   entry,
   extensionOverview,
@@ -221,6 +245,7 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
       : "body" in entry
         ? coerceDisplayText(entry.body)
         : "";
+  const deferredEntryBody = useDeferredValue(entryBody);
   const visibleUserBody = entry.kind === "user" && extensionOverview
     ? stripResolvedPromptShortcutText(entryBody, extensionOverview)
     : entryBody;
@@ -242,14 +267,29 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
   }
 
   if (entry.kind === "assistant") {
+    const isStreamingAssistant = "status" in entry && entry.status === "streaming";
+    const assistantBody = isStreamingAssistant ? deferredEntryBody : entryBody;
+    const streamingPreview = isStreamingAssistant
+      ? buildStreamingAssistantPreview(assistantBody)
+      : null;
+
     return (
       <article className="mr-auto w-full px-4 py-2">
-        {"status" in entry && entry.status === "streaming" ? (
-          <div className="text-sm leading-[1.6] whitespace-pre-wrap text-ink">{entryBody}</div>
+        {isStreamingAssistant ? (
+          <>
+            {streamingPreview?.truncated ? (
+              <div className="mb-2 rounded-lg bg-surface-soft px-3 py-2 text-xs text-muted">
+                Showing the latest part of this streaming reply to keep Sense-1 responsive.
+              </div>
+            ) : null}
+            <div className="text-sm leading-[1.6] whitespace-pre-wrap text-ink">
+              {streamingPreview?.visibleText ?? assistantBody}
+            </div>
+          </>
         ) : (
           <ThreadMarkdown workspaceRoot={workspaceRoot}>{entryBody}</ThreadMarkdown>
         )}
-        {entryBody.trim() ? (
+        {!isStreamingAssistant && entryBody.trim() ? (
           <div className="mt-1 flex items-center justify-start">
             <EntryCopyButton text={entryBody} />
           </div>
@@ -412,7 +452,7 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
       </ThreadMarkdown>
     </article>
   );
-});
+}, areThreadEntryCardPropsEqual);
 
 function ThreadEntryListInner({
   entries,

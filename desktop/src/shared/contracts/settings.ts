@@ -1,4 +1,4 @@
-export type DesktopVerbosity = "terse" | "balanced" | "detailed";
+export type DesktopVerbosity = "low" | "medium" | "high";
 
 export interface DesktopSettings {
   readonly model: string;

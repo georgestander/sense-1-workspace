@@ -12,7 +12,10 @@ import type {
 import type { RightRailProps } from "../../components/RightRail";
 import { buildTranscriptScrollAnchor, shouldAutoFollowTranscript } from "./transcript-scroll.js";
 import { perfCount, perfMeasure } from "../../lib/perf-debug.ts";
-import { useStreamingEntryBody } from "../../state/session/session-stream-live-bodies.ts";
+import {
+  readStreamingEntryBody,
+  subscribeStreamingEntryBody,
+} from "../../state/session/session-stream-live-bodies.ts";
 
 const PRE_EXECUTION_STATES = new Set<DesktopInteractionState>(["conversation", "clarification"]);
 
@@ -100,6 +103,7 @@ export function useAppRightRail({
     DEFAULT_RIGHT_RAIL_SECTIONS_OPEN,
   );
   const autoFollowFrameRef = useRef<number | null>(null);
+  const lastAutoFollowAnchorRef = useRef("");
 
   const rightRailChangeGroups = useMemo(
     () => (Array.isArray(rightRailThread?.changeGroups) ? rightRailThread.changeGroups : []),
@@ -135,15 +139,11 @@ export function useAppRightRail({
 
   const entryCount = selectedThread?.entries.length ?? 0;
   const lastEntry = selectedThread?.entries[entryCount - 1];
-  const lastEntryLiveBody = useStreamingEntryBody(selectedThread?.id ?? "", lastEntry?.id ?? "");
   const lastEntryAnchor = perfMeasure(
     "right-rail.build-scroll-anchor",
-    () => buildTranscriptScrollAnchor(lastEntry, lastEntryLiveBody),
+    () => buildTranscriptScrollAnchor(lastEntry),
   );
-  useEffect(() => {
-    if (!entryCount) {
-      return;
-    }
+  const scheduleTranscriptAutoFollow = useCallback(() => {
     const container = transcriptContainerRef.current;
     if (!container) {
       return;
@@ -159,13 +159,60 @@ export function useAppRightRail({
       container.scrollTop = container.scrollHeight;
       autoFollowFrameRef.current = null;
     });
+  }, [transcriptContainerRef]);
+
+  useEffect(() => {
+    if (!entryCount) {
+      lastAutoFollowAnchorRef.current = "";
+      return;
+    }
+
+    if (lastEntryAnchor === lastAutoFollowAnchorRef.current) {
+      return;
+    }
+
+    lastAutoFollowAnchorRef.current = lastEntryAnchor;
+    scheduleTranscriptAutoFollow();
+  }, [entryCount, lastEntryAnchor, scheduleTranscriptAutoFollow]);
+
+  useEffect(() => {
+    const threadId = selectedThread?.id ?? "";
+    const entryId = lastEntry?.id ?? "";
+    if (
+      !threadId
+      || !entryId
+      || !lastEntry
+      || !("status" in lastEntry)
+      || lastEntry.status !== "streaming"
+    ) {
+      return;
+    }
+
+    function maybeFollowStreamingEntry() {
+      const nextAnchor = buildTranscriptScrollAnchor(
+        lastEntry,
+        readStreamingEntryBody(threadId, entryId),
+      );
+      if (nextAnchor === lastAutoFollowAnchorRef.current) {
+        return;
+      }
+
+      lastAutoFollowAnchorRef.current = nextAnchor;
+      scheduleTranscriptAutoFollow();
+    }
+
+    maybeFollowStreamingEntry();
+    return subscribeStreamingEntryBody(threadId, entryId, maybeFollowStreamingEntry);
+  }, [lastEntry, scheduleTranscriptAutoFollow, selectedThread?.id]);
+
+  useEffect(() => {
     return () => {
       if (autoFollowFrameRef.current !== null) {
         window.cancelAnimationFrame(autoFollowFrameRef.current);
         autoFollowFrameRef.current = null;
       }
     };
-  }, [entryCount, lastEntryAnchor, transcriptContainerRef]);
+  }, []);
 
   const rightRailProps: RightRailProps = useMemo(() => ({
     showRightRail,
