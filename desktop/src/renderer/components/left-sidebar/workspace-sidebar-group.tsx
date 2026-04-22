@@ -9,7 +9,6 @@ import {
   type WorkspaceSidebarGroup,
   type WorkspaceSidebarThreadSummary,
 } from "../../features/workspace/workspace-sidebar.js";
-import { type DesktopThreadSnapshot } from "../../../main/contracts";
 import { ThreadSidebarItem } from "./thread-sidebar-item.js";
 
 export type WorkspaceSidebarGroupProps = {
@@ -17,7 +16,7 @@ export type WorkspaceSidebarGroupProps = {
   expandedWorkspaces: Record<string, boolean>;
   toggleWorkspaceExpanded: (root: string) => void;
   activeWorkspaceRoot: string | null;
-  selectedThread: DesktopThreadSnapshot | null;
+  selectedThreadId: string | null;
   workspaceMenuOpenId: string | null;
   setWorkspaceMenuOpenId: (value: string | null | ((current: string | null) => string | null)) => void;
   handleArchiveWorkspace: (workspaceId: string, workspaceRoot: string) => Promise<void> | void;
@@ -52,7 +51,7 @@ export function WorkspaceSidebarGroup({
   expandedWorkspaces,
   toggleWorkspaceExpanded,
   activeWorkspaceRoot,
-  selectedThread,
+  selectedThreadId,
   workspaceMenuOpenId,
   setWorkspaceMenuOpenId,
   handleArchiveWorkspace,
@@ -186,7 +185,7 @@ export function WorkspaceSidebarGroup({
               archivePending={threadArchivePendingId === thread.id}
               deletePending={threadDeletePendingId === thread.id}
               isNested
-              isSelected={selectedThread?.id === thread.id}
+              isSelected={selectedThreadId === thread.id}
               key={thread.id}
               menuOpen={threadMenuOpenId === thread.id}
               onArchive={() => void handleArchiveThread(thread.id)}

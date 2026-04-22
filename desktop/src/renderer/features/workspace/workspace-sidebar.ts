@@ -1,5 +1,6 @@
 import type { DesktopThreadSnapshot } from "../../../main/contracts";
 import { normalizeUserFacingWorkspaceRoot } from "../../../shared/workspace-roots.ts";
+import { perfMeasure } from "../../lib/perf-debug.ts";
 
 export type WorkspaceSidebarThread = {
   readonly id: string;
@@ -15,13 +16,28 @@ export type WorkspaceSidebarThreadSummary = Pick<
 
 export function toWorkspaceSidebarThreadSummary(
   thread: WorkspaceSidebarThreadSummary,
+  previousSummary?: WorkspaceSidebarThreadSummary,
 ): WorkspaceSidebarThreadSummary {
+  const normalizedWorkspaceRoot = normalizeUserFacingWorkspaceRoot(thread.workspaceRoot);
+  if (
+    previousSummary
+    && previousSummary.id === thread.id
+    && previousSummary.title === thread.title
+    && previousSummary.updatedAt === thread.updatedAt
+    && previousSummary.updatedLabel === thread.updatedLabel
+    && previousSummary.workspaceRoot === normalizedWorkspaceRoot
+    && previousSummary.state === thread.state
+    && previousSummary.threadInputState === thread.threadInputState
+  ) {
+    return previousSummary;
+  }
+
   return {
     id: thread.id,
     title: thread.title,
     updatedAt: thread.updatedAt,
     updatedLabel: thread.updatedLabel,
-    workspaceRoot: normalizeUserFacingWorkspaceRoot(thread.workspaceRoot),
+    workspaceRoot: normalizedWorkspaceRoot,
     state: thread.state,
     threadInputState: thread.threadInputState,
   };
@@ -244,40 +260,83 @@ export function buildWorkspaceSidebarGroups<T extends WorkspaceSidebarThread>(pa
   baseOrder: string[];
   displayOrder: string[];
 } {
-  const groups = new Map<string, T[]>();
-  const standalone: T[] = [];
+  const { groups, standalone } = perfMeasure(
+    "workspace-sidebar.bucket-threads",
+    () => {
+      const groupedThreads = new Map<string, T[]>();
+      const standaloneThreads: T[] = [];
 
-  for (const thread of params.threads) {
-    const root = normalizeUserFacingWorkspaceRoot(thread.workspaceRoot) ?? "";
-    if (!root) {
-      standalone.push(thread);
-      continue;
-    }
+      for (const thread of params.threads) {
+        const root = normalizeUserFacingWorkspaceRoot(thread.workspaceRoot) ?? "";
+        if (!root) {
+          standaloneThreads.push(thread);
+          continue;
+        }
 
-    const existing = groups.get(root);
-    if (existing) {
-      existing.push(thread);
-    } else {
-      groups.set(root, [thread]);
-    }
-  }
+        const existing = groupedThreads.get(root);
+        if (existing) {
+          existing.push(thread);
+        } else {
+          groupedThreads.set(root, [thread]);
+        }
+      }
+
+      return {
+        groups: groupedThreads,
+        standalone: standaloneThreads,
+      };
+    },
+    {
+      logThresholdMs: 12,
+      details: () => ({
+        threadCount: params.threads.length,
+      }),
+    },
+  );
 
   const activeRoot = typeof params.activeWorkspaceRoot === "string" ? params.activeWorkspaceRoot.trim() : "";
-  const visibleRoots = uniqueRoots([
-    ...groups.keys(),
-    activeRoot || null,
-  ]);
-  const baseOrder = resolveWorkspaceBaseOrder(visibleRoots, params.savedOrder);
-  const displayOrder = resolveWorkspaceDisplayOrder(baseOrder, activeRoot || null);
+  const { baseOrder, displayOrder } = perfMeasure(
+    "workspace-sidebar.resolve-order",
+    () => {
+      const visibleRoots = uniqueRoots([
+        ...groups.keys(),
+        activeRoot || null,
+      ]);
+      const nextBaseOrder = resolveWorkspaceBaseOrder(visibleRoots, params.savedOrder);
+      return {
+        baseOrder: nextBaseOrder,
+        displayOrder: resolveWorkspaceDisplayOrder(nextBaseOrder, activeRoot || null),
+      };
+    },
+    {
+      logThresholdMs: 8,
+      details: () => ({
+        activeWorkspaceRoot: activeRoot || null,
+        savedOrderCount: params.savedOrder.length,
+        workspaceCount: groups.size,
+      }),
+    },
+  );
 
-  return {
-    workspaces: displayOrder.map((root) => ({
-      root,
-      threads: groups.get(root) ?? [],
-      isActive: Boolean(activeRoot) && root === activeRoot,
-    })),
-    standalone,
-    baseOrder,
-    displayOrder,
-  };
+  return perfMeasure(
+    "workspace-sidebar.materialize-groups",
+    () => ({
+      workspaces: displayOrder.map((root) => ({
+        root,
+        threads: groups.get(root) ?? [],
+        isActive: Boolean(activeRoot) && root === activeRoot,
+      })),
+      standalone,
+      baseOrder,
+      displayOrder,
+    }),
+    {
+      logThresholdMs: 12,
+      details: () => ({
+        displayOrderCount: displayOrder.length,
+        standaloneCount: standalone.length,
+        workspaceCount: groups.size,
+      }),
+    },
+  );
 }

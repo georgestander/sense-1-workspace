@@ -1,5 +1,7 @@
 import type {
   DesktopThreadChangeGroup,
+  DesktopThreadEntry,
+  DesktopThreadReviewSummary,
   DesktopThreadSnapshot,
 } from "../../../main/contracts";
 
@@ -11,30 +13,51 @@ type BuildRightRailChangedFilesArgs = {
   isVisibleRightRailArtifactPath: (filePath: string, workspaceRoots: string[] | string | null | undefined) => boolean;
   persistedSessionWrittenPaths: string[];
   rightRailChangeGroups: DesktopThreadChangeGroup[];
-  rightRailThread: DesktopThreadSnapshot | null;
-  selectedThread: DesktopThreadSnapshot | null;
+  reviewSummary: DesktopThreadReviewSummary | null;
+  selectedThreadEntries: DesktopThreadEntry[];
+  selectedThreadState: DesktopThreadSnapshot["state"] | null;
+  transcriptWorkspaceRoot: string | null;
 };
 
-function isLiveThread(thread: DesktopThreadSnapshot | null): boolean {
-  return thread?.state === "active" || thread?.state === "running";
+type TranscriptArtifactCacheEntry = {
+  artifactPaths: string[];
+  workspaceRoot: string;
+};
+
+const transcriptArtifactCache = new WeakMap<DesktopThreadEntry[], TranscriptArtifactCacheEntry>();
+
+function isLiveThread(threadState: DesktopThreadSnapshot["state"] | null): boolean {
+  return threadState === "active" || threadState === "running";
 }
 
 function collectTranscriptArtifacts(
-  selectedThread: DesktopThreadSnapshot | null,
+  entries: DesktopThreadEntry[],
+  workspaceRoot: string | null,
   extractArtifactPathsFromText: BuildRightRailChangedFilesArgs["extractArtifactPathsFromText"],
 ): string[] {
-  const folderRoot = selectedThread?.workspaceRoot ?? selectedThread?.cwd ?? null;
-  if (!selectedThread || !folderRoot) {
+  if (!workspaceRoot) {
     return [];
   }
 
-  return selectedThread.entries.flatMap((entry) => {
+  const cachedEntry = transcriptArtifactCache.get(entries);
+  if (cachedEntry?.workspaceRoot === workspaceRoot) {
+    return cachedEntry.artifactPaths;
+  }
+
+  const artifactPaths = entries.flatMap((entry) => {
     if (!("body" in entry) || typeof entry.body !== "string") {
       return [];
     }
 
-    return extractArtifactPathsFromText(entry.body, folderRoot);
+    return extractArtifactPathsFromText(entry.body, workspaceRoot);
   });
+
+  transcriptArtifactCache.set(entries, {
+    artifactPaths,
+    workspaceRoot,
+  });
+
+  return artifactPaths;
 }
 
 export function buildRightRailChangedFiles({
@@ -43,15 +66,17 @@ export function buildRightRailChangedFiles({
   isVisibleRightRailArtifactPath,
   persistedSessionWrittenPaths,
   rightRailChangeGroups,
-  rightRailThread,
-  selectedThread,
+  reviewSummary,
+  selectedThreadEntries,
+  selectedThreadState,
+  transcriptWorkspaceRoot,
 }: BuildRightRailChangedFilesArgs): ChangedFileEntry[] {
   const changedFileMap = new Map<string, string | null>();
   const persistedChangedFiles = persistedSessionWrittenPaths.map((filePath) => [filePath, null] as const);
   const changeGroupFiles = rightRailChangeGroups.flatMap((group) => group.files);
-  const reviewArtifacts = rightRailThread?.reviewSummary?.changedArtifacts ?? [];
-  const reviewOutputArtifacts = rightRailThread?.reviewSummary?.outputArtifacts ?? [];
-  const reviewCreatedFiles = rightRailThread?.reviewSummary?.createdFiles ?? [];
+  const reviewArtifacts = reviewSummary?.changedArtifacts ?? [];
+  const reviewOutputArtifacts = reviewSummary?.outputArtifacts ?? [];
+  const reviewCreatedFiles = reviewSummary?.createdFiles ?? [];
 
   for (const [filePath, action] of persistedChangedFiles) {
     if (!changedFileMap.has(filePath)) {
@@ -71,8 +96,8 @@ export function buildRightRailChangedFiles({
     }
   }
 
-  if (changedFileMap.size === 0 && !isLiveThread(selectedThread)) {
-    for (const filePath of collectTranscriptArtifacts(selectedThread, extractArtifactPathsFromText)) {
+  if (changedFileMap.size === 0 && !isLiveThread(selectedThreadState)) {
+    for (const filePath of collectTranscriptArtifacts(selectedThreadEntries, transcriptWorkspaceRoot, extractArtifactPathsFromText)) {
       if (!changedFileMap.has(filePath)) {
         changedFileMap.set(filePath, "created");
       }

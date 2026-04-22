@@ -89,7 +89,7 @@ export function useAuthenticatedDesktopApp({
       openReportBug: reportBug.openModal,
     },
     search: {
-      filteredThreads: content.filteredThreads,
+      filteredThreadCount: content.filteredThreads.length,
       leftRailOpen: ui.leftRailOpen,
       noThreadSearchMatches: content.noThreadSearchMatches,
       searchQuery: ui.searchQuery,
@@ -129,7 +129,7 @@ export function useAuthenticatedDesktopApp({
       openThreadRename: content.threadShell.openThreadRename,
       resetThreadShell: content.threadShell.resetThreadShell,
       selectThread: sessionState.selectThread,
-      selectedThread: sessionState.selectedThread,
+      selectedThreadId: sessionState.selectedThreadId,
       setSidebarThreadMenu: content.threadShell.setSidebarThreadMenu,
       setThreadRenameDraft: content.threadShell.setThreadRenameDraft,
       sidebarThreadMenuOpenId: content.threadShell.sidebarThreadMenuOpenId,

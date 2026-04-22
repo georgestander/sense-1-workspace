@@ -126,6 +126,23 @@ function firstString(...values: Array<unknown>): string | null {
   return null;
 }
 
+function logSlowExtensionOperation(
+  operation: string,
+  startedAt: number,
+  details: Record<string, unknown>,
+): void {
+  const durationMs = Date.now() - startedAt;
+  if (durationMs < 100) {
+    return;
+  }
+
+  console.warn("[sense1:perf:main]", {
+    operation,
+    durationMs,
+    ...details,
+  });
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -766,6 +783,7 @@ async function readPluginLocalMetadata(
   plugin: DesktopPluginRecord,
   profileCodexHome: string,
 ): Promise<LocalPluginMetadata> {
+  const startedAt = Date.now();
   const sourcePath = await resolveInstalledPluginSourcePath(plugin, profileCodexHome);
   if (!sourcePath) {
     return {
@@ -846,7 +864,7 @@ async function readPluginLocalMetadata(
     }));
   } catch {}
 
-  return {
+  const metadata = {
     appIds,
     mcpServerIds,
     mcpServers,
@@ -854,6 +872,17 @@ async function readPluginLocalMetadata(
     skills,
     invalidMcpEntries,
   };
+
+  logSlowExtensionOperation("extensions.readPluginLocalMetadata", startedAt, {
+    appIdCount: metadata.appIds.length,
+    mcpServerCount: metadata.mcpServerIds.length,
+    pluginId: plugin.id,
+    pluginName: plugin.name,
+    skillCount: metadata.skills.length,
+    sourcePath,
+  });
+
+  return metadata;
 }
 
 async function readPluginReadmeContent(sourcePath: string | null): Promise<string> {
@@ -1571,6 +1600,7 @@ export class DesktopExtensionService {
     request: DesktopExtensionOverviewRequest,
     runtimeError: string | null,
   ): Promise<DesktopExtensionOverviewResult> {
+    const startedAt = Date.now();
     const profile = await this.#resolveProfile();
     const profileCodexHome = resolveProfileCodexHome(profile.id, this.#env);
     const failedReads: DesktopExtensionBackendFailure[] = [];
@@ -1714,7 +1744,7 @@ export class DesktopExtensionService {
       },
     };
 
-    return {
+    const result: DesktopExtensionOverviewResult = {
       contractVersion: 1,
       provider,
       managedExtensions,
@@ -1724,6 +1754,19 @@ export class DesktopExtensionService {
       skills,
       health,
     };
+
+    logSlowExtensionOperation("extensions.buildOverview", startedAt, {
+      appCount: result.apps.length,
+      failedReadCount: result.health.backend.failedReads.length,
+      forceRefetch: Boolean(request.forceRefetch),
+      managedExtensionCount: result.managedExtensions.length,
+      mcpServerCount: result.mcpServers.length,
+      pluginCount: result.plugins.length,
+      profileId: profile.id,
+      skillCount: result.skills.length,
+    });
+
+    return result;
   }
 
   async readPluginDetail(request: DesktopPluginDetailRequest): Promise<DesktopPluginDetailResult> {

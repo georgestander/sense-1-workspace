@@ -293,7 +293,17 @@ export function useDesktopSessionState({
     selectedThreadId,
     taskPending,
     threads,
-  })), [
+  }), {
+    logThresholdMs: 24,
+    details: () => ({
+      activeTurnThreadCount: Object.keys(activeTurnIdsByThread).length,
+      pendingApprovalCount: pendingApprovals.length,
+      selectedThreadId,
+      sidebarThreadCount: Object.keys(perThreadSidebar).length,
+      taskPending,
+      threadCount: threads.length,
+    }),
+  }), [
     activeTurnIdsByThread,
     pendingApprovals,
     perThreadSidebar,

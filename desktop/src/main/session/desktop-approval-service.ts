@@ -110,6 +110,7 @@ export class DesktopApprovalService {
   readonly #trustedSkillApprovals = new Set<string>();
   readonly #approvalResolutionCache = new DesktopApprovalResolutionCache();
   readonly #locallyResolvedRuntimeApprovalIds = new Set<number>();
+  #pendingApprovalPersistQueue: Promise<void> = Promise.resolve();
   #approvalRestoreReady: Promise<void> = Promise.resolve();
   #nextSyntheticApprovalId = -1;
 
@@ -335,11 +336,16 @@ export class DesktopApprovalService {
   }
 
   async #persistApprovals(): Promise<void> {
-    try {
-      await this.#persistPendingApprovals(Array.from(this.#pendingApprovalsById.values()));
-    } catch {
-      // Non-fatal — best-effort durability.
-    }
+    const approvals = Array.from(this.#pendingApprovalsById.values());
+    const nextPersist = this.#pendingApprovalPersistQueue.then(async () => {
+      try {
+        await this.#persistPendingApprovals(approvals);
+      } catch {
+        // Non-fatal — best-effort durability.
+      }
+    });
+    this.#pendingApprovalPersistQueue = nextPersist;
+    await nextPersist;
   }
 
   async #persistTrustedApprovals(): Promise<void> {

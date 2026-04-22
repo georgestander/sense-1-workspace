@@ -207,3 +207,58 @@ test("toWorkspaceSidebarThreadSummary keeps only the fields the shell needs", ()
   assert.equal("entries" in summary, false);
   assert.equal("reviewSummary" in summary, false);
 });
+
+test("toWorkspaceSidebarThreadSummary reuses the previous summary when list-facing fields are unchanged", () => {
+  const previousSummary = toWorkspaceSidebarThreadSummary({
+    id: "thread-1",
+    title: "Alpha",
+    updatedAt: "2026-03-26T10:00:00.000Z",
+    updatedLabel: "just now",
+    workspaceRoot: "/tmp/alpha",
+    state: "running",
+    threadInputState: null,
+  });
+
+  const nextSummary = toWorkspaceSidebarThreadSummary(
+    {
+      id: "thread-1",
+      title: "Alpha",
+      updatedAt: "2026-03-26T10:00:00.000Z",
+      updatedLabel: "just now",
+      workspaceRoot: "/tmp/alpha",
+      state: "running",
+      threadInputState: null,
+    },
+    previousSummary,
+  );
+
+  assert.equal(nextSummary, previousSummary);
+});
+
+test("toWorkspaceSidebarThreadSummary returns a new summary when list-facing fields change", () => {
+  const previousSummary = toWorkspaceSidebarThreadSummary({
+    id: "thread-1",
+    title: "Alpha",
+    updatedAt: "2026-03-26T10:00:00.000Z",
+    updatedLabel: "just now",
+    workspaceRoot: "/tmp/alpha",
+    state: "running",
+    threadInputState: null,
+  });
+
+  const nextSummary = toWorkspaceSidebarThreadSummary(
+    {
+      id: "thread-1",
+      title: "Alpha renamed",
+      updatedAt: "2026-03-26T10:00:00.000Z",
+      updatedLabel: "just now",
+      workspaceRoot: "/tmp/alpha",
+      state: "running",
+      threadInputState: null,
+    },
+    previousSummary,
+  );
+
+  assert.notEqual(nextSummary, previousSummary);
+  assert.equal(nextSummary.title, "Alpha renamed");
+});

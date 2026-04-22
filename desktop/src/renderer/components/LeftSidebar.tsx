@@ -4,7 +4,7 @@ import { Bug, ChevronDown, Plus, PlugZap, CalendarClock, Settings, LogOut, UserC
 import { Button } from "./ui/button";
 import { cn } from "../lib/cn";
 import type { ThreadRenameTarget } from "../features/threads/use-thread-shell.js";
-import { type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopThreadSnapshot } from "../../main/contracts";
+import { type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant } from "../../main/contracts";
 import { ThreadSidebarItem } from "./left-sidebar/thread-sidebar-item.js";
 import { WorkspaceSidebarGroup } from "./left-sidebar/workspace-sidebar-group.js";
 import {
@@ -18,7 +18,7 @@ export type LeftSidebarProps = {
   leftRailOpen: boolean;
   searchQuery: string;
   setSearchQuery: (value: string) => void;
-  filteredThreads: DesktopThreadSnapshot[];
+  filteredThreadCount: number;
   noThreadSearchMatches: boolean;
   trimmedSearchQuery: string;
   workspaceThreadGroups: {
@@ -28,7 +28,7 @@ export type LeftSidebarProps = {
   expandedWorkspaces: Record<string, boolean>;
   toggleWorkspaceExpanded: (root: string) => void;
   activeWorkspaceRoot: string | null;
-  selectedThread: DesktopThreadSnapshot | null;
+  selectedThreadId: string | null;
   selectThread: (threadId: string) => Promise<void> | void;
   openThreadRename: (thread: ThreadRenameTarget) => void;
   threadRenameId: string | null;
@@ -89,14 +89,14 @@ function resolveAccountLabel(accountEmail: string | null | undefined, accountTyp
 export const LeftSidebar = memo(function LeftSidebar({
   activeView,
   leftRailOpen,
-  filteredThreads,
+  filteredThreadCount,
   noThreadSearchMatches,
   trimmedSearchQuery,
   workspaceThreadGroups,
   expandedWorkspaces,
   toggleWorkspaceExpanded,
   activeWorkspaceRoot,
-  selectedThread,
+  selectedThreadId,
   selectThread,
   openThreadRename,
   threadRenameId,
@@ -173,7 +173,7 @@ export const LeftSidebar = memo(function LeftSidebar({
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
           <div className="space-y-1 pb-2">
-            {filteredThreads.length === 0 && workspaceThreadGroups.workspaces.length === 0 ? (
+            {filteredThreadCount === 0 && workspaceThreadGroups.workspaces.length === 0 ? (
               noThreadSearchMatches ? (
                 <p className="rounded-xl bg-surface-strong px-3 py-2 text-sm text-muted">No recent threads match &quot;{trimmedSearchQuery}&quot;.</p>
               ) : (
@@ -204,7 +204,7 @@ export const LeftSidebar = memo(function LeftSidebar({
                           onNewThreadInWorkspace={onNewThreadInWorkspace}
                           openThreadRename={openThreadRename}
                           selectThread={selectThread}
-                          selectedThread={selectedThread}
+                          selectedThreadId={selectedThreadId}
                           setThreadMenuOpenId={setThreadMenuOpenId}
                           setThreadRenameDraft={setThreadRenameDraft}
                           setWorkspaceMenuOpenId={setWorkspaceMenuOpenId}
@@ -236,7 +236,7 @@ export const LeftSidebar = memo(function LeftSidebar({
                       <ThreadSidebarItem
                         archivePending={threadArchivePendingId === thread.id}
                         deletePending={threadDeletePendingId === thread.id}
-                        isSelected={selectedThread?.id === thread.id}
+                        isSelected={selectedThreadId === thread.id}
                         key={thread.id}
                         menuOpen={threadMenuOpenId === thread.id}
                         onArchive={() => void handleArchiveThread(thread.id)}

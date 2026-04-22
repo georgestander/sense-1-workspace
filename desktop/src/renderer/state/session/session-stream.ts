@@ -17,6 +17,14 @@ import { createThreadDeltaBuffer } from "./session-stream-buffer.js";
 
 export { type ThreadDeltaBuffer } from "./session-stream-buffer.js";
 
+function summarizeDeltaKinds(deltas: DesktopThreadDelta[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const delta of deltas) {
+    counts[delta.kind] = (counts[delta.kind] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export function installSessionStream(
   deps: {
     selectedProfileId: string;
@@ -45,21 +53,31 @@ export function installSessionStream(
   }
 
   function applyDelta(delta: DesktopThreadDelta) {
-    perfMeasure("session-stream.apply-delta", () => {
-      applyThreadDelta(delta, {
-        appendStreamingEntryBody,
-        cachePendingThreadDelta,
-        clearStreamingEntryBody,
-        clearStreamingThreadBodies,
-        flushPendingThreadDeltas,
-        rememberKnownThreadIds,
-        seedStreamingThreadBodies,
-        setActiveTurnIdsByThread: deps.setActiveTurnIdsByThread,
-        setPerThreadSidebar: deps.setPerThreadSidebar,
-        setThreads: deps.setThreads,
-        threadDeltaBufferRef,
-      });
-    });
+    perfMeasure(
+      "session-stream.apply-delta",
+      () => {
+        applyThreadDelta(delta, {
+          appendStreamingEntryBody,
+          cachePendingThreadDelta,
+          clearStreamingEntryBody,
+          clearStreamingThreadBodies,
+          flushPendingThreadDeltas,
+          rememberKnownThreadIds,
+          seedStreamingThreadBodies,
+          setActiveTurnIdsByThread: deps.setActiveTurnIdsByThread,
+          setPerThreadSidebar: deps.setPerThreadSidebar,
+          setThreads: deps.setThreads,
+          threadDeltaBufferRef,
+        });
+      },
+      {
+        logThresholdMs: 16,
+        details: () => ({
+          deltaKind: delta.kind,
+          threadId: delta.threadId,
+        }),
+      },
+    );
   }
 
   function flushQueuedDeltas() {
@@ -78,10 +96,25 @@ export function installSessionStream(
 
     const queuedDeltas = queuedDeltasRef.current;
     queuedDeltasRef.current = [];
+    const coalescedDeltas = coalesceThreadDeltas(queuedDeltas);
 
-    for (const delta of coalesceThreadDeltas(queuedDeltas)) {
-      applyDelta(delta);
-    }
+    perfMeasure(
+      "session-stream.flush",
+      () => {
+        for (const delta of coalescedDeltas) {
+          applyDelta(delta);
+        }
+      },
+      {
+        logThresholdMs: 24,
+        details: () => ({
+          coalescedKinds: summarizeDeltaKinds(coalescedDeltas),
+          coalescedCount: coalescedDeltas.length,
+          queuedCount: queuedDeltas.length,
+          queuedKinds: summarizeDeltaKinds(queuedDeltas),
+        }),
+      },
+    );
   }
 
   function scheduleQueuedDeltaFlush() {
@@ -110,10 +143,19 @@ export function installSessionStream(
   }
 
   useEffect(() => {
-    perfMeasure("session-stream.known-thread-sync", () => {
-      perfCount("session-stream.known-thread-sync.calls");
-      threadDeltaBufferRef.current.setKnownThreadIds(deps.threads.map((thread) => thread.id));
-    });
+    perfMeasure(
+      "session-stream.known-thread-sync",
+      () => {
+        perfCount("session-stream.known-thread-sync.calls");
+        threadDeltaBufferRef.current.setKnownThreadIds(deps.threads.map((thread) => thread.id));
+      },
+      {
+        logThresholdMs: 16,
+        details: () => ({
+          threadCount: deps.threads.length,
+        }),
+      },
+    );
   }, [deps.threads]);
 
   useEffect(() => {

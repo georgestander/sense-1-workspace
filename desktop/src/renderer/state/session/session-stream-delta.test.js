@@ -110,8 +110,21 @@ function createDeps(initialThreads) {
   };
 }
 
-test("applyThreadDelta updates threadInputState and refreshed updated label", () => {
-  const harness = createDeps([createThread()]);
+test("applyThreadDelta updates threadInputState without refreshing recency metadata", () => {
+  const harness = createDeps([
+    createThread({
+      id: "thread-1",
+      title: "Older thread",
+      updatedAt: "2026-04-08T10:00:00.000Z",
+      updatedLabel: "10 min ago",
+    }),
+    createThread({
+      id: "thread-2",
+      title: "Newer thread",
+      updatedAt: "2026-04-08T11:00:00.000Z",
+      updatedLabel: "5 min ago",
+    }),
+  ]);
 
   applyThreadDelta(
     {
@@ -137,7 +150,9 @@ test("applyThreadDelta updates threadInputState and refreshed updated label", ()
   const [thread] = harness.getState().threads;
   assert.equal(thread.threadInputState?.queuedMessages.length, 1);
   assert.equal(thread.threadInputState?.hasUnseenCompletion, true);
-  assert.notEqual(thread.updatedLabel, "just now");
+  assert.equal(thread.updatedAt, "2026-04-08T10:00:00.000Z");
+  assert.equal(thread.updatedLabel, "10 min ago");
+  assert.deepEqual(harness.getState().threads.map((currentThread) => currentThread.id), ["thread-1", "thread-2"]);
 });
 
 test("applyThreadDelta keeps updated labels in sync for thread state changes", () => {
@@ -232,6 +247,45 @@ test("applyThreadDelta keeps thread ordering stable for streaming entry appends"
   assert.equal(harness.getState().streamingEntryBodiesByThread["thread-1"]?.["entry-1"], " world");
 });
 
+test("applyThreadDelta keeps thread ordering stable when a streaming entry starts", () => {
+  const harness = createDeps([
+    createThread({
+      id: "thread-1",
+      title: "Older running thread",
+      updatedAt: "2026-04-08T10:00:00.000Z",
+      updatedLabel: "10 min ago",
+    }),
+    createThread({
+      id: "thread-2",
+      title: "Newer idle thread",
+      updatedAt: "2026-04-08T11:00:00.000Z",
+      updatedLabel: "5 min ago",
+    }),
+  ]);
+
+  applyThreadDelta(
+    {
+      kind: "entryStarted",
+      threadId: "thread-1",
+      entry: {
+        id: "entry-1",
+        kind: "assistant",
+        title: "Sense-1 activity",
+        body: "Hello",
+        status: "streaming",
+      },
+      updatedAt: "2026-04-08T12:00:00.000Z",
+    },
+    harness.deps,
+  );
+
+  const [thread] = harness.getState().threads;
+  assert.deepEqual(harness.getState().threads.map((currentThread) => currentThread.id), ["thread-1", "thread-2"]);
+  assert.equal(thread.entries[0]?.id, "entry-1");
+  assert.equal(thread.updatedAt, "2026-04-08T10:00:00.000Z");
+  assert.equal(thread.updatedLabel, "10 min ago");
+});
+
 test("applyThreadDelta clears streaming body overlays once an entry completes", () => {
   const initialThread = createThread({
     entries: [
@@ -275,4 +329,51 @@ test("applyThreadDelta clears streaming body overlays once an entry completes", 
   const [thread] = harness.getState().threads;
   assert.equal(thread.entries[0]?.body, "Hello world");
   assert.deepEqual(harness.getState().streamingEntryBodiesByThread["thread-1"], {});
+  assert.equal(thread.updatedAt, "2026-04-08T10:00:00.000Z");
+  assert.equal(thread.updatedLabel, "just now");
+});
+
+test("applyThreadDelta keeps thread ordering stable for interaction and metadata updates", () => {
+  const harness = createDeps([
+    createThread({
+      id: "thread-1",
+      title: "Older thread",
+      updatedAt: "2026-04-08T10:00:00.000Z",
+      updatedLabel: "10 min ago",
+      interactionState: "conversation",
+    }),
+    createThread({
+      id: "thread-2",
+      title: "Newer thread",
+      updatedAt: "2026-04-08T11:00:00.000Z",
+      updatedLabel: "5 min ago",
+    }),
+  ]);
+
+  applyThreadDelta(
+    {
+      kind: "interactionStateChanged",
+      threadId: "thread-1",
+      interactionState: "review",
+      updatedAt: "2026-04-08T12:00:00.000Z",
+    },
+    harness.deps,
+  );
+
+  applyThreadDelta(
+    {
+      kind: "threadMetadataChanged",
+      threadId: "thread-1",
+      title: "Renamed thread",
+      updatedAt: "2026-04-08T12:30:00.000Z",
+    },
+    harness.deps,
+  );
+
+  const [thread] = harness.getState().threads;
+  assert.deepEqual(harness.getState().threads.map((currentThread) => currentThread.id), ["thread-1", "thread-2"]);
+  assert.equal(thread.interactionState, "review");
+  assert.equal(thread.title, "Renamed thread");
+  assert.equal(thread.updatedAt, "2026-04-08T10:00:00.000Z");
+  assert.equal(thread.updatedLabel, "10 min ago");
 });

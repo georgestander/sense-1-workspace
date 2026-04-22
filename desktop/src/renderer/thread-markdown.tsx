@@ -1,11 +1,13 @@
-import { Children, isValidElement, memo, useCallback, useState, type ComponentProps, type ReactNode } from "react";
+import { Children, isValidElement, memo, Profiler, startTransition, useCallback, useEffect, useMemo, useState, type ComponentProps, type ReactNode } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { cn } from "./lib/cn";
 import { getFileIcon, getFileLabel as getFileTypeLabel } from "./lib/file-icons";
 import { isExternalUrl, isFilePath } from "./lib/link-targets.ts";
+import { tracePerfEvent } from "./lib/perf-debug.ts";
 import { extractStandaloneArtifactTarget, resolveArtifactPath } from "./lib/thread-artifacts";
+import { hasFencedCodeBlocks, shouldDeferRichMarkdown, shouldUseVirtualizedMarkdown } from "./lib/thread-markdown-performance.ts";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -183,93 +185,165 @@ type ThreadMarkdownProps = {
 };
 
 function ThreadMarkdownInner({ children, className, workspaceRoot = null }: ThreadMarkdownProps) {
-  if (!children?.trim()) {
+  const markdownSource = children ?? "";
+  const hasVisibleContent = markdownSource.trim().length > 0;
+  const enableSyntaxHighlighting = hasVisibleContent && hasFencedCodeBlocks(markdownSource);
+  const useVirtualizedMarkdown = hasVisibleContent && shouldUseVirtualizedMarkdown(markdownSource);
+  const deferRichMarkdown = hasVisibleContent && !enableSyntaxHighlighting && shouldDeferRichMarkdown(markdownSource);
+  const [richMarkdownRequested, setRichMarkdownRequested] = useState(!deferRichMarkdown);
+  const resolvedClassName = cn(
+    "thread-markdown",
+    useVirtualizedMarkdown && "thread-markdown-virtualized",
+    className,
+  );
+
+  useEffect(() => {
+    setRichMarkdownRequested(!deferRichMarkdown);
+  }, [deferRichMarkdown, markdownSource]);
+
+  useEffect(() => {
+    if (!deferRichMarkdown || richMarkdownRequested) {
+      return;
+    }
+
+    const promoteTimeout = window.setTimeout(() => {
+      startTransition(() => {
+        setRichMarkdownRequested(true);
+      });
+    }, 120);
+
+    return () => {
+      window.clearTimeout(promoteTimeout);
+    };
+  }, [deferRichMarkdown, markdownSource, richMarkdownRequested]);
+
+  const markdownComponents = useMemo<NonNullable<ComponentProps<typeof Markdown>["components"]>>(() => ({
+    pre({ children: preChildren, ...rest }: ComponentProps<"pre">) {
+      const codeText = extractCodeText(preChildren);
+      const language = extractLanguage(preChildren);
+      if (!language && codeText) {
+        const artifactTarget = extractStandaloneArtifactTarget(codeText.trim());
+        if (artifactTarget && resolveArtifactPath(artifactTarget, workspaceRoot)) {
+          return <ArtifactLinkCard href={artifactTarget} workspaceRoot={workspaceRoot}>{getFileName(artifactTarget)}</ArtifactLinkCard>;
+        }
+      }
+      return (
+        <div className="group relative overflow-hidden rounded bg-canvas">
+          <pre className="px-3 py-2.5 text-[0.75rem] leading-[1.5]" {...(rest as ComponentProps<"pre">)}>{preChildren}</pre>
+          <div className="absolute right-1.5 top-1.5 flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+            {language ? (
+              <span className="rounded bg-surface-soft px-1.5 py-0.5 text-[0.6rem] font-medium uppercase tracking-wider text-ink-muted">{language}</span>
+            ) : null}
+            {codeText ? <CopyButton text={codeText} /> : null}
+          </div>
+        </div>
+      );
+    },
+    table({ children: tableChildren, ...rest }: ComponentProps<"table">) {
+      return (
+        <div className="overflow-x-auto">
+          <table {...(rest as ComponentProps<"table">)}>{tableChildren}</table>
+        </div>
+      );
+    },
+    p({ children: pChildren, ...rest }: ComponentProps<"p">) {
+      const artifactTarget = extractParagraphArtifactTarget(pChildren);
+      if (artifactTarget && resolveArtifactPath(artifactTarget, workspaceRoot)) {
+        return (
+          <ArtifactLinkCard href={artifactTarget} workspaceRoot={workspaceRoot}>
+            {getFileName(artifactTarget)}
+          </ArtifactLinkCard>
+        );
+      }
+      return <p {...(rest as ComponentProps<"p">)}>{pChildren}</p>;
+    },
+    code({ children: codeChildren, className: codeClassName, ...rest }: ComponentProps<"code">) {
+      if (codeClassName?.includes("language-") || codeClassName?.includes("hljs")) {
+        return <code className={codeClassName} {...(rest as ComponentProps<"code">)}>{codeChildren}</code>;
+      }
+      return <code {...(rest as ComponentProps<"code">)}>{codeChildren}</code>;
+    },
+    a({ href, children: linkChildren, ...rest }: ComponentProps<"a">) {
+      const resolvedHref = href || "";
+      if (isFilePath(resolvedHref) && resolveArtifactPath(resolvedHref, workspaceRoot)) {
+        return <ArtifactLinkCard href={resolvedHref} workspaceRoot={workspaceRoot}>{linkChildren}</ArtifactLinkCard>;
+      }
+      return (
+        <a
+          href={resolvedHref}
+          onClick={(event) => {
+            if (!isExternalUrl(resolvedHref)) {
+              return;
+            }
+            event.preventDefault();
+            const bridge = (window as unknown as {
+              sense1Desktop?: {
+                window?: { openExternalUrl?: (url: string) => Promise<unknown> };
+              };
+            }).sense1Desktop;
+            if (bridge?.window?.openExternalUrl) {
+              void bridge.window.openExternalUrl(resolvedHref);
+            }
+          }}
+          {...(rest as ComponentProps<"a">)}
+        >
+          {linkChildren}
+        </a>
+      );
+    },
+  }), [workspaceRoot]);
+
+  if (!hasVisibleContent) {
     return <div className={cn("thread-markdown", className)} />;
   }
 
+  const markdown = (
+    <Markdown
+      components={markdownComponents}
+      rehypePlugins={enableSyntaxHighlighting ? rehypePlugins : undefined}
+      remarkPlugins={remarkPlugins}
+    >
+      {markdownSource}
+    </Markdown>
+  );
+
+  if (deferRichMarkdown && !richMarkdownRequested) {
+    return (
+      <div className={resolvedClassName}>
+        <div className="thread-markdown-plain-preview">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={cn("thread-markdown", className)}>
-      <Markdown
-        components={{
-          pre({ children: preChildren, ...rest }) {
-            const codeText = extractCodeText(preChildren);
-            const language = extractLanguage(preChildren);
-            if (!language && codeText) {
-              const artifactTarget = extractStandaloneArtifactTarget(codeText.trim());
-              if (artifactTarget && resolveArtifactPath(artifactTarget, workspaceRoot)) {
-                return <ArtifactLinkCard href={artifactTarget} workspaceRoot={workspaceRoot}>{getFileName(artifactTarget)}</ArtifactLinkCard>;
-              }
+    <div className={resolvedClassName}>
+      {useVirtualizedMarkdown ? (
+        <Profiler
+          id="ThreadMarkdown.large"
+          onRender={(_id, phase, actualDuration, baseDuration) => {
+            if (actualDuration < 24) {
+              return;
             }
-            return (
-              <div className="group relative overflow-hidden rounded bg-canvas">
-                <pre className="px-3 py-2.5 text-[0.75rem] leading-[1.5]" {...(rest as ComponentProps<"pre">)}>{preChildren}</pre>
-                <div className="absolute right-1.5 top-1.5 flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                  {language ? (
-                    <span className="rounded bg-surface-soft px-1.5 py-0.5 text-[0.6rem] font-medium uppercase tracking-wider text-ink-muted">{language}</span>
-                  ) : null}
-                  {codeText ? <CopyButton text={codeText} /> : null}
-                </div>
-              </div>
-            );
-          },
-          table({ children: tableChildren, ...rest }) {
-            return (
-              <div className="overflow-x-auto">
-                <table {...(rest as ComponentProps<"table">)}>{tableChildren}</table>
-              </div>
-            );
-          },
-          p({ children: pChildren, ...rest }) {
-            const artifactTarget = extractParagraphArtifactTarget(pChildren);
-            if (artifactTarget && resolveArtifactPath(artifactTarget, workspaceRoot)) {
-              return (
-                <ArtifactLinkCard href={artifactTarget} workspaceRoot={workspaceRoot}>
-                  {getFileName(artifactTarget)}
-                </ArtifactLinkCard>
-              );
-            }
-            return <p {...(rest as ComponentProps<"p">)}>{pChildren}</p>;
-          },
-          code({ children: codeChildren, className: codeClassName, ...rest }) {
-            if (codeClassName?.includes("language-") || codeClassName?.includes("hljs")) {
-              return <code className={codeClassName} {...(rest as ComponentProps<"code">)}>{codeChildren}</code>;
-            }
-            return <code {...(rest as ComponentProps<"code">)}>{codeChildren}</code>;
-          },
-          a({ href, children: linkChildren, ...rest }) {
-            const resolvedHref = href || "";
-            if (isFilePath(resolvedHref) && resolveArtifactPath(resolvedHref, workspaceRoot)) {
-              return <ArtifactLinkCard href={resolvedHref} workspaceRoot={workspaceRoot}>{linkChildren}</ArtifactLinkCard>;
-            }
-            return (
-              <a
-                href={resolvedHref}
-                onClick={(event) => {
-                  if (!isExternalUrl(resolvedHref)) {
-                    return;
-                  }
-                  event.preventDefault();
-                  const bridge = (window as unknown as {
-                    sense1Desktop?: {
-                      window?: { openExternalUrl?: (url: string) => Promise<unknown> };
-                    };
-                  }).sense1Desktop;
-                  if (bridge?.window?.openExternalUrl) {
-                    void bridge.window.openExternalUrl(resolvedHref);
-                  }
-                }}
-                {...(rest as ComponentProps<"a">)}
-              >
-                {linkChildren}
-              </a>
-            );
-          },
-        }}
-        rehypePlugins={rehypePlugins}
-        remarkPlugins={remarkPlugins}
-      >
-        {children}
-      </Markdown>
+
+            tracePerfEvent("react-render", {
+              actualDurationMs: Number(actualDuration.toFixed(2)),
+              baseDurationMs: Number(baseDuration.toFixed(2)),
+              hasFencedCodeBlocks: enableSyntaxHighlighting,
+              phase,
+              textLength: markdownSource.length,
+              virtualized: useVirtualizedMarkdown,
+            }, {
+              level: "warn",
+              minIntervalMs: 1000,
+              throttleKey: `ThreadMarkdown.large:${phase}:${markdownSource.length}`,
+            });
+          }}
+        >
+          {markdown}
+        </Profiler>
+      ) : markdown}
     </div>
   );
 }

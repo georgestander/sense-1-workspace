@@ -5,6 +5,7 @@ import { cn } from "../../lib/cn";
 import { getFileIcon, getFileLabel } from "../../lib/file-icons";
 import { filterVisibleRightRailArtifactPaths, isVisibleRightRailArtifactPath } from "../../lib/right-rail-artifacts";
 import { extractArtifactPathsFromText } from "../../lib/thread-artifacts";
+import { perfMeasure } from "../../lib/perf-debug.ts";
 import type {
   DesktopInteractionState,
   DesktopThreadChangeGroup,
@@ -49,6 +50,10 @@ export function RightRailContentSection({
 }: RightRailContentSectionProps) {
   const contentOpen = isRightRailSectionOpen("content");
   const folderRoot = selectedThread?.workspaceRoot ?? selectedThread?.cwd ?? "";
+  const transcriptWorkspaceRoot = folderRoot || null;
+  const selectedThreadEntries = selectedThread?.entries ?? [];
+  const selectedThreadState = selectedThread?.state ?? null;
+  const reviewSummary = rightRailThread?.reviewSummary ?? null;
   const artifactRoots = useMemo(
     () =>
       [selectedThread?.workspaceRoot, selectedThread?.cwd].filter(
@@ -56,28 +61,50 @@ export function RightRailContentSection({
       ),
     [selectedThread?.cwd, selectedThread?.workspaceRoot],
   );
-  const changedFiles = useMemo(() => {
-    if (!contentOpen) {
-      return [];
-    }
+  const changedFiles = useMemo(
+    () => perfMeasure(
+      "right-rail.changed-files",
+      () => {
+        if (!contentOpen) {
+          return [];
+        }
 
-    return buildRightRailChangedFiles({
+        return buildRightRailChangedFiles({
+          artifactRoots,
+          extractArtifactPathsFromText,
+          isVisibleRightRailArtifactPath,
+          persistedSessionWrittenPaths,
+          rightRailChangeGroups,
+          reviewSummary,
+          selectedThreadEntries,
+          selectedThreadState,
+          transcriptWorkspaceRoot,
+        });
+      },
+      {
+        logThresholdMs: 16,
+        details: () => ({
+          artifactRootCount: artifactRoots.length,
+          changeGroupCount: rightRailChangeGroups.length,
+          contentOpen,
+          entryCount: selectedThreadEntries.length,
+          hasReviewSummary: Boolean(reviewSummary),
+          persistedSessionWrittenPathCount: persistedSessionWrittenPaths.length,
+          selectedThreadState,
+        }),
+      },
+    ),
+    [
       artifactRoots,
-      extractArtifactPathsFromText,
-      isVisibleRightRailArtifactPath,
+      contentOpen,
       persistedSessionWrittenPaths,
+      reviewSummary,
       rightRailChangeGroups,
-      rightRailThread,
-      selectedThread,
-    });
-  }, [
-    artifactRoots,
-    contentOpen,
-    persistedSessionWrittenPaths,
-    rightRailChangeGroups,
-    rightRailThread,
-    selectedThread,
-  ]);
+      selectedThreadEntries,
+      selectedThreadState,
+      transcriptWorkspaceRoot,
+    ],
+  );
   const recentFilePaths = useMemo(() => {
     if (!contentOpen) {
       return [];
@@ -241,9 +268,16 @@ export function RightRailContentSection({
             ) : null}
           </>
         ) : showEmptyWorkspaceState ? (
-          <p className="rounded-lg bg-surface-soft px-3 py-2 text-sm text-muted">
-            Workspace structure is ready to load once permissions are granted.
-          </p>
+          <div className="rounded-lg bg-surface-soft px-3 py-2 text-sm text-muted">
+            <p>Workspace structure is available on demand.</p>
+            <button
+              className="mt-2 rounded-md border border-line px-2 py-1.5 text-xs text-ink-muted transition-colors hover:bg-surface hover:text-ink"
+              onClick={() => void refreshWorkspaceStructure()}
+              type="button"
+            >
+              Load workspace structure
+            </button>
+          </div>
         ) : null}
       </div>
     </RightRailSection>

@@ -5,7 +5,6 @@ import { AppServerProcessManager } from "./runtime/app-server-process-manager.js
 import { DESKTOP_APP_VERSION } from "./app/app-version.ts";
 import { DesktopSessionController } from "./session-controller.js";
 import { resolveDesktopProfile } from "./bootstrap/desktop-bootstrap.js";
-import { resolveSignedInDesktopProfile } from "./bootstrap/bootstrap-profile.js";
 import {
   filterProfileCodexHomeRoots,
   latestUserEntryRequestsManagedInventoryInstall,
@@ -27,7 +26,6 @@ import { ThreadStateAccumulator } from "./session/thread-state-accumulator.js";
 import { DesktopUpdateService } from "./updates/update-service.ts";
 import { WorkspaceFileActivityTracker } from "./workspace/workspace-file-activity.ts";
 import { collectOutOfWorkspacePathsFromRuntimeMessage } from "./workspace/workspace-boundary.ts";
-import { DesktopWorkspaceStateService } from "./workspace/workspace-state-service.ts";
 import { resolveDesktopInteractionState } from "./session/interaction-state.ts";
 import { ThreadInputQueueService } from "./session/thread-input-queue-service.ts";
 import { resolveBootstrapVisibleThreadId, shouldRestoreQueuedFollowUp } from "./session/thread-runtime-behavior.ts";
@@ -106,10 +104,6 @@ const threadInputQueue = new ThreadInputQueueService();
 const workspaceFileActivity = new WorkspaceFileActivityTracker();
 const runtimeFileChangeTracker = new RuntimeFileChangeTracker();
 const managementInventoryChangeTracker = new ManagementInventoryChangeTracker();
-const workspaceState = new DesktopWorkspaceStateService({
-  env: process.env,
-  resolveProfile: async () => await resolveSignedInDesktopProfile(appServerManager, process.env),
-});
 let updateService = createDisabledUpdateService();
 let currentVisibleThreadId: string | null = null;
 let currentAccountType: string | null = null;
@@ -296,7 +290,7 @@ async function persistInteractionState(threadId: string): Promise<void> {
     return;
   }
 
-  await workspaceState.rememberThreadInteractionState(threadId, currentThreadState.interactionState);
+  await desktopSessionController.rememberThreadInteractionState(threadId, currentThreadState.interactionState);
 }
 
 function initializeActiveThread(result: {
@@ -819,10 +813,15 @@ appServerManager.on("notification", (message) => {
       void persistInteractionState(threadId).catch(() => {});
     }
     runtimeFileChangeTracker.clear(threadId);
-    if (
-      managementInventoryChangeTracker.consume(threadId)
-      || latestUserEntryRequestsManagedInventoryInstall(currentThreadState)
-    ) {
+    const inventoryChanged = managementInventoryChangeTracker.consume(threadId);
+    const managedInventoryInstallRequested = latestUserEntryRequestsManagedInventoryInstall(currentThreadState);
+    if (inventoryChanged || managedInventoryInstallRequested) {
+      console.warn("[sense1:perf:main]", {
+        event: "managementInventoryChanged",
+        inventoryChanged,
+        managedInventoryInstallRequested,
+        threadId,
+      });
       emitDesktopRuntimeEvent({ kind: "managementInventoryChanged" });
     }
 

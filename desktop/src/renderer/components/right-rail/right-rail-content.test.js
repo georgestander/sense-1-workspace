@@ -63,7 +63,7 @@ test("buildRightRailChangedFiles skips transcript rescans while the thread is li
         files: ["/tmp/project/from-change-group.md"],
       },
     ],
-    rightRailThread: createThread({
+    reviewSummary: createThread({
       reviewSummary: {
         summary: "Done",
         outputArtifacts: [],
@@ -82,8 +82,10 @@ test("buildRightRailChangedFiles skips transcript rescans while the thread is li
         ],
         updatedAt: null,
       },
-    }),
-    selectedThread,
+    }).reviewSummary,
+    selectedThreadEntries: selectedThread.entries,
+    selectedThreadState: selectedThread.state,
+    transcriptWorkspaceRoot: selectedThread.workspaceRoot,
   });
 
   assert.deepEqual(
@@ -103,8 +105,8 @@ test("buildRightRailChangedFiles falls back to transcript artifacts after the ru
     isVisibleRightRailArtifactPath,
     persistedSessionWrittenPaths: [],
     rightRailChangeGroups: [],
-    rightRailThread: null,
-    selectedThread: createThread({
+    reviewSummary: null,
+    selectedThreadEntries: createThread({
       entries: [
         {
           id: "entry-1",
@@ -114,7 +116,9 @@ test("buildRightRailChangedFiles falls back to transcript artifacts after the ru
           status: "completed",
         },
       ],
-    }),
+    }).entries,
+    selectedThreadState: "idle",
+    transcriptWorkspaceRoot: "/tmp/project",
   });
 
   assert.deepEqual(changedFiles, [

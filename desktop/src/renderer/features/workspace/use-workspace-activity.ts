@@ -159,31 +159,6 @@ export function useWorkspaceActivity({
     };
   }, [selectedThreadId, selectedWorkspaceSessionId]);
 
-  useEffect(() => {
-    const rootPath = selectedThreadWorkspaceRoot;
-    if (!rootPath || workspaceStructureRefreshing) {
-      return;
-    }
-    if (workspacePolicy && workspacePolicy.known_structure.length > 0) {
-      return;
-    }
-    if (workspacePolicy && workspacePolicy.read_granted !== 1) {
-      return;
-    }
-
-    let cancelled = false;
-    setWorkspaceStructureRefreshing(true);
-    perfCount("workspace-activity.hydrate-structure");
-    void hydrateWorkspace(rootPath).finally(() => {
-      if (!cancelled) {
-        setWorkspaceStructureRefreshing(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [hydrateWorkspace, selectedThreadWorkspaceRoot, workspacePolicy?.known_structure?.length, workspacePolicy?.read_granted]);
-
   const refreshWorkspaceStructure = useCallback(async () => {
     if (!selectedThreadWorkspaceRoot) {
       return;

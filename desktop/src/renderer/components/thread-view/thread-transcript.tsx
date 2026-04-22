@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type SetStateAction, type RefObject } from "react";
+import { memo, useEffect, useState, type Dispatch, type SetStateAction, type RefObject } from "react";
 import { Asterisk, ChevronDown, Folder, Sparkles } from "lucide-react";
 
 import { Button } from "../ui/button";
@@ -176,7 +176,7 @@ function StatusFooter({
   );
 }
 
-export function ThreadTranscript({
+function ThreadTranscriptInner({
   selectedThread,
   extensionOverview,
   threadInteractionState,
@@ -296,3 +296,73 @@ export function ThreadTranscript({
     </>
   );
 }
+
+function areArraysShallowEqual<T>(
+  previousItems: readonly T[],
+  nextItems: readonly T[],
+): boolean {
+  return previousItems.length === nextItems.length
+    && previousItems.every((item, index) => item === nextItems[index]);
+}
+
+function areConfigNoticesEqual(
+  previousNotices: ThreadTranscriptProps["configNotices"],
+  nextNotices: ThreadTranscriptProps["configNotices"],
+): boolean {
+  return previousNotices.length === nextNotices.length
+    && previousNotices.every((notice, index) => (
+      notice.id === nextNotices[index]?.id
+      && notice.text === nextNotices[index]?.text
+    ));
+}
+
+function areTranscriptThreadsEquivalent(
+  previousThread: ThreadTranscriptProps["selectedThread"],
+  nextThread: ThreadTranscriptProps["selectedThread"],
+): boolean {
+  return previousThread === nextThread || (
+    previousThread.id === nextThread.id
+    && previousThread.title === nextThread.title
+    && previousThread.workspaceRoot === nextThread.workspaceRoot
+    && previousThread.cwd === nextThread.cwd
+    && previousThread.entries === nextThread.entries
+    && previousThread.reviewSummary === nextThread.reviewSummary
+    && previousThread.hasLoadedDetails === nextThread.hasLoadedDetails
+  );
+}
+
+function areThreadTranscriptPropsEqual(
+  previousProps: ThreadTranscriptProps,
+  nextProps: ThreadTranscriptProps,
+): boolean {
+  return previousProps === nextProps || (
+    areTranscriptThreadsEquivalent(previousProps.selectedThread, nextProps.selectedThread)
+    && previousProps.extensionOverview === nextProps.extensionOverview
+    && previousProps.threadInteractionState === nextProps.threadInteractionState
+    && areArraysShallowEqual(previousProps.selectedThreadApprovals, nextProps.selectedThreadApprovals)
+    && previousProps.respondToApproval === nextProps.respondToApproval
+    && areArraysShallowEqual(previousProps.processingApprovalIds, nextProps.processingApprovalIds)
+    && previousProps.clarificationAnswer === nextProps.clarificationAnswer
+    && previousProps.setClarificationAnswer === nextProps.setClarificationAnswer
+    && previousProps.clarificationPending === nextProps.clarificationPending
+    && previousProps.setClarificationPending === nextProps.setClarificationPending
+    && previousProps.selectedChipIndex === nextProps.selectedChipIndex
+    && previousProps.setSelectedChipIndex === nextProps.setSelectedChipIndex
+    && previousProps.structuredQuestions === nextProps.structuredQuestions
+    && previousProps.hasStructuredQuestions === nextProps.hasStructuredQuestions
+    && previousProps.isClarifying === nextProps.isClarifying
+    && previousProps.threadInputRequest === nextProps.threadInputRequest
+    && previousProps.respondToInputRequest === nextProps.respondToInputRequest
+    && previousProps.rightRailChangeGroups === nextProps.rightRailChangeGroups
+    && previousProps.transcriptContainerRef === nextProps.transcriptContainerRef
+    && previousProps.transcriptEndRef === nextProps.transcriptEndRef
+    && areConfigNoticesEqual(previousProps.configNotices, nextProps.configNotices)
+    && previousProps.footerStatusText === nextProps.footerStatusText
+    && previousProps.effectiveThreadBusy === nextProps.effectiveThreadBusy
+    && previousProps.pendingPermission === nextProps.pendingPermission
+    && previousProps.grantWorkspacePermission === nextProps.grantWorkspacePermission
+    && previousProps.cancelWorkspacePermission === nextProps.cancelWorkspacePermission
+  );
+}
+
+export const ThreadTranscript = memo(ThreadTranscriptInner, areThreadTranscriptPropsEqual);

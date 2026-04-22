@@ -103,21 +103,17 @@ export function applyThreadDelta(
 
   if (delta.kind === "entryStarted") {
     deps.setThreads((current) => {
-      const thread = current.find((t) => t.id === delta.threadId);
-      if (!thread) {
-        return current;
-      }
-      const entries = thread.entries.some((e) => e.id === delta.entry.id)
-        ? thread.entries.map((e) => (e.id === delta.entry.id ? delta.entry : e))
-        : [...thread.entries, delta.entry];
-      const updatedAt = new Date().toISOString();
-      return upsertThread(current, {
-        ...thread,
-        entries,
-        changeGroups: buildChangeGroups(entries),
-        progressSummary: buildProgressSummary(entries, thread.state),
-        updatedAt,
-        updatedLabel: formatUpdatedLabel(updatedAt),
+      return replaceThreadWithoutReordering(current, delta.threadId, (thread) => {
+        const entries = thread.entries.some((entry) => entry.id === delta.entry.id)
+          ? thread.entries.map((entry) => (entry.id === delta.entry.id ? delta.entry : entry))
+          : [...thread.entries, delta.entry];
+
+        return {
+          ...thread,
+          entries,
+          changeGroups: buildChangeGroups(entries),
+          progressSummary: buildProgressSummary(entries, thread.state),
+        };
       });
     });
     return;
@@ -126,24 +122,17 @@ export function applyThreadDelta(
   if (delta.kind === "entryCompleted") {
     deps.clearStreamingEntryBody(delta.threadId, delta.entryId);
     deps.setThreads((current) => {
-      const thread = current.find((t) => t.id === delta.threadId);
-      if (!thread) {
-        return current;
-      }
-      const entries = thread.entries.some((e) => e.id === delta.entryId)
-        ? thread.entries.map((e) => (e.id === delta.entryId ? delta.entry : e))
-        : [...thread.entries, delta.entry];
-      const updatedAt =
-        "status" in delta.entry && delta.entry.status === "streaming"
-          ? thread.updatedAt
-          : new Date().toISOString();
-      return upsertThread(current, {
-        ...thread,
-        entries,
-        changeGroups: buildChangeGroups(entries),
-        progressSummary: buildProgressSummary(entries, thread.state),
-        updatedAt,
-        updatedLabel: formatUpdatedLabel(updatedAt),
+      return replaceThreadWithoutReordering(current, delta.threadId, (thread) => {
+        const entries = thread.entries.some((entry) => entry.id === delta.entryId)
+          ? thread.entries.map((entry) => (entry.id === delta.entryId ? delta.entry : entry))
+          : [...thread.entries, delta.entry];
+
+        return {
+          ...thread,
+          entries,
+          changeGroups: buildChangeGroups(entries),
+          progressSummary: buildProgressSummary(entries, thread.state),
+        };
       });
     });
     return;
@@ -189,32 +178,20 @@ export function applyThreadDelta(
 
   if (delta.kind === "interactionStateChanged") {
     deps.setThreads((current) => {
-      const thread = current.find((t) => t.id === delta.threadId);
-      if (!thread) {
-        return current;
-      }
-      return upsertThread(current, {
+      return replaceThreadWithoutReordering(current, delta.threadId, (thread) => ({
         ...thread,
         interactionState: delta.interactionState,
-        updatedAt: delta.updatedAt,
-        updatedLabel: formatUpdatedLabel(delta.updatedAt),
-      });
+      }));
     });
     return;
   }
 
   if (delta.kind === "threadMetadataChanged") {
     deps.setThreads((current) => {
-      const thread = current.find((t) => t.id === delta.threadId);
-      if (!thread) {
-        return current;
-      }
-      return upsertThread(current, {
+      return replaceThreadWithoutReordering(current, delta.threadId, (thread) => ({
         ...thread,
         title: delta.title,
-        updatedAt: delta.updatedAt,
-        updatedLabel: formatUpdatedLabel(delta.updatedAt),
-      });
+      }));
     });
     return;
   }
@@ -283,17 +260,10 @@ export function applyThreadDelta(
 
   if (delta.kind === "threadInputStateChanged") {
     deps.setThreads((current) => {
-      const thread = current.find((item) => item.id === delta.threadId);
-      if (!thread) {
-        return current;
-      }
-
-      return upsertThread(current, {
+      return replaceThreadWithoutReordering(current, delta.threadId, (thread) => ({
         ...thread,
-        updatedAt: delta.updatedAt,
-        updatedLabel: formatUpdatedLabel(delta.updatedAt),
         threadInputState: delta.threadInputState,
-      });
+      }));
     });
   }
 }

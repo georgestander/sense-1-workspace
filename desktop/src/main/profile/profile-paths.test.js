@@ -84,6 +84,41 @@ test("ensureProfileDirectories tolerates a shared system skill entry disappearin
   }
 });
 
+test("ensureProfileDirectories reuses the initial profile setup work for repeated calls", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const sharedCodexHome = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-shared-codex-home-"));
+  const env = {
+    ...process.env,
+    CODEX_HOME: sharedCodexHome,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const sharedSystemSkillsDir = path.join(sharedCodexHome, "skills", ".system");
+  const sharedPluginCreatorDir = path.join(sharedSystemSkillsDir, "plugin-creator");
+  const originalCopyFile = fs.copyFile;
+  let copyFileCalls = 0;
+
+  try {
+    await fs.mkdir(sharedPluginCreatorDir, { recursive: true });
+    await fs.writeFile(path.join(sharedSystemSkillsDir, ".codex-system-skills.marker"), "", "utf8");
+    await fs.writeFile(path.join(sharedPluginCreatorDir, "SKILL.md"), "# Plugin Creator\n", "utf8");
+    fs.copyFile = async (...args) => {
+      copyFileCalls += 1;
+      return await originalCopyFile.call(fs, ...args);
+    };
+
+    await ensureProfileDirectories("default", env);
+    const firstCopyFileCalls = copyFileCalls;
+    await ensureProfileDirectories("default", env);
+
+    assert.ok(firstCopyFileCalls > 0);
+    assert.equal(copyFileCalls, firstCopyFileCalls);
+  } finally {
+    fs.copyFile = originalCopyFile;
+    await fs.rm(runtimeStateRoot, { recursive: true, force: true });
+    await fs.rm(sharedCodexHome, { recursive: true, force: true });
+  }
+});
+
 test("ensureProfileDirectories repairs an invalid profile auth file from the legacy desktop auth store", async () => {
   const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
   const sharedCodexHome = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-shared-codex-home-"));
@@ -152,6 +187,34 @@ test("resolveRuntimeStateRoot preserves an existing lowercase macOS app-support 
 
     try {
       assert.equal(resolveRuntimeStateRoot(process.env), legacyRoot);
+    } finally {
+      process.env.HOME = originalHome;
+      Object.defineProperty(process, "platform", { value: originalPlatform });
+    }
+  } finally {
+    await fs.rm(fakeHomeDir, { recursive: true, force: true });
+  }
+});
+
+test("resolveRuntimeStateRoot reuses the resolved macOS app-support directory within the same environment", async () => {
+  const fakeHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-home-"));
+  const brandedRoot = path.join(fakeHomeDir, "Library", "Application Support", "Sense-1");
+  const lowercaseRoot = path.join(fakeHomeDir, "Library", "Application Support", "sense-1");
+
+  try {
+    await fs.mkdir(brandedRoot, { recursive: true });
+    const originalPlatform = process.platform;
+    const originalHome = process.env.HOME;
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    process.env.HOME = fakeHomeDir;
+
+    try {
+      const first = resolveRuntimeStateRoot(process.env);
+      await fs.rm(brandedRoot, { recursive: true, force: true });
+      await fs.mkdir(lowercaseRoot, { recursive: true });
+
+      assert.equal(first, brandedRoot);
+      assert.equal(resolveRuntimeStateRoot(process.env), brandedRoot);
     } finally {
       process.env.HOME = originalHome;
       Object.defineProperty(process, "platform", { value: originalPlatform });

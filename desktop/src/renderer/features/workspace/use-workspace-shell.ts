@@ -23,6 +23,7 @@ import {
   resolveActiveWorkspaceOperatingMode,
 } from "./workspace-shell-state.ts";
 import { useWorkspaceNavigation } from "./use-workspace-navigation.ts";
+import { perfMeasure } from "../../lib/perf-debug.ts";
 
 type UseWorkspaceShellArgs = {
   archiveWorkspace: (workspaceId: string) => Promise<boolean>;
@@ -130,6 +131,7 @@ export function useWorkspaceShell({
   const [workspaceDeletePendingId, setWorkspaceDeletePendingId] = useState<string | null>(null);
   const [dragOverRoot, setDragOverRoot] = useState<string | null>(null);
   const draggedWorkspaceRef = useRef<string | null>(null);
+  const previousSidebarThreadSummariesRef = useRef<WorkspaceSidebarThreadSummary[]>([]);
 
   const activeWorkspaceRoot = selectedThread?.workspaceRoot ?? (workInFolder ? workspaceFolder : null);
   const workspaceIdByRoot = useMemo(
@@ -166,32 +168,93 @@ export function useWorkspaceShell({
   });
 
   const filteredSidebarThreads = useMemo(
-    () => filteredThreads.map((thread) => toWorkspaceSidebarThreadSummary(thread)),
+    () => perfMeasure(
+      "workspace-sidebar.thread-summary",
+      () => {
+        const previousSummaries = previousSidebarThreadSummariesRef.current;
+        const previousSummariesById = new Map(previousSummaries.map((summary) => [summary.id, summary]));
+        const nextSummaries = filteredThreads.map((thread) => (
+          toWorkspaceSidebarThreadSummary(thread, previousSummariesById.get(thread.id))
+        ));
+        const isUnchanged = previousSummaries.length === nextSummaries.length
+          && previousSummaries.every((summary, index) => summary === nextSummaries[index]);
+        if (isUnchanged) {
+          return previousSummaries;
+        }
+        previousSidebarThreadSummariesRef.current = nextSummaries;
+        return nextSummaries;
+      },
+      {
+        logThresholdMs: 16,
+        details: () => ({
+          filteredThreadCount: filteredThreads.length,
+        }),
+      },
+    ),
     [filteredThreads],
   );
   const workspaceThreadGroups = useMemo(
-    () => buildWorkspaceSidebarGroups({
-      threads: filteredSidebarThreads,
-      savedOrder: workspaceSidebarOrder,
-      activeWorkspaceRoot,
-    }),
+    () => {
+      let traceDetails: Record<string, unknown> | null = null;
+      return perfMeasure(
+        "workspace-sidebar.groups",
+        () => {
+          const groups = buildWorkspaceSidebarGroups({
+            threads: filteredSidebarThreads,
+            savedOrder: workspaceSidebarOrder,
+            activeWorkspaceRoot,
+          });
+          traceDetails = {
+            activeWorkspaceRoot,
+            baseOrderCount: groups.baseOrder.length,
+            displayOrderCount: groups.displayOrder.length,
+            filteredThreadCount: filteredSidebarThreads.length,
+            savedOrderCount: workspaceSidebarOrder.length,
+            standaloneCount: groups.standalone.length,
+            workspaceCount: groups.workspaces.length,
+          };
+          return groups;
+        },
+        {
+          logThresholdMs: 24,
+          details: () => traceDetails ?? {
+            activeWorkspaceRoot,
+            filteredThreadCount: filteredSidebarThreads.length,
+            savedOrderCount: workspaceSidebarOrder.length,
+          },
+        },
+      );
+    },
     [activeWorkspaceRoot, filteredSidebarThreads, workspaceSidebarOrder],
   );
   const hideWorkspaceSidebarGroups = shouldHideWorkspaceSidebarGroups(
     selectedThread?.id ?? null,
     selectedThread?.workspaceRoot ?? null,
   );
-  const visibleWorkspaceThreadGroups = useMemo(() => ({
-    ...workspaceThreadGroups,
-    workspaces: hideWorkspaceSidebarGroups
-      ? []
-      : resolveVisibleWorkspaceSidebarGroups(workspaceThreadGroups.workspaces, activeWorkspaceRoot),
-    standalone: resolveVisibleStandaloneSidebarThreads(
-      workspaceThreadGroups.standalone,
-      selectedThread?.id ?? null,
-      selectedThread?.workspaceRoot ?? null,
-    ),
-  }), [
+  const visibleWorkspaceThreadGroups = useMemo(() => perfMeasure(
+    "workspace-sidebar.visible-groups",
+    () => ({
+      ...workspaceThreadGroups,
+      workspaces: hideWorkspaceSidebarGroups
+        ? []
+        : resolveVisibleWorkspaceSidebarGroups(workspaceThreadGroups.workspaces, activeWorkspaceRoot),
+      standalone: resolveVisibleStandaloneSidebarThreads(
+        workspaceThreadGroups.standalone,
+        selectedThread?.id ?? null,
+        selectedThread?.workspaceRoot ?? null,
+      ),
+    }),
+    {
+      logThresholdMs: 16,
+      details: () => ({
+        activeWorkspaceRoot,
+        hideWorkspaceSidebarGroups,
+        selectedThreadId: selectedThread?.id ?? null,
+        standaloneCount: workspaceThreadGroups.standalone.length,
+        workspaceCount: workspaceThreadGroups.workspaces.length,
+      }),
+    },
+  ), [
     activeWorkspaceRoot,
     hideWorkspaceSidebarGroups,
     selectedThread?.id,
