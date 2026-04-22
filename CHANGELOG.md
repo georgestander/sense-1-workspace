@@ -4,6 +4,22 @@ All notable changes to Sense-1 Workspace are recorded here.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-04-22
+
+### Added
+
+- Team settings now let admins rename and remove local team members directly inside Sense-1, without dropping to external tooling.
+
+### Changed
+
+- Updated desktop reply-style controls to use clearer Codex-aligned low, medium, and high wording, with Custom Instructions naming that better matches the product surface.
+- Kept transcripts, side rails, and workspace shell updates noticeably more responsive during long streaming runs and busy desktop sessions.
+
+### Fixed
+
+- Preserved live thread state across desktop reloads and metadata updates so active work resumes with less drift and fewer lost in-flight details.
+- Made team member edits apply atomically and blocked duplicate removal actions so local team management stays reliable under repeated clicks.
+
 ## [0.12.0] - 2026-04-21
 
 ### Added
