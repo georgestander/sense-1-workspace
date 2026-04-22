@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { formatUpdatedLabel } from "../../lib/live-thread-data.js";
 import { applyThreadDelta } from "./session-stream-delta.ts";
 import { createThreadDeltaBuffer } from "./session-stream-buffer.ts";
 
@@ -333,20 +334,20 @@ test("applyThreadDelta clears streaming body overlays once an entry completes", 
   assert.equal(thread.updatedLabel, "just now");
 });
 
-test("applyThreadDelta keeps thread ordering stable for interaction and metadata updates", () => {
+test("applyThreadDelta keeps thread ordering stable for interaction updates", () => {
   const harness = createDeps([
+    createThread({
+      id: "thread-2",
+      title: "Newer thread",
+      updatedAt: "2026-04-08T11:00:00.000Z",
+      updatedLabel: "5 min ago",
+    }),
     createThread({
       id: "thread-1",
       title: "Older thread",
       updatedAt: "2026-04-08T10:00:00.000Z",
       updatedLabel: "10 min ago",
       interactionState: "conversation",
-    }),
-    createThread({
-      id: "thread-2",
-      title: "Newer thread",
-      updatedAt: "2026-04-08T11:00:00.000Z",
-      updatedLabel: "5 min ago",
     }),
   ]);
 
@@ -360,6 +361,29 @@ test("applyThreadDelta keeps thread ordering stable for interaction and metadata
     harness.deps,
   );
 
+  const [, thread] = harness.getState().threads;
+  assert.deepEqual(harness.getState().threads.map((currentThread) => currentThread.id), ["thread-2", "thread-1"]);
+  assert.equal(thread.interactionState, "review");
+  assert.equal(thread.updatedAt, "2026-04-08T10:00:00.000Z");
+  assert.equal(thread.updatedLabel, "10 min ago");
+});
+
+test("applyThreadDelta refreshes recency metadata for thread title changes", () => {
+  const harness = createDeps([
+    createThread({
+      id: "thread-2",
+      title: "Newer thread",
+      updatedAt: "2026-04-08T11:00:00.000Z",
+      updatedLabel: "5 min ago",
+    }),
+    createThread({
+      id: "thread-1",
+      title: "Older thread",
+      updatedAt: "2026-04-08T10:00:00.000Z",
+      updatedLabel: "10 min ago",
+    }),
+  ]);
+
   applyThreadDelta(
     {
       kind: "threadMetadataChanged",
@@ -372,8 +396,7 @@ test("applyThreadDelta keeps thread ordering stable for interaction and metadata
 
   const [thread] = harness.getState().threads;
   assert.deepEqual(harness.getState().threads.map((currentThread) => currentThread.id), ["thread-1", "thread-2"]);
-  assert.equal(thread.interactionState, "review");
   assert.equal(thread.title, "Renamed thread");
-  assert.equal(thread.updatedAt, "2026-04-08T10:00:00.000Z");
-  assert.equal(thread.updatedLabel, "10 min ago");
+  assert.equal(thread.updatedAt, "2026-04-08T12:30:00.000Z");
+  assert.equal(thread.updatedLabel, formatUpdatedLabel("2026-04-08T12:30:00.000Z"));
 });

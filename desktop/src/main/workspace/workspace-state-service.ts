@@ -4,44 +4,54 @@ import {
   forgetPendingApprovalsForThread,
   forgetRecentWorkspaceFolder,
   forgetThreadWorkspaceRoot,
-  forgetThreadInteractionState,
+  forgetThreadInteractionState as deletePersistedThreadInteractionState,
   forgetWorkspaceSidebarRoot,
   loadWorkspaceSidebarOrder,
   loadPendingApprovals,
-  loadThreadInteractionStates,
+  loadThreadInteractionStates as loadPersistedThreadInteractionStates,
   loadThreadWorkspaceRoot,
   persistLastSelectedThreadId,
   persistPendingApprovals,
   rememberRecentWorkspaceFolder,
   rememberWorkspaceSidebarOrder,
-  rememberThreadInteractionState,
+  rememberThreadInteractionState as persistThreadInteractionState,
   rememberThreadWorkspaceRoot,
 } from "../profile/profile-state.js";
 import type { DesktopInteractionState } from "../contracts.ts";
 
+type WorkspaceStateServiceOptions = {
+  env?: NodeJS.ProcessEnv;
+  resolveProfile?: () => Promise<{ id: string }>;
+  loadThreadInteractionStates?: typeof loadPersistedThreadInteractionStates;
+  rememberThreadInteractionState?: typeof persistThreadInteractionState;
+  forgetThreadInteractionState?: typeof deletePersistedThreadInteractionState;
+};
+
 export class DesktopWorkspaceStateService {
   readonly #env: NodeJS.ProcessEnv;
   readonly #resolveProfile: () => Promise<{ id: string }>;
+  readonly #loadThreadInteractionStates: typeof loadPersistedThreadInteractionStates;
+  readonly #rememberThreadInteractionState: typeof persistThreadInteractionState;
+  readonly #forgetThreadInteractionState: typeof deletePersistedThreadInteractionState;
   readonly #threadInteractionStateCache = new Map<string, DesktopInteractionState>();
   readonly #threadInteractionStateDesired = new Map<string, DesktopInteractionState>();
   readonly #threadInteractionStateWriteQueue = new Map<string, Promise<void>>();
 
-  constructor(
-    options:
-      | NodeJS.ProcessEnv
-      | {
-          env?: NodeJS.ProcessEnv;
-          resolveProfile?: () => Promise<{ id: string }>;
-        } = process.env,
-  ) {
+  constructor(options: NodeJS.ProcessEnv | WorkspaceStateServiceOptions = process.env) {
     if (isWorkspaceStateServiceOptions(options)) {
       this.#env = options.env ?? process.env;
       this.#resolveProfile = options.resolveProfile ?? (async () => await resolveDesktopProfile(this.#env));
+      this.#loadThreadInteractionStates = options.loadThreadInteractionStates ?? loadPersistedThreadInteractionStates;
+      this.#rememberThreadInteractionState = options.rememberThreadInteractionState ?? persistThreadInteractionState;
+      this.#forgetThreadInteractionState = options.forgetThreadInteractionState ?? deletePersistedThreadInteractionState;
       return;
     }
 
     this.#env = options ?? process.env;
     this.#resolveProfile = async () => await resolveDesktopProfile(this.#env);
+    this.#loadThreadInteractionStates = loadPersistedThreadInteractionStates;
+    this.#rememberThreadInteractionState = persistThreadInteractionState;
+    this.#forgetThreadInteractionState = deletePersistedThreadInteractionState;
   }
 
   async #profile(): Promise<{ id: string }> {
@@ -85,13 +95,24 @@ export class DesktopWorkspaceStateService {
 
   async loadThreadInteractionStates(): Promise<Record<string, DesktopInteractionState>> {
     const profile = await this.#profile();
-    const states = await loadThreadInteractionStates(profile.id, this.#env);
+    const states = await this.#loadThreadInteractionStates(profile.id, this.#env);
+    const pendingDesiredStates = collectUnsyncedInteractionStatesForProfile(
+      this.#threadInteractionStateCache,
+      this.#threadInteractionStateDesired,
+      this.#threadInteractionStateWriteQueue,
+      profile.id,
+    );
     clearInteractionStateCacheForProfile(this.#threadInteractionStateCache, profile.id);
     clearInteractionStateCacheForProfile(this.#threadInteractionStateDesired, profile.id);
     for (const entry of states) {
       const cacheKey = buildInteractionStateCacheKey(profile.id, entry.threadId);
-      this.#threadInteractionStateCache.set(cacheKey, entry.interactionState as DesktopInteractionState);
-      this.#threadInteractionStateDesired.set(cacheKey, entry.interactionState as DesktopInteractionState);
+      const interactionState = entry.interactionState as DesktopInteractionState;
+      this.#threadInteractionStateCache.set(cacheKey, interactionState);
+      this.#threadInteractionStateDesired.set(cacheKey, pendingDesiredStates.get(cacheKey) ?? interactionState);
+      pendingDesiredStates.delete(cacheKey);
+    }
+    for (const [cacheKey, interactionState] of pendingDesiredStates) {
+      this.#threadInteractionStateDesired.set(cacheKey, interactionState);
     }
     return Object.fromEntries(
       states.map((entry) => [entry.threadId, entry.interactionState as DesktopInteractionState]),
@@ -106,7 +127,11 @@ export class DesktopWorkspaceStateService {
     }
     const cacheKey = buildInteractionStateCacheKey(profile.id, resolvedThreadId);
     const previousDesiredState = this.#threadInteractionStateDesired.get(cacheKey);
-    if (previousDesiredState === interactionState) {
+    if (
+      previousDesiredState === interactionState
+      && this.#threadInteractionStateCache.get(cacheKey) === interactionState
+      && !this.#threadInteractionStateWriteQueue.has(cacheKey)
+    ) {
       return profile.id;
     }
 
@@ -120,7 +145,7 @@ export class DesktopWorkspaceStateService {
           return;
         }
 
-        await rememberThreadInteractionState(profile.id, resolvedThreadId, desiredState, this.#env);
+        await this.#rememberThreadInteractionState(profile.id, resolvedThreadId, desiredState, this.#env);
         this.#threadInteractionStateCache.set(cacheKey, desiredState);
       })
       .finally(() => {
@@ -145,7 +170,7 @@ export class DesktopWorkspaceStateService {
     const nextQueue = previousQueue
       .catch(() => {})
       .then(async () => {
-        await forgetThreadInteractionState(profile.id, resolvedThreadId, this.#env);
+        await this.#forgetThreadInteractionState(profile.id, resolvedThreadId, this.#env);
         this.#threadInteractionStateCache.delete(cacheKey);
       })
       .finally(() => {
@@ -200,13 +225,40 @@ export class DesktopWorkspaceStateService {
 }
 
 function isWorkspaceStateServiceOptions(
-  value: NodeJS.ProcessEnv | { env?: NodeJS.ProcessEnv; resolveProfile?: () => Promise<{ id: string }> },
-): value is { env?: NodeJS.ProcessEnv; resolveProfile?: () => Promise<{ id: string }> } {
-  return Boolean(value) && typeof value === "object" && ("env" in value || "resolveProfile" in value);
+  value: NodeJS.ProcessEnv | WorkspaceStateServiceOptions,
+): value is WorkspaceStateServiceOptions {
+  return Boolean(value)
+    && typeof value === "object"
+    && (
+      "env" in value
+      || "resolveProfile" in value
+      || "loadThreadInteractionStates" in value
+      || "rememberThreadInteractionState" in value
+      || "forgetThreadInteractionState" in value
+    );
 }
 
 function buildInteractionStateCacheKey(profileId: string, threadId: string): string {
   return `${profileId}:${threadId}`;
+}
+
+function collectUnsyncedInteractionStatesForProfile(
+  cache: Map<string, DesktopInteractionState>,
+  desired: Map<string, DesktopInteractionState>,
+  writeQueue: Map<string, Promise<void>>,
+  profileId: string,
+): Map<string, DesktopInteractionState> {
+  const pendingStates = new Map<string, DesktopInteractionState>();
+  const cachePrefix = `${profileId}:`;
+  for (const [key, desiredState] of desired) {
+    if (!key.startsWith(cachePrefix)) {
+      continue;
+    }
+    if (writeQueue.has(key) || cache.get(key) !== desiredState) {
+      pendingStates.set(key, desiredState);
+    }
+  }
+  return pendingStates;
 }
 
 function clearInteractionStateCacheForProfile(

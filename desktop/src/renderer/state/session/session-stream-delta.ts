@@ -188,10 +188,16 @@ export function applyThreadDelta(
 
   if (delta.kind === "threadMetadataChanged") {
     deps.setThreads((current) => {
-      return replaceThreadWithoutReordering(current, delta.threadId, (thread) => ({
+      const thread = current.find((candidate) => candidate.id === delta.threadId);
+      if (!thread) {
+        return current;
+      }
+      return upsertThread(current, {
         ...thread,
         title: delta.title,
-      }));
+        updatedAt: delta.updatedAt,
+        updatedLabel: formatUpdatedLabel(delta.updatedAt),
+      });
     });
     return;
   }

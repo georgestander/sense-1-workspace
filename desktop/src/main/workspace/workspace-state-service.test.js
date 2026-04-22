@@ -14,6 +14,14 @@ function createEnv() {
   };
 }
 
+function createDeferred() {
+  let resolve;
+  const promise = new Promise((nextResolve) => {
+    resolve = nextResolve;
+  });
+  return { promise, resolve };
+}
+
 test("rememberThreadInteractionState skips duplicate writes for the same thread state", async () => {
   const env = createEnv();
   const service = new DesktopWorkspaceStateService({
@@ -58,4 +66,44 @@ test("rememberThreadInteractionState serializes quick successive state changes",
   ]);
 
   await fs.rm(env.SENSE1_RUNTIME_STATE_ROOT, { recursive: true, force: true });
+});
+
+test("loadThreadInteractionStates preserves pending desired writes during reload", async () => {
+  const writeGate = createDeferred();
+  const persistedStates = new Map([
+    [
+      "thread-3",
+      {
+        interactionState: "running",
+        updatedAt: "2026-04-08T10:00:00.000Z",
+      },
+    ],
+  ]);
+  const service = new DesktopWorkspaceStateService({
+    env: createEnv(),
+    resolveProfile: async () => ({ id: "default" }),
+    loadThreadInteractionStates: async () =>
+      [...persistedStates.entries()].map(([threadId, entry]) => ({
+        threadId,
+        interactionState: entry.interactionState,
+        updatedAt: entry.updatedAt,
+      })),
+    rememberThreadInteractionState: async (_profileId, threadId, interactionState) => {
+      await writeGate.promise;
+      persistedStates.set(threadId, {
+        interactionState,
+        updatedAt: "2026-04-08T12:00:00.000Z",
+      });
+    },
+  });
+
+  const pendingRemember = service.rememberThreadInteractionState("thread-3", "review");
+  await Promise.resolve();
+
+  assert.deepEqual(await service.loadThreadInteractionStates(), { "thread-3": "running" });
+
+  writeGate.resolve();
+  await pendingRemember;
+
+  assert.deepEqual(await service.loadThreadInteractionStates(), { "thread-3": "review" });
 });
