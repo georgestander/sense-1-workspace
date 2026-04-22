@@ -40,7 +40,7 @@ export const DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS = "Follow the Sense-1 desktop 
 const DEFAULT_DESKTOP_APPROVAL_POSTURE = "onRequest";
 const DEFAULT_DESKTOP_SANDBOX_POSTURE = "workspaceWrite";
 const DEFAULT_DESKTOP_OPERATING_MODE = "auto";
-const DEFAULT_DESKTOP_VERBOSITY = "balanced";
+const DEFAULT_DESKTOP_VERBOSITY = "medium";
 const DESKTOP_THREAD_CONFIG = Object.freeze({
   developer_instructions: "",
   instructions: "",
@@ -146,22 +146,22 @@ function normalizeOperatingMode(value) {
   return DEFAULT_DESKTOP_OPERATING_MODE;
 }
 
-function normalizeDesktopVerbosity(value, fallback = DEFAULT_DESKTOP_VERBOSITY) {
+export function normalizeDesktopVerbosity(value, fallback = DEFAULT_DESKTOP_VERBOSITY) {
   const resolved = firstString(value);
-  if (resolved === "terse" || resolved === "balanced" || resolved === "detailed") {
+  if (resolved === "low" || resolved === "medium" || resolved === "high") {
     return resolved;
   }
 
-  if (resolved === "low") {
-    return "terse";
+  if (resolved === "terse") {
+    return "low";
   }
 
-  if (resolved === "medium") {
-    return "balanced";
+  if (resolved === "balanced") {
+    return "medium";
   }
 
-  if (resolved === "high") {
-    return "detailed";
+  if (resolved === "detailed") {
+    return "high";
   }
 
   return fallback;
@@ -201,18 +201,18 @@ function describePersonalityRule(personality) {
 }
 
 function describeVerbosityRule(verbosity) {
-  if (verbosity === "terse") {
+  if (verbosity === "low") {
     return {
-      currentValue: "Terse",
+      currentValue: "Low",
       description: "Sense-1 keeps replies compact and expands only when accuracy or the user requires more detail.",
       developerInstruction:
         "Prefer short answers by default. Keep updates brief, skip unnecessary preamble, and expand only when needed for accuracy or when the user asks for more detail.",
     };
   }
 
-  if (verbosity === "detailed") {
+  if (verbosity === "high") {
     return {
-      currentValue: "Detailed",
+      currentValue: "High",
       description: "Sense-1 includes more explanation and context by default when it helps the user follow the work.",
       developerInstruction:
         "When it helps, provide a bit more explanation and context so the user can follow the work and tradeoffs.",
@@ -220,7 +220,7 @@ function describeVerbosityRule(verbosity) {
   }
 
   return {
-    currentValue: "Balanced",
+    currentValue: "Medium",
     description: "Sense-1 aims for concise but sufficient detail by default.",
     developerInstruction:
       "Default to concise but sufficient answers. Use enough detail to be clear without over-explaining.",

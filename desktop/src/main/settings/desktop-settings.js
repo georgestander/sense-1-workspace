@@ -4,7 +4,7 @@ export const DEFAULT_DESKTOP_SETTINGS = Object.freeze({
   model: "gpt-5.4-mini",
   reasoningEffort: "xhigh",
   serviceTier: "flex",
-  verbosity: "balanced",
+  verbosity: "medium",
   personality: "friendly",
   defaultOperatingMode: "auto",
   runtimeInstructions: DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS,
@@ -66,18 +66,18 @@ function normalizeServiceTier(value) {
 
 function normalizeVerbosity(value) {
   const resolved = firstString(value);
-  if (resolved === "terse" || resolved === "balanced" || resolved === "detailed") {
+  if (resolved === "low" || resolved === "medium" || resolved === "high") {
     return resolved;
   }
 
-  if (resolved === "low") {
-    return "terse";
+  if (resolved === "terse") {
+    return "low";
   }
-  if (resolved === "medium") {
-    return "balanced";
+  if (resolved === "balanced") {
+    return "medium";
   }
-  if (resolved === "high") {
-    return "detailed";
+  if (resolved === "detailed") {
+    return "high";
   }
 
   return undefined;

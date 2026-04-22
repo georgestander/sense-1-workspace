@@ -23,15 +23,15 @@ const REASONING_LABELS: Record<string, string> = {
 };
 
 const VERBOSITY_OPTIONS: { value: DesktopVerbosity; label: string }[] = [
-  { value: "terse", label: "Terse" },
-  { value: "balanced", label: "Balanced" },
-  { value: "detailed", label: "Detailed" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
 ];
 
 const VERBOSITY_HELP: Record<DesktopVerbosity, string> = {
-  terse: "Short answers. Sense-1 trims context and caveats — best when you just want the result.",
-  balanced: "Moderate explanations alongside the result. Good default for most work.",
-  detailed: "Longer, more thorough responses with explanations and context. Uses more tokens.",
+  low: "Short answers. Sense-1 trims context and caveats — best when you just want the result.",
+  medium: "Moderate explanations alongside the result. Good default for most work.",
+  high: "Longer, more thorough responses with explanations and context. Uses more tokens.",
 };
 
 type SectionProps = {

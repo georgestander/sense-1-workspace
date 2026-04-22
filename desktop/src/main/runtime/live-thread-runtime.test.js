@@ -16,7 +16,7 @@ import {
 function buildSettings(overrides = {}) {
   return {
     personality: "friendly",
-    verbosity: "balanced",
+    verbosity: "medium",
     defaultOperatingMode: "auto",
     runtimeInstructions: DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS,
     approvalPosture: "onRequest",
@@ -25,12 +25,12 @@ function buildSettings(overrides = {}) {
   };
 }
 
-function buildExpectedVerbosityInstruction(verbosity = "balanced") {
-  if (verbosity === "terse") {
+function buildExpectedVerbosityInstruction(verbosity = "medium") {
+  if (verbosity === "low") {
     return "Prefer short answers by default. Keep updates brief, skip unnecessary preamble, and expand only when needed for accuracy or when the user asks for more detail.";
   }
 
-  if (verbosity === "detailed") {
+  if (verbosity === "high") {
     return "When it helps, provide a bit more explanation and context so the user can follow the work and tradeoffs.";
   }
 
@@ -48,7 +48,7 @@ function buildExpectedInstructions({
 }) {
   const actorLabel = runContext?.actor?.displayName ?? runContext?.actor?.email ?? "the signed-in user";
   const scopeLabel = runContext?.scope?.displayName ?? runContext?.scope?.id ?? "the private profile scope";
-  const resolvedVerbosity = verbosity ?? settings.verbosity ?? "balanced";
+  const resolvedVerbosity = verbosity ?? settings.verbosity ?? "medium";
   const contextInstruction = workspaceRoot && Array.isArray(contextPaths) && contextPaths.length > 0
     ? `Key files in this workspace: ${contextPaths
       .slice(0, 10)
@@ -110,7 +110,7 @@ test("describePolicyRules returns stable grouped rules for the default desktop s
 test("describePolicyRules reflects behavior-affecting settings changes in plain English", () => {
   const groups = describePolicyRules(buildSettings({
     personality: "pragmatic",
-    verbosity: "detailed",
+    verbosity: "high",
     runtimeInstructions: "Use the operator tone from the desktop playbook.",
     approvalPosture: "unlessTrusted",
     sandboxPosture: "readOnly",
@@ -123,7 +123,7 @@ test("describePolicyRules reflects behavior-affecting settings changes in plain 
 
   assert.equal(identity?.rules[0]?.currentValue, "Custom");
   assert.equal(identity?.rules[1]?.currentValue, "Pragmatic");
-  assert.equal(identity?.rules[2]?.currentValue, "Detailed");
+  assert.equal(identity?.rules[2]?.currentValue, "High");
   assert.match(approvals?.rules[0]?.description ?? "", /trusted contexts/i);
   assert.match(approvals?.rules[1]?.description ?? "", /read-only posture/i);
   assert.equal(workspace?.rules.at(-1)?.currentValue, "Preview");
@@ -511,7 +511,7 @@ test("runDesktopTask starts a new thread then starts a turn with prompt and cwd"
   const instructions = buildExpectedInstructions({
     cwd: workspaceRoot,
     runContext,
-    verbosity: "terse",
+    verbosity: "low",
     workspaceRoot,
   });
   const manager = {
@@ -632,7 +632,7 @@ test("runDesktopTask starts a new thread then starts a turn with prompt and cwd"
             executionIntent,
             runContext,
             serviceTier: "fast",
-            verbosity: "terse",
+            verbosity: "low",
           },
         },
       },
@@ -1007,7 +1007,7 @@ test("runDesktopTask does not bind a new chat-only thread to the desktop cwd", a
             },
             runContext,
             serviceTier: "flex",
-            verbosity: "balanced",
+            verbosity: "medium",
           },
         },
       },
@@ -1579,7 +1579,7 @@ test("runDesktopTask resumes an existing thread before starting a turn", async (
             },
             runContext,
             serviceTier: "flex",
-            verbosity: "balanced",
+            verbosity: "medium",
           },
         },
       },

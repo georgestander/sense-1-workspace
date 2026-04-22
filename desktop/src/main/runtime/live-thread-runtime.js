@@ -1,4 +1,9 @@
-import { buildExecutionOverrides, DEFAULT_DESKTOP_MODEL, normalizeDesktopPersonality } from "./live-thread-runtime-policy.js";
+import {
+  buildExecutionOverrides,
+  DEFAULT_DESKTOP_MODEL,
+  normalizeDesktopPersonality,
+  normalizeDesktopVerbosity,
+} from "./live-thread-runtime-policy.js";
 import {
   buildCollaborationMode,
   buildDesktopThreadRequest,
@@ -279,7 +284,7 @@ export async function runDesktopTask(
           executionIntent,
           runContext: productRunContext,
           serviceTier: firstString(serviceTier) ?? "flex",
-          verbosity: firstString(verbosity, settings?.verbosity) ?? "balanced",
+          verbosity: normalizeDesktopVerbosity(firstString(verbosity, settings?.verbosity)),
         },
       },
     });
@@ -318,7 +323,7 @@ export async function runDesktopTask(
             executionIntent,
             runContext: productRunContext,
             serviceTier: firstString(serviceTier) ?? "flex",
-            verbosity: firstString(verbosity, settings?.verbosity) ?? "balanced",
+            verbosity: normalizeDesktopVerbosity(firstString(verbosity, settings?.verbosity)),
           },
         },
       });

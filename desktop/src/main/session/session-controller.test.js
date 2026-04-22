@@ -1124,7 +1124,7 @@ test("getDesktopSettings resolves legacy flat settings into the current policy-b
   const result = await controller.getDesktopSettings();
   assert.equal(result.settings.model, "gpt-5.4");
   assert.equal(result.settings.reasoningEffort, "high");
-  assert.equal(result.settings.verbosity, "detailed");
+  assert.equal(result.settings.verbosity, "high");
   assert.equal(result.settings.personality, "pragmatic");
   assert.equal(result.settings.runtimeInstructions, DesktopSessionController.DEFAULT_SETTINGS.runtimeInstructions);
   assert.equal(result.settings.sandboxPosture, "readOnly");
@@ -1651,7 +1651,7 @@ test("runDesktopTask applies persisted workspace policy defaults to the runtime 
   await controller.updateDesktopSettings({
     model: "gpt-5.4-mini",
     reasoningEffort: "high",
-    verbosity: "detailed",
+    verbosity: "high",
     personality: "formal",
     runtimeInstructions: "Keep outputs crisp for this desktop runtime.",
     sandboxPosture: "readOnly",
@@ -1680,7 +1680,7 @@ test("runDesktopTask applies persisted workspace policy defaults to the runtime 
   assert.equal(turnStart?.params.personality, "pragmatic");
   assert.equal(turnStart?.params.reasoningEffort, "high");
   assert.equal(turnStart?.params.collaborationMode?.settings?.verbosity, "high");
-  assert.equal(turnStart?.params.settings?.sense1?.verbosity, "detailed");
+  assert.equal(turnStart?.params.settings?.sense1?.verbosity, "high");
   assert.deepEqual(turnStart?.params.sandboxPolicy, {
     type: "workspaceWrite",
     networkAccess: true,

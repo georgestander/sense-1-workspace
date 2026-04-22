@@ -215,10 +215,16 @@ function mergeRuntimeInstructions(baseInstructions: string, extraInstruction: st
 
 function resolveVerbosity(value: string | null | undefined): DesktopVerbosity {
   switch (value) {
-    case "terse":
-    case "balanced":
-    case "detailed":
+    case "low":
+    case "medium":
+    case "high":
       return value;
+    case "terse":
+      return "low";
+    case "balanced":
+      return "medium";
+    case "detailed":
+      return "high";
     default:
       return DESKTOP_DEFAULT_SETTINGS.verbosity;
   }

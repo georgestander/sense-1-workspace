@@ -58,15 +58,15 @@ const DEFAULT_DESKTOP_SERVICE_NAME = "sense_1";
 
 function mapDesktopVerbosityToModelVerbosity(verbosity = null) {
   const resolved = firstString(verbosity);
-  if (resolved === "terse" || resolved === "low") {
+  if (resolved === "low" || resolved === "terse") {
     return "low";
   }
 
-  if (resolved === "balanced" || resolved === "medium") {
+  if (resolved === "medium" || resolved === "balanced") {
     return "medium";
   }
 
-  if (resolved === "detailed" || resolved === "high") {
+  if (resolved === "high" || resolved === "detailed") {
     return "high";
   }
 
