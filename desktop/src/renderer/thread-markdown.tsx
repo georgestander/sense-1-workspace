@@ -228,11 +228,11 @@ function ThreadMarkdownInner({ children, className, workspaceRoot = null }: Thre
         }
       }
       return (
-        <div className="group relative overflow-hidden rounded bg-canvas">
-          <pre className="px-3 py-2.5 text-[0.75rem] leading-[1.5]" {...(rest as ComponentProps<"pre">)}>{preChildren}</pre>
-          <div className="absolute right-1.5 top-1.5 flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="group relative overflow-hidden rounded-lg bg-canvas">
+          <pre {...(rest as ComponentProps<"pre">)}>{preChildren}</pre>
+          <div className="absolute right-2 top-2 flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
             {language ? (
-              <span className="rounded bg-surface-soft px-1.5 py-0.5 text-[0.6rem] font-medium uppercase tracking-wider text-ink-muted">{language}</span>
+              <span className="rounded bg-surface-soft px-1.5 py-0.5 text-[0.65rem] font-medium uppercase tracking-wider text-ink-muted">{language}</span>
             ) : null}
             {codeText ? <CopyButton text={codeText} /> : null}
           </div>

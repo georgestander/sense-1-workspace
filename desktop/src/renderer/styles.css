@@ -211,24 +211,26 @@ body {
 
 .thread-markdown {
   color: var(--color-ink);
-  font-size: 0.8125rem;
-  line-height: 1.55;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  text-wrap: pretty;
 }
 
 .thread-markdown > * + * {
-  margin-top: 0.5rem;
+  margin-top: 0.75rem;
 }
 
 .thread-markdown h1,
 .thread-markdown h2,
 .thread-markdown h3 {
   margin: 0;
-  margin-top: 1rem;
-  margin-bottom: 0.3rem;
+  margin-top: 1.4rem;
+  margin-bottom: 0.45rem;
   color: var(--color-ink);
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.015em;
+  text-wrap: balance;
 }
 
 .thread-markdown > :first-child {
@@ -236,18 +238,18 @@ body {
 }
 
 .thread-markdown h1 {
-  font-size: 1.125rem;
-  line-height: 1.3;
+  font-size: 1.4375rem;
+  line-height: 1.25;
 }
 
 .thread-markdown h2 {
-  font-size: 1rem;
-  line-height: 1.35;
+  font-size: 1.1875rem;
+  line-height: 1.3;
 }
 
 .thread-markdown h3 {
-  font-size: 0.875rem;
-  line-height: 1.4;
+  font-size: 1.0625rem;
+  line-height: 1.35;
 }
 
 .thread-markdown p {
@@ -255,7 +257,7 @@ body {
 }
 
 .thread-markdown p + p {
-  margin-top: 0.4rem;
+  margin-top: 0.85rem;
 }
 
 .thread-markdown-plain-preview {
@@ -276,7 +278,7 @@ body {
 .thread-markdown-virtualized > ul > li,
 .thread-markdown-virtualized > ol > li,
 .thread-markdown-virtualized > blockquote {
-  contain-intrinsic-size: auto 1.75rem;
+  contain-intrinsic-size: auto 2.25rem;
 }
 
 .thread-markdown-virtualized > pre,
@@ -286,8 +288,9 @@ body {
 
 .thread-markdown ul,
 .thread-markdown ol {
-  margin: 0.35rem 0;
-  padding-left: 1.35rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0;
+  padding-left: 1.6rem;
   list-style-position: outside;
 }
 
@@ -308,16 +311,16 @@ body {
 }
 
 .thread-markdown li {
-  padding-left: 0.15rem;
+  padding-left: 0.25rem;
 }
 
 .thread-markdown li + li {
-  margin-top: 0.15rem;
+  margin-top: 0.4rem;
 }
 
 .thread-markdown li > ul,
 .thread-markdown li > ol {
-  margin-top: 0.15rem;
+  margin-top: 0.4rem;
 }
 
 .thread-markdown li > p {
@@ -325,11 +328,11 @@ body {
 }
 
 .thread-markdown li > p + p {
-  margin-top: 0.25rem;
+  margin-top: 0.5rem;
 }
 
 .thread-markdown strong {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-ink);
 }
 
@@ -338,22 +341,22 @@ body {
 }
 
 .thread-markdown code {
-  background: color-mix(in oklch, var(--color-ink) 5%, transparent);
-  border-radius: 0.2rem;
-  padding: 0.1rem 0.3rem;
+  background: color-mix(in oklch, var(--color-ink) 7%, transparent);
+  border-radius: 0.3rem;
+  padding: 0.12rem 0.4rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.85em;
+  font-size: 0.875em;
 }
 
 .thread-markdown pre {
-  margin: 0.5rem 0 0.25rem;
+  margin: 0;
   overflow-x: auto;
   border-radius: 0;
   background: var(--color-surface-soft);
-  padding: 0.6rem 0.85rem;
+  padding: 0.9rem 1.05rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.75rem;
-  line-height: 1.5;
+  font-size: 0.8125rem;
+  line-height: 1.6;
 }
 
 .thread-markdown pre code {
@@ -364,12 +367,13 @@ body {
 }
 
 .thread-markdown blockquote {
-  margin: 0.5rem 0 0;
-  border-left: 2px solid var(--color-accent-faint);
+  margin-top: 0.75rem;
+  margin-bottom: 0;
+  border-left: 3px solid var(--color-accent-faint);
   background: var(--color-surface-soft);
-  padding: 0.5rem 0.85rem;
-  border-radius: 0 0.2rem 0.2rem 0;
-  font-size: 0.8125rem;
+  padding: 0.7rem 1rem;
+  border-radius: 0 0.35rem 0.35rem 0;
+  color: var(--color-ink-soft);
 }
 
 .thread-markdown blockquote p {
@@ -379,9 +383,9 @@ body {
 .thread-markdown table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.75rem;
-  line-height: 1.45;
-  margin: 0.5rem 0;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  margin: 0;
 }
 
 .thread-markdown thead {
@@ -390,16 +394,17 @@ body {
 
 .thread-markdown th,
 .thread-markdown td {
-  padding: 0.35rem 0.6rem;
+  padding: 0.6rem 0.9rem;
   text-align: left;
-  border-bottom: 1px solid color-mix(in oklch, var(--color-line) 40%, transparent);
+  border-bottom: 1px solid color-mix(in oklch, var(--color-line) 55%, transparent);
+  vertical-align: top;
 }
 
 .thread-markdown th {
-  font-weight: 600;
-  font-size: 0.6875rem;
+  font-weight: 700;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--color-muted);
 }
 
@@ -414,13 +419,14 @@ body {
 .thread-markdown hr {
   border: none;
   border-top: 1px solid var(--color-line);
-  margin: 0.75rem 0;
+  margin: 1.25rem 0;
 }
 
 .thread-markdown a {
   color: var(--color-accent);
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
 }
 
 .thread-markdown img {

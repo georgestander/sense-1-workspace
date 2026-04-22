@@ -328,6 +328,15 @@ function buildPolicyRuleGroups({
           description: verbosityRule.description,
           developerInstruction: verbosityRule.developerInstruction,
         },
+        {
+          id: "response-structure",
+          label: "Response structure",
+          currentValue: "Scannable",
+          description:
+            "Sense-1 structures replies to be easy to skim - pattern first, then detail, with headings, tables, lists, and bolded key phrases.",
+          developerInstruction:
+            "Structure responses so they skim well: lead with the headline claim or pattern, then supporting detail. Use short H3 headings (###) to mark sections when a response has three or more distinct parts. Use Markdown tables for comparisons, option matrices, or per-item mappings - one row per item. Use numbered lists for ordered or ranked items (steps, priorities, options) and bullets for unordered collections. Bold the key phrase in each paragraph so a skimmer catches the point. Use fenced code blocks with a language label for code, commands, or config, and inline `code` for short identifiers, flags, or filenames. Use blockquotes (>) to surface a direct quote or constraint from source material. Prefer two short paragraphs over one long one - one idea per paragraph.",
+        },
       ],
     },
     {
@@ -470,6 +479,7 @@ function collectDeveloperInstructions(groups) {
   return [
     "runtime-guidance",
     "verbosity",
+    "response-structure",
     "selected-folder-scope",
     "deliverable-formats",
     "file-names",
