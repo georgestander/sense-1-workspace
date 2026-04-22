@@ -553,6 +553,11 @@ body {
   color: var(--color-ink);
 }
 
+.user-bubble .thread-markdown pre,
+.user-bubble .thread-markdown code {
+  background: color-mix(in oklch, oklch(0 0 0) 28%, transparent);
+}
+
 .thread-markdown-user,
 .thread-markdown-user strong {
   color: var(--color-ink);
