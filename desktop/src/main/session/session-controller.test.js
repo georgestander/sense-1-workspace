@@ -1421,10 +1421,22 @@ test("listModels preserves runtime default metadata for the renderer", async () 
   ]);
 });
 
-test("listModels keeps the alpha OpenAI model surface identical across ChatGPT and API-key auth", async () => {
+test("listModels keeps the live runtime model surface identical across ChatGPT and API-key auth", async () => {
   const root = await makeTempRoot();
   const env = createTestEnv(root);
   const runtimeCatalog = [
+    {
+      id: "gpt-5.5",
+      model: "gpt-5.5",
+      displayName: "GPT-5.5",
+      isDefault: true,
+      supportedReasoningEfforts: [
+        { reasoningEffort: "low", description: "Lower latency" },
+        { reasoningEffort: "medium", description: "Balanced" },
+        { reasoningEffort: "high", description: "Deeper reasoning" },
+      ],
+      defaultReasoningEffort: "medium",
+    },
     {
       id: "gpt-5.4-mini",
       name: "GPT-5.4 Mini",
@@ -1496,6 +1508,13 @@ test("listModels keeps the alpha OpenAI model surface identical across ChatGPT a
   assert.deepEqual(chatgptResult.models, apiKeyResult.models);
   assert.deepEqual(chatgptResult.models, [
     {
+      id: "gpt-5.5",
+      isDefault: true,
+      name: "GPT-5.5",
+      supportedReasoningEfforts: ["low", "medium", "high"],
+      defaultReasoningEffort: "medium",
+    },
+    {
       id: "gpt-5.4-mini",
       name: "GPT-5.4 Mini",
       supportedReasoningEfforts: ["minimal", "low", "medium", "high", "xhigh"],
@@ -1508,10 +1527,15 @@ test("listModels keeps the alpha OpenAI model surface identical across ChatGPT a
       supportedReasoningEfforts: ["low", "medium", "high"],
       defaultReasoningEffort: "high",
     },
+    {
+      id: "o3",
+      name: "o3",
+      supportedReasoningEfforts: ["high"],
+    },
   ]);
 });
 
-test("updateDesktopSettings blocks OpenAI alpha models outside the shared auth-parity surface", async () => {
+test("updateDesktopSettings allows any model listed by the live runtime surface", async () => {
   const root = await makeTempRoot();
   const env = createTestEnv(root);
   const controller = new DesktopSessionController(
@@ -1566,12 +1590,13 @@ test("updateDesktopSettings blocks OpenAI alpha models outside the shared auth-p
     },
   );
 
-  await assert.rejects(
-    () => controller.updateDesktopSettings({
-      model: "o3",
-    }),
-    /does not list it as an available model/i,
-  );
+  const result = await controller.updateDesktopSettings({
+    model: "o3",
+    reasoningEffort: "high",
+  });
+
+  assert.equal(result.settings.model, "o3");
+  assert.equal(result.settings.reasoningEffort, "high");
 });
 
 test("runDesktopTask applies persisted workspace policy defaults to the runtime request", async () => {

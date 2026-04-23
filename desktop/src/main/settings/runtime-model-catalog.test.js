@@ -6,8 +6,20 @@ import {
   projectSupportedRuntimeModels,
 } from "./runtime-model-catalog.js";
 
-test("ChatGPT and API-key auth normalize the same alpha OpenAI model surface", () => {
+test("ChatGPT and API-key auth preserve the live runtime model surface", () => {
   const runtimeModels = [
+    {
+      id: "gpt-5.5",
+      model: "gpt-5.5",
+      displayName: "GPT-5.5",
+      supportedReasoningEfforts: [
+        { reasoningEffort: "low", description: "Lower latency" },
+        { reasoningEffort: "medium", description: "Balanced" },
+        { reasoningEffort: "high", description: "Deeper reasoning" },
+      ],
+      defaultReasoningEffort: "medium",
+      isDefault: true,
+    },
     {
       id: "gpt-5.4-mini",
       name: "GPT-5.4 Mini",
@@ -34,24 +46,32 @@ test("ChatGPT and API-key auth normalize the same alpha OpenAI model surface", (
   assert.deepEqual(chatgptSurface, apiKeySurface);
   assert.deepEqual(
     chatgptSurface.map((entry) => entry.id),
-    ["gpt-5.4-mini", "gpt-5.4"],
+    ["gpt-5.5", "gpt-5.4-mini", "gpt-5.4", "o3"],
   );
-  assert.deepEqual(chatgptSurface[0].supportedReasoningEfforts, ["minimal", "low", "medium", "high", "xhigh"]);
-  assert.deepEqual(chatgptSurface[1].supportedReasoningEfforts, ["low", "medium", "high"]);
+  assert.equal(chatgptSurface[0].name, "GPT-5.5");
+  assert.deepEqual(chatgptSurface[0].supportedReasoningEfforts, ["low", "medium", "high"]);
+  assert.deepEqual(chatgptSurface[1].supportedReasoningEfforts, ["minimal", "low", "medium", "high", "xhigh"]);
+  assert.deepEqual(chatgptSurface[2].supportedReasoningEfforts, ["low", "medium", "high"]);
 });
 
-test("OpenAI alpha shaping preserves raw runtime catalogs when the alpha models are absent", () => {
+test("runtime catalog normalization can fall back to model when id is absent", () => {
   const runtimeModels = [
     {
-      id: "o3",
-      name: "o3",
-      supportedReasoningEfforts: ["high"],
+      model: "gpt-5.5",
+      displayName: "GPT-5.5",
+      supportedReasoningEfforts: [{ effort: "xhigh" }],
     },
   ];
 
   assert.deepEqual(
     normalizeRuntimeModelCatalog(runtimeModels, { accountType: "chatgpt" }),
-    runtimeModels,
+    [
+      {
+        id: "gpt-5.5",
+        name: "GPT-5.5",
+        supportedReasoningEfforts: ["xhigh"],
+      },
+    ],
   );
 });
 
@@ -87,6 +107,14 @@ test("allowed model restrictions apply after auth-mode shaping", () => {
 test("projectSupportedRuntimeModels reuses the same shaped auth-parity surface", () => {
   const runtimeModels = [
     {
+      id: "gpt-5.5",
+      name: "GPT-5.5",
+      supportedReasoningEfforts: [
+        { reasoningEffort: "medium", description: "Balanced" },
+        { reasoningEffort: "high", description: "Deeper reasoning" },
+      ],
+    },
+    {
       id: "gpt-5.4-mini",
       name: "GPT-5.4 Mini",
       supportedReasoningEfforts: ["medium", "high", "xhigh"],
@@ -107,12 +135,20 @@ test("projectSupportedRuntimeModels reuses the same shaped auth-parity surface",
     projectSupportedRuntimeModels(runtimeModels, { authMode: "apikey" }),
     [
       {
+        id: "gpt-5.5",
+        supportedReasoningEfforts: ["medium", "high"],
+      },
+      {
         id: "gpt-5.4-mini",
         supportedReasoningEfforts: ["medium", "high", "xhigh"],
       },
       {
         id: "gpt-5.4",
         supportedReasoningEfforts: ["low", "medium", "high"],
+      },
+      {
+        id: "o3",
+        supportedReasoningEfforts: ["high"],
       },
     ],
   );

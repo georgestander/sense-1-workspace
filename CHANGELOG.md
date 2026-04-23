@@ -4,6 +4,21 @@ All notable changes to Sense-1 Workspace are recorded here.
 
 ## [Unreleased]
 
+## [0.13.4] - 2026-04-23
+
+### Added
+
+- No new user-visible additions were captured in this patch release.
+
+### Changed
+
+- Model pickers now use the live Codex runtime catalog instead of a stale Sense-1 OpenAI model subset, so newly available picker-visible models appear without a desktop patch.
+- Runtime model metadata now accepts current Codex reasoning-effort objects as well as legacy string arrays.
+
+### Fixed
+
+- Kept newly released models such as GPT-5.5 from being filtered out of the composer, start surface, and settings model lists when Codex already exposes them.
+
 ## [0.13.3] - 2026-04-23
 
 ### Added

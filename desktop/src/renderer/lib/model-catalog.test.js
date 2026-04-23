@@ -211,9 +211,22 @@ test("normalizeModelCatalog drops invalid entries before the picker sees them", 
       null,
       {},
       { id: " ", name: "Blank", supportedReasoningEfforts: [] },
+      {
+        model: "gpt-5.5",
+        displayName: "GPT-5.5",
+        supportedReasoningEfforts: [
+          { reasoningEffort: "medium", description: "Balanced" },
+          { effort: "high", description: "Deeper reasoning" },
+        ],
+      },
       { id: "gpt-5.4", name: "", supportedReasoningEfforts: ["high"] },
     ]),
     [
+      {
+        id: "gpt-5.5",
+        name: "GPT-5.5",
+        supportedReasoningEfforts: ["medium", "high"],
+      },
       {
         id: "gpt-5.4",
         name: "gpt-5.4",

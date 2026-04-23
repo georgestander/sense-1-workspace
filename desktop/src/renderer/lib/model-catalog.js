@@ -21,14 +21,45 @@ function normalizeModelEntry(entry) {
     return null;
   }
 
-  const id = typeof entry.id === "string" ? entry.id.trim() : "";
+  const id = typeof entry.id === "string" && entry.id.trim()
+    ? entry.id.trim()
+    : typeof entry.model === "string" && entry.model.trim()
+      ? entry.model.trim()
+      : "";
   if (!id) {
     return null;
   }
 
-  const name = typeof entry.name === "string" && entry.name.trim() ? entry.name : id;
+  const name =
+    typeof entry.name === "string" && entry.name.trim()
+      ? entry.name
+      : typeof entry.displayName === "string" && entry.displayName.trim()
+        ? entry.displayName
+        : typeof entry.model === "string" && entry.model.trim()
+          ? entry.model
+          : id;
   const supportedReasoningEfforts = Array.isArray(entry.supportedReasoningEfforts)
-    ? entry.supportedReasoningEfforts.filter((effort) => typeof effort === "string" && effort.trim())
+    ? entry.supportedReasoningEfforts
+        .map((effort) => {
+          if (typeof effort === "string") {
+            return effort.trim() || null;
+          }
+
+          if (!effort || typeof effort !== "object" || Array.isArray(effort)) {
+            return null;
+          }
+
+          if (typeof effort.reasoningEffort === "string" && effort.reasoningEffort.trim()) {
+            return effort.reasoningEffort.trim();
+          }
+
+          if (typeof effort.effort === "string" && effort.effort.trim()) {
+            return effort.effort.trim();
+          }
+
+          return null;
+        })
+        .filter(Boolean)
     : [];
   const normalized = {
     id,

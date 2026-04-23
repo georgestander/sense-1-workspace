@@ -1,8 +1,3 @@
-const OPENAI_ALPHA_MODEL_IDS = Object.freeze([
-  "gpt-5.4-mini",
-  "gpt-5.4",
-]);
-
 function firstString(...values) {
   for (const value of values) {
     if (typeof value !== "string") {
@@ -18,24 +13,33 @@ function firstString(...values) {
   return null;
 }
 
-function normalizeAuthType(accountType, authMode) {
-  const resolved = firstString(accountType, authMode);
-  return resolved ? resolved.toLowerCase() : null;
+function normalizeReasoningEffort(effort) {
+  if (typeof effort === "string") {
+    return firstString(effort);
+  }
+
+  if (!effort || typeof effort !== "object" || Array.isArray(effort)) {
+    return null;
+  }
+
+  return firstString(effort.reasoningEffort, effort.effort);
 }
 
 function normalizeRuntimeModelEntry(entry) {
-  const id = firstString(entry?.id);
+  const id = firstString(entry?.id, entry?.model);
   if (!id) {
     return null;
   }
 
   const supportedReasoningEfforts = Array.isArray(entry?.supportedReasoningEfforts)
-    ? entry.supportedReasoningEfforts.filter((effort) => typeof effort === "string" && effort.trim())
+    ? entry.supportedReasoningEfforts
+        .map((effort) => normalizeReasoningEffort(effort))
+        .filter(Boolean)
     : [];
 
   return {
     id,
-    name: firstString(entry?.name, id) ?? id,
+    name: firstString(entry?.name, entry?.displayName, entry?.model, id) ?? id,
     supportedReasoningEfforts,
     ...(typeof entry?.isDefault === "boolean" ? { isDefault: entry.isDefault } : {}),
     ...(
@@ -44,11 +48,6 @@ function normalizeRuntimeModelEntry(entry) {
         : {}
     ),
   };
-}
-
-function shapeAlphaOpenAiModelSurface(models) {
-  const alphaModels = models.filter((entry) => OPENAI_ALPHA_MODEL_IDS.includes(entry.id));
-  return alphaModels.length > 0 ? alphaModels : models;
 }
 
 function filterAllowedModels(models, allowedModels) {
@@ -76,12 +75,7 @@ export function normalizeRuntimeModelCatalog(rawModels, {
       return true;
     });
 
-  const normalizedAuthType = normalizeAuthType(accountType, authMode);
-  const authShaped = normalizedAuthType === "chatgpt" || normalizedAuthType === "apikey"
-    ? shapeAlphaOpenAiModelSurface(normalized)
-    : normalized;
-
-  return filterAllowedModels(authShaped, allowedModels);
+  return filterAllowedModels(normalized, allowedModels);
 }
 
 export function projectSupportedRuntimeModels(rawModels, options = {}) {
