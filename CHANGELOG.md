@@ -4,6 +4,21 @@ All notable changes to Sense-1 Workspace are recorded here.
 
 ## [Unreleased]
 
+## [0.13.3] - 2026-04-23
+
+### Added
+
+- No new user-visible additions were captured in this patch release.
+
+### Changed
+
+- Windows alpha packaging now bundles the runtime from the target platform instead of the build machine.
+- Runtime startup diagnostics now carry enough redacted context for Sentry to identify local runtime failures.
+
+### Fixed
+
+- Prevented runtime transport errors from leaking unredacted stack text into Sentry events.
+
 ## [0.13.2] - 2026-04-23
 
 ### Added
