@@ -4,6 +4,22 @@ All notable changes to Sense-1 Workspace are recorded here.
 
 ## [Unreleased]
 
+## [0.13.2] - 2026-04-23
+
+### Added
+
+- No new user-visible additions were captured in this patch release.
+
+### Changed
+
+- Tool-heavy turns now read more like a natural work log, with sparse progress commentary that keeps users oriented without exposing raw tool chatter.
+- Completed tool, command, source-check, and reasoning activity now collapses behind a worked-duration dropdown while preserving the final answer as the main transcript content.
+
+### Fixed
+
+- Prevented duplicate fallback narration when the model already provided a natural progress update during a multi-tool turn.
+- Kept completed tool activity from reappearing as still running after transcript reloads or cold snapshot hydration.
+
 ## [0.13.1] - 2026-04-22
 
 ### Added
