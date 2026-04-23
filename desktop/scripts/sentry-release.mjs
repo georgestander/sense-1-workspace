@@ -5,6 +5,8 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { formatSpawnFailure, resolveScriptCommand } from "./command-runner-utils.js";
+
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const desktopDir = resolve(scriptDir, "..");
 const distDir = resolve(desktopDir, "dist");
@@ -216,7 +218,8 @@ function runSentryCli(args, options = {}) {
 }
 
 function run(commandName, commandArgs, options = {}) {
-  const result = spawnSync(commandName, commandArgs, {
+  const executable = resolveScriptCommand(commandName);
+  const result = spawnSync(executable, commandArgs, {
     cwd: desktopDir,
     encoding: "utf8",
     stdio: options.capture ? "pipe" : "inherit",
@@ -227,9 +230,7 @@ function run(commandName, commandArgs, options = {}) {
       process.stderr.write(result.stderr ?? "");
       process.stdout.write(result.stdout ?? "");
     }
-    throw new Error(
-      `Command failed (${commandName} ${commandArgs.join(" ")}): exit ${result.status ?? "unknown"}`,
-    );
+    throw new Error(formatSpawnFailure(commandName, commandArgs, result));
   }
 
   return result;

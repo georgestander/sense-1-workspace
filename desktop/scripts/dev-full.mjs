@@ -5,9 +5,11 @@ import process from "node:process";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import { resolveScriptCommand } from "./command-runner-utils.js";
+
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..", "..");
-const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const pnpmCommand = resolveScriptCommand("pnpm");
 const processGroupSignalsSupported = process.platform !== "win32";
 
 const managedChildren = [];

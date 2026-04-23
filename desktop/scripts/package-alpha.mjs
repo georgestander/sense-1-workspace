@@ -13,6 +13,7 @@ import {
   normalizeTarget,
   snapshotReleaseDir,
 } from "./package-alpha-utils.js";
+import { formatSpawnFailure, resolveScriptCommand } from "./command-runner-utils.js";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const desktopDir = resolve(scriptDir, "..");
@@ -93,12 +94,15 @@ function parseArgs(argv) {
 }
 
 function run(command) {
-  const result = spawnSync(command[0], command.slice(1), {
+  const [commandName, ...commandArgs] = command;
+  const executable = resolveScriptCommand(commandName);
+  const result = spawnSync(executable, commandArgs, {
     cwd: desktopDir,
     stdio: "inherit",
     encoding: "utf8",
   });
   if (result.status !== 0) {
+    console.error(formatSpawnFailure(commandName, commandArgs, result));
     process.exit(result.status ?? 1);
   }
 }

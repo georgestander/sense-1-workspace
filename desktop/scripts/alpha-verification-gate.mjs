@@ -12,6 +12,7 @@ import {
   evaluateAlphaReleaseGate,
   parseKeyValueEntries,
 } from "./alpha-verification-utils.js";
+import { resolveScriptCommand } from "./command-runner-utils.js";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const desktopDir = resolve(scriptDir, "..");
@@ -108,7 +109,8 @@ if (gate.status !== "passed") {
 }
 
 function runAutomatedCheck(check) {
-  const result = spawnSync(check.command[0], check.command.slice(1), {
+  const [commandName, ...commandArgs] = check.command;
+  const result = spawnSync(resolveScriptCommand(commandName), commandArgs, {
     cwd: repoRoot,
     encoding: "utf8",
   });
@@ -123,6 +125,7 @@ function runAutomatedCheck(check) {
     command: check.command,
     exitCode: result.status,
     signal: result.signal,
+    error: result.error?.message || "",
     stdout: result.stdout || "",
     stderr: result.stderr || "",
   });
@@ -133,6 +136,7 @@ function runAutomatedCheck(check) {
       "",
       (result.stdout || "").trimEnd(),
       (result.stderr || "").trimEnd() ? `\n[stderr]\n${(result.stderr || "").trimEnd()}` : "",
+      result.error ? `\n[error]\n${result.error.message}` : "",
       `\n[exit ${result.status ?? "null"}${result.signal ? `, signal ${result.signal}` : ""}]`,
     ].join("\n"),
   );

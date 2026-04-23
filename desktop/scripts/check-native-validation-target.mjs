@@ -5,6 +5,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { resolveScriptCommand } from "./command-runner-utils.js";
+
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const desktopDir = resolve(scriptDir, "..");
 const repoRoot = resolve(desktopDir, "..");
@@ -340,7 +342,8 @@ function normalizeOptionalText(value) {
 }
 
 function runAndWrite(name, command) {
-  const result = spawnSync(command[0], command.slice(1), {
+  const [commandName, ...commandArgs] = command;
+  const result = spawnSync(resolveScriptCommand(commandName), commandArgs, {
     cwd: repoRoot,
     encoding: "utf8",
   });
@@ -349,6 +352,7 @@ function runAndWrite(name, command) {
     command,
     exitCode: result.status,
     signal: result.signal,
+    error: result.error?.message || "",
     stdout: result.stdout || "",
     stderr: result.stderr || "",
   };
@@ -361,6 +365,7 @@ function runAndWrite(name, command) {
       "",
       payload.stdout.trimEnd(),
       payload.stderr.trimEnd() ? `\n[stderr]\n${payload.stderr.trimEnd()}` : "",
+      payload.error ? `\n[error]\n${payload.error}` : "",
       `\n[exit ${payload.exitCode ?? "null"}${payload.signal ? `, signal ${payload.signal}` : ""}]`,
     ].join("\n"),
   );
