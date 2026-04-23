@@ -6,6 +6,7 @@ export interface AppServerSummary {
   lastError: string | null;
   restartCount: number;
   lastStateAt: string;
+  recentTransportLogs: string[];
 }
 
 export interface AppServerProcessManagerOptions {

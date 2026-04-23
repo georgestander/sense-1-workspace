@@ -47,6 +47,10 @@ import {
 import { CrashRecoveryTracker } from "./bug-reporting/crash-recovery-tracker.ts";
 import { CrashReportSuggestionStore } from "./bug-reporting/crash-report-suggestion-store.ts";
 import { redactSensitivePath, resolveRedactionHomeDir } from "./bug-reporting/redaction.ts";
+import {
+  captureRuntimeStateFailureToSentry,
+  captureRuntimeTransportErrorToSentry,
+} from "./bug-reporting/runtime-sentry-reporting.ts";
 import { captureDesktopManualBugReport } from "./bug-reporting/sentry-reporting.ts";
 import { createDesktopLogBuffer, installDesktopLogBuffer } from "./logging/desktop-log-buffer.ts";
 import {
@@ -692,6 +696,7 @@ appServerManager.on("state:crashed", (summary) => {
   if (signal) {
     crashRecoveryTracker.recordSignal(signal);
   }
+  captureRuntimeStateFailureToSentry({ kind: "crashed", runtimeInfo, summary });
 });
 
 appServerManager.on("state:errored", (summary) => {
@@ -702,10 +707,16 @@ appServerManager.on("state:errored", (summary) => {
   if (signal) {
     crashRecoveryTracker.recordSignal(signal);
   }
+  captureRuntimeStateFailureToSentry({ kind: "errored", runtimeInfo, summary });
 });
 
 appServerManager.on("transport:error", (error) => {
   console.error(`[desktop:runtime] Transport error: ${formatError(error)}`);
+  captureRuntimeTransportErrorToSentry({
+    error,
+    runtimeInfo,
+    runtimeState: appServerManager.state,
+  });
 });
 
 appServerManager.on("notification", (message) => {

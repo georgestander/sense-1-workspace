@@ -140,6 +140,7 @@ export class AppServerProcessManager extends EventEmitter {
       lastError: this.lastError,
       restartCount: this.restartCount,
       lastStateAt: this.lastStateAt,
+      recentTransportLogs: [...this.transportLogs],
     };
   }
 

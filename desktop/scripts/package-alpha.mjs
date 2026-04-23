@@ -29,7 +29,7 @@ const packageJson = JSON.parse(await readFile(join(desktopDir, "package.json"), 
 const version = typeof packageJson.version === "string" ? packageJson.version : "unknown";
 const beforeSnapshot = await snapshotReleaseDir(releaseDir);
 
-run(["pnpm", "build:release"]);
+run(["node", "./scripts/sentry-release.mjs", "prepare", "--runtime-target", target]);
 run(target === "mac"
   ? ["pnpm", "exec", "electron-builder", "--project", ".", "--mac", "--arm64", "--publish", "never"]
   : ["pnpm", "exec", "electron-builder", "--project", ".", "--win", "--x64", "--publish", "never"]);
