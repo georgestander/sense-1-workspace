@@ -18,6 +18,7 @@ const sentryDist = normalizeOptionalString(process.env.SENSE1_DESKTOP_BUILD_ID);
 const args = process.argv.slice(2);
 const command = args[0] ?? "help";
 const flags = new Set(args.slice(1));
+const runtimeTarget = readOptionValue(args.slice(1), "--runtime-target") ?? readOptionValue(args.slice(1), "--target");
 
 const mainProbe = {
   surface: "main",
@@ -68,7 +69,7 @@ function main() {
 function printHelp() {
   console.log(
     [
-      "Usage: node ./scripts/sentry-release.mjs <prepare|smoke|upload> [--no-build]",
+      "Usage: node ./scripts/sentry-release.mjs <prepare|smoke|upload> [--no-build] [--runtime-target mac|win]",
       "",
       "prepare  Build desktop release artifacts and inject Sentry Debug IDs.",
       "smoke    Prepare artifacts (unless --no-build) and verify local source-map resolution.",
@@ -77,13 +78,20 @@ function printHelp() {
       "Environment:",
       "- SENSE1_DESKTOP_BUILD_ID: optional build id mapped to Sentry dist",
       "- SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT: required for upload",
+      "",
+      "Options:",
+      "- --runtime-target mac|win: prepare the bundled Codex runtime for a package target",
     ].join("\n"),
   );
 }
 
 function prepareReleaseArtifacts() {
   console.log(`Preparing desktop release artifacts for ${formatReleaseLabel()}`);
-  run("node", ["./scripts/prepare-codex-runtime.mjs"]);
+  const prepareRuntimeArgs = ["./scripts/prepare-codex-runtime.mjs"];
+  if (runtimeTarget) {
+    prepareRuntimeArgs.push("--target", runtimeTarget);
+  }
+  run("node", prepareRuntimeArgs);
   run("pnpm", ["exec", "electron-vite", "build"]);
   runSentryCli([
     "sourcemaps",
@@ -241,6 +249,21 @@ function assertEnv(name) {
 
 function normalizeOptionalString(value) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function readOptionValue(values, name) {
+  const inlinePrefix = `${name}=`;
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (value === name) {
+      const nextValue = values[index + 1];
+      return nextValue && !nextValue.startsWith("--") ? nextValue : null;
+    }
+    if (value.startsWith(inlinePrefix)) {
+      return normalizeOptionalString(value.slice(inlinePrefix.length));
+    }
+  }
+  return null;
 }
 
 function formatReleaseLabel() {

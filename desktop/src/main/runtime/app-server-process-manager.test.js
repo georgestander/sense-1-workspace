@@ -230,6 +230,7 @@ test("unexpected crashes are retried once and then stop with an errored state", 
   await waitForState(manager, "errored", restartTimeoutMs);
   assert.equal(manager.restartCount, 1);
   assert.match(manager.lastError ?? "", /App-server exited unexpectedly/);
+  assert.equal(manager.summary.recentTransportLogs.at(-1), "intentional crash");
 });
 
 test("missing codex runtime fails immediately with a readable spawn error", async () => {
