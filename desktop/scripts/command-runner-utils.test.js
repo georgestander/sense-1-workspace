@@ -5,12 +5,19 @@ import {
   formatCommand,
   formatSpawnFailure,
   resolveScriptCommand,
+  resolveScriptSpawnOptions,
 } from "./command-runner-utils.js";
 
-test("resolveScriptCommand uses the pnpm cmd shim on Windows", () => {
-  assert.equal(resolveScriptCommand("pnpm", "win32"), "pnpm.cmd");
+test("resolveScriptCommand keeps command labels stable across platforms", () => {
+  assert.equal(resolveScriptCommand("pnpm", "win32"), "pnpm");
   assert.equal(resolveScriptCommand("pnpm", "darwin"), "pnpm");
   assert.equal(resolveScriptCommand("node", "win32"), "node");
+});
+
+test("resolveScriptSpawnOptions runs pnpm through the Windows shell", () => {
+  assert.deepEqual(resolveScriptSpawnOptions("pnpm", "win32"), { shell: true });
+  assert.deepEqual(resolveScriptSpawnOptions("pnpm", "darwin"), {});
+  assert.deepEqual(resolveScriptSpawnOptions("node", "win32"), {});
 });
 
 test("formatCommand keeps logged commands shell-friendly", () => {

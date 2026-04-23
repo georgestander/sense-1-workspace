@@ -12,7 +12,7 @@ import {
   evaluateAlphaReleaseGate,
   parseKeyValueEntries,
 } from "./alpha-verification-utils.js";
-import { resolveScriptCommand } from "./command-runner-utils.js";
+import { resolveScriptCommand, resolveScriptSpawnOptions } from "./command-runner-utils.js";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const desktopDir = resolve(scriptDir, "..");
@@ -113,6 +113,7 @@ function runAutomatedCheck(check) {
   const result = spawnSync(resolveScriptCommand(commandName), commandArgs, {
     cwd: repoRoot,
     encoding: "utf8",
+    ...resolveScriptSpawnOptions(commandName),
   });
 
   const payload = {

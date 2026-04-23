@@ -5,7 +5,7 @@ import process from "node:process";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { resolveScriptCommand } from "./command-runner-utils.js";
+import { resolveScriptCommand, resolveScriptSpawnOptions } from "./command-runner-utils.js";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..", "..");
@@ -38,6 +38,7 @@ function startManagedProcess(label, args, envOverrides = {}) {
       ...process.env,
       ...envOverrides,
     },
+    ...resolveScriptSpawnOptions("pnpm"),
     stdio: ["ignore", "pipe", "pipe"],
   });
 

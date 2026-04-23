@@ -5,7 +5,11 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { formatSpawnFailure, resolveScriptCommand } from "./command-runner-utils.js";
+import {
+  formatSpawnFailure,
+  resolveScriptCommand,
+  resolveScriptSpawnOptions,
+} from "./command-runner-utils.js";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const desktopDir = resolve(scriptDir, "..");
@@ -223,6 +227,7 @@ function run(commandName, commandArgs, options = {}) {
     cwd: desktopDir,
     encoding: "utf8",
     stdio: options.capture ? "pipe" : "inherit",
+    ...resolveScriptSpawnOptions(commandName),
   });
 
   if (result.status !== 0) {

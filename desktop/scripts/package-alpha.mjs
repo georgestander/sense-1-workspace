@@ -13,7 +13,11 @@ import {
   normalizeTarget,
   snapshotReleaseDir,
 } from "./package-alpha-utils.js";
-import { formatSpawnFailure, resolveScriptCommand } from "./command-runner-utils.js";
+import {
+  formatSpawnFailure,
+  resolveScriptCommand,
+  resolveScriptSpawnOptions,
+} from "./command-runner-utils.js";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const desktopDir = resolve(scriptDir, "..");
@@ -100,6 +104,7 @@ function run(command) {
     cwd: desktopDir,
     stdio: "inherit",
     encoding: "utf8",
+    ...resolveScriptSpawnOptions(commandName),
   });
   if (result.status !== 0) {
     console.error(formatSpawnFailure(commandName, commandArgs, result));

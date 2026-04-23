@@ -1,9 +1,13 @@
 export function resolveScriptCommand(commandName, platform = process.platform) {
+  return commandName;
+}
+
+export function resolveScriptSpawnOptions(commandName, platform = process.platform) {
   if (platform === "win32" && commandName === "pnpm") {
-    return "pnpm.cmd";
+    return { shell: true };
   }
 
-  return commandName;
+  return {};
 }
 
 export function formatCommand(commandName, commandArgs = []) {
