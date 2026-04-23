@@ -104,6 +104,7 @@ export type DesktopThreadEntry =
       }>;
       readonly attachments?: DesktopUserMessageAttachment[];
       readonly status?: string;
+      readonly phase?: string;
     }
   | {
       readonly id: string;

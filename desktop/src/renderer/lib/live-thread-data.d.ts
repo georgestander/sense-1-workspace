@@ -16,6 +16,7 @@ export type DesktopThreadEntry =
         token: string;
       }>;
       status?: string;
+      phase?: string;
     }
   | {
       id: string;

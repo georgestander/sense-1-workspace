@@ -72,6 +72,18 @@ function mapUserMessageContent(content) {
   };
 }
 
+function mapAgentMessageItem(item) {
+  const phase = firstString(item.phase);
+  return {
+    id: item.id,
+    kind: "assistant",
+    title: phase === "final_answer" ? "Sense-1" : phase === "commentary" ? "Sense-1 progress" : "Sense-1 activity",
+    body: item.text || "",
+    status: phase === "final_answer" || phase === "commentary" ? "complete" : "streaming",
+    ...(phase ? { phase } : {}),
+  };
+}
+
 function mapItemToThreadEntry(item) {
   if (item.type === "userMessage") {
     const content = mapUserMessageContent(item.content);
@@ -89,13 +101,7 @@ function mapItemToThreadEntry(item) {
   }
 
   if (item.type === "agentMessage") {
-    return {
-      id: item.id,
-      kind: "assistant",
-      title: item.phase === "final_answer" ? "Sense-1" : "Sense-1 activity",
-      body: item.text || "",
-      status: item.phase === "final_answer" ? "complete" : "streaming",
-    };
+    return mapAgentMessageItem(item);
   }
 
   if (item.type === "reasoning") {

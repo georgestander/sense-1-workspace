@@ -155,9 +155,16 @@ export function applyEntryNotification({
       return [];
     }
 
-    const entry = mapItemToEntry(item);
+    let entry = mapItemToEntry(item);
     if (!entry) {
       return [];
+    }
+
+    if (item.type === "agentMessage") {
+      entry = {
+        ...entry,
+        status: "streaming",
+      };
     }
 
     buffer.entriesById.set(entry.id, entry);

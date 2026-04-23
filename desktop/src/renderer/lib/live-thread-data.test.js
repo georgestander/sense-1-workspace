@@ -55,6 +55,28 @@ test("buildThreadEntries maps live app-server items into renderer entries", () =
   assert.equal(entries[2].command, "git status --short");
 });
 
+test("buildThreadEntries preserves commentary phase as completed progress", () => {
+  const entries = buildThreadEntries([
+    {
+      id: "assistant-commentary-1",
+      type: "agentMessage",
+      text: "I am checking the runtime now.",
+      phase: "commentary",
+    },
+  ]);
+
+  assert.deepEqual(entries, [
+    {
+      id: "assistant-commentary-1",
+      kind: "assistant",
+      title: "Sense-1 progress",
+      body: "I am checking the runtime now.",
+      status: "complete",
+      phase: "commentary",
+    },
+  ]);
+});
+
 test("buildThreadEntries coerces non-string command output into safe text", () => {
   const entries = buildThreadEntries([
     {

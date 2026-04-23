@@ -53,6 +53,7 @@ import {
   coalesceRuntimeNotifications,
   type RuntimeNotification,
 } from "./session/runtime-notification-coalescer.ts";
+import { RuntimeProgressNarrator } from "./session/runtime-progress-narrator.ts";
 import {
   resolveSentryDsn,
   resolveSentryDist,
@@ -110,6 +111,7 @@ const threadInputQueue = new ThreadInputQueueService();
 const workspaceFileActivity = new WorkspaceFileActivityTracker();
 const runtimeFileChangeTracker = new RuntimeFileChangeTracker();
 const managementInventoryChangeTracker = new ManagementInventoryChangeTracker();
+const runtimeProgressNarrator = new RuntimeProgressNarrator();
 let updateService = createDisabledUpdateService();
 let currentVisibleThreadId: string | null = null;
 let currentAccountType: string | null = null;
@@ -260,6 +262,16 @@ function enqueueAccumulatorNotification(notification: RuntimeNotification): void
   syncUpdaterBusyState();
   for (const threadId of touchedThreadIds) {
     void persistInteractionState(threadId).catch(() => {});
+  }
+}
+
+function emitRuntimeProgressEntry(
+  threadId: string,
+  entry: Parameters<ThreadStateAccumulator["appendSyntheticEntry"]>[1],
+): void {
+  const deltas = threadAccumulator.appendSyntheticEntry(threadId, entry);
+  for (const delta of deltas) {
+    emitDesktopThreadDelta(delta);
   }
 }
 
@@ -757,6 +769,7 @@ appServerManager.on("notification", (message) => {
   // The renderer-facing event mapper intentionally drops detail that
   // the product audit trail still needs to keep.
   desktopSessionController.ingestRuntimeMessage(message);
+  runtimeProgressNarrator.observe(message as RuntimeNotification, emitRuntimeProgressEntry);
 
   const runContext = threadId ? desktopSessionController.getThreadRunContext(threadId) : null;
   const accumulatorMessage =
@@ -1089,6 +1102,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", (event) => {
+  runtimeProgressNarrator.clear();
   if (isGracefulQuitInProgress) {
     return;
   }

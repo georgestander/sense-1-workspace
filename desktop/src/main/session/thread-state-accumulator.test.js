@@ -111,6 +111,7 @@ test("mapItemToEntry maps an agentMessage item into an assistant entry", () => {
     title: "Sense-1",
     body: "Sure, I can help.",
     status: "complete",
+    phase: "final_answer",
   });
 });
 
@@ -128,6 +129,25 @@ test("mapItemToEntry maps a streaming agentMessage without final_answer phase", 
     title: "Sense-1 activity",
     body: "Working on it...",
     status: "streaming",
+    phase: "thinking",
+  });
+});
+
+test("mapItemToEntry maps commentary agentMessage as completed progress", () => {
+  const entry = mapItemToEntry({
+    id: "agent-commentary-1",
+    type: "agentMessage",
+    text: "I am checking the code path now.",
+    phase: "commentary",
+  });
+
+  assert.deepEqual(entry, {
+    id: "agent-commentary-1",
+    kind: "assistant",
+    title: "Sense-1 progress",
+    body: "I am checking the code path now.",
+    status: "complete",
+    phase: "commentary",
   });
 });
 
@@ -291,6 +311,60 @@ test("applyNotification handles item/agentMessage/delta", () => {
   const entry = state.entries.find((e) => e.id === "msg-1");
   assert.equal(entry.body, "Hello world!");
   assert.equal(entry.status, "streaming");
+});
+
+test("item/started keeps commentary agentMessage streaming until completion", () => {
+  const acc = new ThreadStateAccumulator();
+  acc.loadSnapshot("thread-commentary-start", {
+    id: "thread-commentary-start",
+    title: "Commentary",
+    subtitle: "",
+    state: "running",
+    interactionState: "conversation",
+    updatedAt: "2026-04-23T00:00:00.000Z",
+    updatedLabel: "now",
+    workspaceRoot: "/tmp/project",
+    cwd: "/tmp/project",
+    entries: [],
+    changeGroups: [],
+    progressSummary: [],
+    reviewSummary: null,
+    hasLoadedDetails: true,
+  });
+
+  const started = acc.applyNotification({
+    method: "item/started",
+    params: {
+      threadId: "thread-commentary-start",
+      item: {
+        id: "commentary-1",
+        type: "agentMessage",
+        text: "I am checking the runtime now.",
+        phase: "commentary",
+      },
+    },
+  });
+
+  assert.equal(started[0].kind, "entryStarted");
+  assert.equal(started[0].entry.phase, "commentary");
+  assert.equal(started[0].entry.status, "streaming");
+
+  const completed = acc.applyNotification({
+    method: "item/completed",
+    params: {
+      threadId: "thread-commentary-start",
+      item: {
+        id: "commentary-1",
+        type: "agentMessage",
+        text: "I am checking the runtime now.",
+        phase: "commentary",
+      },
+    },
+  });
+
+  assert.equal(completed[0].kind, "entryCompleted");
+  assert.equal(completed[0].entry.phase, "commentary");
+  assert.equal(completed[0].entry.status, "complete");
 });
 
 test("applyNotification returns empty array for unknown methods", () => {
