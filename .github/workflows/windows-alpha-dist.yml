@@ -1,0 +1,40 @@
+name: Build Windows Alpha
+
+on:
+  workflow_dispatch:
+
+jobs:
+  windows-alpha-dist:
+    name: Windows alpha dist
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: desktop/pnpm-lock.yaml
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Windows alpha package
+        working-directory: desktop
+        run: pnpm dist:win
+
+      - name: Upload Windows alpha package
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-alpha-dist
+          path: desktop/release/*
+          if-no-files-found: error
