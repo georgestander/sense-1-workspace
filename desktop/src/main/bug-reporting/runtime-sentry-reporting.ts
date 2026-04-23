@@ -2,19 +2,7 @@ import * as Sentry from "@sentry/electron/main";
 
 import type { AppServerSummary } from "../runtime/app-server-process-manager.js";
 import type { RuntimeInfoResult } from "../../shared/contracts/runtime.ts";
-import { redactSensitivePath, redactSensitiveText, resolveRedactionHomeDir } from "./redaction.ts";
-
-function formatError(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return String(error);
-}
-
-function redactRuntimeDiagnosticText(value: string, env: NodeJS.ProcessEnv): string {
-  return redactSensitivePath(redactSensitiveText(value), resolveRedactionHomeDir(env));
-}
+import { redactRuntimeErrorForSentry, redactRuntimeTextForSentry } from "./runtime-sentry-redaction.ts";
 
 export function captureRuntimeStateFailureToSentry(options: {
   readonly kind: "crashed" | "errored";
@@ -31,11 +19,11 @@ export function captureRuntimeStateFailureToSentry(options: {
 
   const issueLabel = kind === "crashed" ? "crashed" : "entered errored state";
   const message = summary.lastError?.trim() || `App-server ${issueLabel}.`;
-  const redactedMessage = redactRuntimeDiagnosticText(message, env);
+  const redactedMessage = redactRuntimeTextForSentry(message, env);
   const error = new Error(redactedMessage);
   error.name = kind === "crashed" ? "Sense1RuntimeCrash" : "Sense1RuntimeError";
   const recentTransportLogs = summary.recentTransportLogs.map((entry) =>
-    redactRuntimeDiagnosticText(entry, env),
+    redactRuntimeTextForSentry(entry, env),
   );
 
   Sentry.withScope((scope) => {
@@ -48,7 +36,7 @@ export function captureRuntimeStateFailureToSentry(options: {
       state: summary.state,
       restartCount: summary.restartCount,
       lastStateAt: summary.lastStateAt,
-      lastError: redactRuntimeDiagnosticText(summary.lastError ?? "", env),
+      lastError: redactRuntimeTextForSentry(summary.lastError ?? "", env),
       recentTransportLogs,
       runtimeInfo,
     });
@@ -64,14 +52,7 @@ export function captureRuntimeTransportErrorToSentry(options: {
 }): void {
   const { runtimeInfo, runtimeState } = options;
   const env = options.env ?? process.env;
-  const message = redactRuntimeDiagnosticText(formatError(options.error), env);
-  let capturedError = options.error instanceof Error ? options.error : new Error(message);
-  if (capturedError.message !== message) {
-    const redactedError = new Error(message);
-    redactedError.name = capturedError.name || "Sense1RuntimeTransportError";
-    redactedError.stack = capturedError.stack;
-    capturedError = redactedError;
-  }
+  const capturedError = redactRuntimeErrorForSentry(options.error, env);
 
   Sentry.withScope((scope) => {
     scope.setLevel("error");
