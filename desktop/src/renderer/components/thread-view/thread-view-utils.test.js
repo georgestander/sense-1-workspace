@@ -43,6 +43,41 @@ test("reuseGroupedThreadEntries reuses grouped structure when only the last assi
   assert.equal(reused[1].entry.body, "partial answer");
 });
 
+test("reuseGroupedThreadEntries reuses grouped commentary when only the streaming body changes", () => {
+  const previousEntries = [
+    {
+      id: "user-1",
+      kind: "user",
+      title: "You",
+      body: "please check the repo",
+      status: "complete",
+    },
+    {
+      id: "commentary-1",
+      kind: "assistant",
+      title: "Sense-1 progress",
+      body: "I am checking",
+      status: "streaming",
+      phase: "commentary",
+    },
+  ];
+  const previousGrouped = groupThreadEntries(previousEntries);
+  const nextEntries = [
+    previousEntries[0],
+    {
+      ...previousEntries[1],
+      body: "I am checking the streaming path now.",
+    },
+  ];
+
+  const reused = reuseGroupedThreadEntries(previousEntries, nextEntries, previousGrouped);
+
+  assert.ok(reused);
+  assert.equal(reused[0], previousGrouped[0]);
+  assert.equal(reused[1].kind, "activity-group");
+  assert.equal(reused[1].entries[0].body, "I am checking the streaming path now.");
+});
+
 test("reuseGroupedThreadEntries returns null when a non-terminal entry changes", () => {
   const previousEntries = [
     {
@@ -70,6 +105,99 @@ test("reuseGroupedThreadEntries returns null when a non-terminal entry changes",
   ];
 
   assert.equal(reuseGroupedThreadEntries(previousEntries, nextEntries, previousGrouped), null);
+});
+
+test("groupThreadEntries groups commentary with raw activity and leaves final answers visible", () => {
+  const grouped = groupThreadEntries([
+    {
+      id: "user-1",
+      kind: "user",
+      title: "You",
+      body: "please test this",
+    },
+    {
+      id: "commentary-1",
+      kind: "assistant",
+      title: "Sense-1 progress",
+      body: "I am checking the relevant files now.",
+      status: "complete",
+      phase: "commentary",
+      startedAt: "2026-04-23T07:00:00.000Z",
+      completedAt: "2026-04-23T07:00:02.000Z",
+    },
+    {
+      id: "cmd-1",
+      kind: "command",
+      title: "Command execution",
+      body: "",
+      command: "pnpm test",
+      cwd: "/tmp/project",
+      status: "completed",
+      exitCode: 0,
+      durationMs: 10000,
+      startedAt: "2026-04-23T07:00:02.000Z",
+      completedAt: "2026-04-23T07:00:12.000Z",
+    },
+    {
+      id: "tool-1",
+      kind: "tool",
+      title: "Tool call",
+      body: "Computer Use",
+      status: "completed",
+      startedAt: "2026-04-23T07:00:12.000Z",
+      completedAt: "2026-04-23T07:00:15.000Z",
+    },
+    {
+      id: "assistant-1",
+      kind: "assistant",
+      title: "Sense-1",
+      body: "All set.",
+      status: "complete",
+      phase: "final_answer",
+    },
+  ]);
+
+  assert.equal(grouped.length, 3);
+  assert.equal(grouped[0].kind, "passthrough");
+  assert.equal(grouped[1].kind, "activity-group");
+  assert.deepEqual(grouped[1].entries.map((entry) => entry.id), ["commentary-1", "cmd-1", "tool-1"]);
+  assert.equal(grouped[1].latestLabel, "Ran 1 command, called 1 tool");
+  assert.equal(grouped[1].durationLabel, "Worked for 15s");
+  assert.equal(grouped[1].isRunning, false);
+  assert.equal(grouped[2].kind, "passthrough");
+  assert.equal(grouped[2].entry.id, "assistant-1");
+});
+
+test("groupThreadEntries marks active work logs as running without a completed duration", () => {
+  const grouped = groupThreadEntries([
+    {
+      id: "commentary-1",
+      kind: "assistant",
+      title: "Sense-1 progress",
+      body: "I am running the focused check now.",
+      status: "complete",
+      phase: "commentary",
+      startedAt: "2026-04-23T07:00:00.000Z",
+      completedAt: "2026-04-23T07:00:01.000Z",
+    },
+    {
+      id: "cmd-1",
+      kind: "command",
+      title: "Command execution",
+      body: "",
+      command: "pnpm test",
+      cwd: "/tmp/project",
+      status: "running",
+      exitCode: null,
+      durationMs: null,
+      startedAt: "2026-04-23T07:00:01.000Z",
+    },
+  ]);
+
+  assert.equal(grouped.length, 1);
+  assert.equal(grouped[0].kind, "activity-group");
+  assert.equal(grouped[0].isRunning, true);
+  assert.equal(grouped[0].durationLabel, null);
 });
 
 test("summarizeCommand humanizes shell-wrapped skill scaffold commands", () => {

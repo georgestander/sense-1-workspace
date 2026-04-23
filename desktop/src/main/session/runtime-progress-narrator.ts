@@ -26,6 +26,7 @@ type TurnProgressState = {
   lastVisibleAt: number;
   lastEmitAt: number;
   lastBody: string | null;
+  latestUserText: string | null;
   pendingBody: string | null;
   timer: TimerHandle | null;
 };
@@ -67,29 +68,90 @@ function resolveTurnId(params: Record<string, unknown> | null): string | null {
   return firstString(params?.turnId, turn?.id);
 }
 
-function bodyForItem(item: Record<string, unknown>): string | null {
+function textFromUserMessage(item: Record<string, unknown>): string | null {
+  const content = Array.isArray(item.content) ? item.content : [];
+  const text = content
+    .map((entry) => asRecord(entry))
+    .filter((entry) => entry?.type === "text")
+    .map((entry) => firstString(entry?.text))
+    .filter(Boolean)
+    .join("\n")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text || null;
+}
+
+function normalizeTopic(value: string): string {
+  return value
+    .replace(/^["'`]+|["'`]+$/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/[.:;,\s]+$/g, "")
+    .trim();
+}
+
+function describeUserRequest(text: string | null): string | null {
+  if (!text) {
+    return null;
+  }
+
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  const comparison = cleaned.match(/\b(?:choosing between|compare|comparing)\s+(.{4,120}?)(?:\s+for\b|[.?!]|$)/i);
+  if (comparison?.[1]) {
+    const topic = normalizeTopic(comparison[1]);
+    if (topic) {
+      return `your ${topic} comparison`;
+    }
+  }
+
+  const about = cleaned.match(/\babout\s+(.{4,100}?)(?:[.?!]|$)/i);
+  if (about?.[1]) {
+    const topic = normalizeTopic(about[1]);
+    if (topic) {
+      return `your question about ${topic}`;
+    }
+  }
+
+  const firstSentence = normalizeTopic(cleaned.split(/[.?!]/)[0] ?? "");
+  if (!firstSentence) {
+    return null;
+  }
+  if (firstSentence.length <= 80) {
+    return `your request: ${firstSentence}`;
+  }
+  return "your request";
+}
+
+function bodyForItem(item: Record<string, unknown>, latestUserText: string | null): string | null {
   const type = firstString(item.type);
   if (!type) {
     return null;
   }
 
+  const requestDescription = describeUserRequest(latestUserText);
+
   if (type === "commandExecution") {
-    return "Sense-1 is running a command and will continue once it finishes.";
+    return "I'm checking this in the workspace now; once the command finishes I'll use the result and keep going.";
   }
   if (type === "fileChange") {
-    return "Sense-1 is applying file changes, then it will verify the result.";
+    return "I'm applying the file changes now, then I'll verify the result before wrapping up.";
   }
   if (type === "webSearch") {
-    return "Sense-1 is searching and will continue once results return.";
+    if (requestDescription) {
+      return `I'm checking current sources for ${requestDescription} so I can answer with fresh context.`;
+    }
+    return "I'm checking sources now; once the results return I'll fold them into the answer.";
   }
   if (type === "mcpToolCall" || type === "dynamicToolCall" || type === "collabToolCall") {
-    return "Sense-1 is using a connected tool and will continue once it returns.";
+    if (requestDescription) {
+      return `I'm using a connected tool for ${requestDescription}, then I'll fold the result back into the answer.`;
+    }
+    return "I'm using a connected tool now, and I'll continue as soon as it returns.";
   }
   if (type === "imageView") {
-    return "Sense-1 is checking the image before continuing.";
+    return "I'm checking the image now so I can continue from what's actually on screen.";
   }
   if (type === "contextCompaction") {
-    return "Sense-1 is refreshing context so the run can stay focused.";
+    return "I'm refreshing context so the rest of this run stays focused and responsive.";
   }
 
   return null;
@@ -150,6 +212,16 @@ export class RuntimeProgressNarrator {
     }
 
     const item = asRecord(params?.item);
+    if ((method === "item/started" || method === "item/completed") && item?.type === "userMessage") {
+      const state = this.#getTurn(threadId, turnId);
+      const text = textFromUserMessage(item);
+      if (text) {
+        state.latestUserText = text;
+      }
+      state.lastVisibleAt = this.#now();
+      return;
+    }
+
     if ((method === "item/started" || method === "item/completed") && item?.type === "agentMessage") {
       const phase = firstString(item.phase);
       if (phase === "commentary" || phase === "final_answer") {
@@ -162,12 +234,12 @@ export class RuntimeProgressNarrator {
       return;
     }
 
-    const body = bodyForItem(item);
+    const state = this.#getTurn(threadId, turnId);
+    const body = bodyForItem(item, state.latestUserText);
     if (!body) {
       return;
     }
 
-    const state = this.#getTurn(threadId, turnId);
     state.pendingBody = body;
     this.#schedule(state, emit);
   }
@@ -192,6 +264,7 @@ export class RuntimeProgressNarrator {
       lastVisibleAt: this.#now(),
       lastEmitAt: 0,
       lastBody: null,
+      latestUserText: null,
       pendingBody: null,
       timer: null,
     };

@@ -117,7 +117,7 @@ export function applyEntryNotification({
 
     const existingEntry = buffer.entriesById.get(itemId);
     const updatedEntry = {
-      ...(existingEntry || { id: itemId, kind: "assistant", title: "Sense-1 activity" }),
+      ...(existingEntry || { id: itemId, kind: "assistant", title: "Sense-1 activity", startedAt: buffer.updatedAt }),
       body: buffer.activeStreamingText,
       status: "streaming",
     };
@@ -155,10 +155,16 @@ export function applyEntryNotification({
       return [];
     }
 
+    const startedAt = new Date().toISOString();
     let entry = mapItemToEntry(item);
     if (!entry) {
       return [];
     }
+
+    entry = {
+      ...entry,
+      startedAt,
+    };
 
     if (item.type === "agentMessage") {
       entry = {
@@ -216,10 +222,18 @@ export function applyEntryNotification({
       return [];
     }
 
-    const entry = resolveCompletedEntry(item, buffer);
+    const completedAt = new Date().toISOString();
+    let entry = resolveCompletedEntry(item, buffer);
     if (!entry) {
       return [];
     }
+
+    const existingEntry = buffer.entriesById.get(entry.id);
+    entry = {
+      ...entry,
+      startedAt: firstString(existingEntry?.startedAt) || completedAt,
+      completedAt,
+    };
 
     buffer.entriesById.set(entry.id, entry);
     if (!buffer.entryOrder.includes(entry.id)) {

@@ -72,7 +72,7 @@ test("RuntimeProgressNarrator emits one progress entry after tool silence", () =
       id: "runtime-progress-thread-1-turn-1",
       kind: "assistant",
       title: "Sense-1 progress",
-      body: "Sense-1 is running a command and will continue once it finishes.",
+      body: "I'm checking this in the workspace now; once the command finishes I'll use the result and keep going.",
       status: "complete",
       phase: "commentary",
     },
@@ -112,6 +112,43 @@ test("RuntimeProgressNarrator suppresses fallback when commentary arrives", () =
   assert.equal(harness.emitted.length, 0);
 });
 
+test("RuntimeProgressNarrator uses the latest user request for natural tool fallback", () => {
+  const harness = createHarness();
+
+  harness.narrator.observe({
+    method: "turn/started",
+    params: { threadId: "thread-1", turn: { id: "turn-1" } },
+  }, harness.emit);
+  harness.narrator.observe({
+    method: "item/started",
+    params: {
+      threadId: "thread-1",
+      turnId: "turn-1",
+      item: {
+        id: "user-1",
+        type: "userMessage",
+        content: [{ type: "text", text: "Can you compare Stripe and Paddle for my app?" }],
+      },
+    },
+  }, harness.emit);
+  harness.narrator.observe({
+    method: "item/started",
+    params: {
+      threadId: "thread-1",
+      turnId: "turn-1",
+      item: { id: "tool-1", type: "webSearch" },
+    },
+  }, harness.emit);
+
+  harness.advance(4000);
+
+  assert.equal(harness.emitted.length, 1);
+  assert.equal(
+    harness.emitted[0].entry.body,
+    "I'm checking current sources for your Stripe and Paddle comparison so I can answer with fresh context.",
+  );
+});
+
 test("RuntimeProgressNarrator rate-limits changing fallback messages", () => {
   const harness = createHarness();
 
@@ -142,7 +179,10 @@ test("RuntimeProgressNarrator rate-limits changing fallback messages", () => {
 
   harness.advance(1);
   assert.equal(harness.emitted.length, 2);
-  assert.equal(harness.emitted[1].entry.body, "Sense-1 is applying file changes, then it will verify the result.");
+  assert.equal(
+    harness.emitted[1].entry.body,
+    "I'm applying the file changes now, then I'll verify the result before wrapping up.",
+  );
 });
 
 test("RuntimeProgressNarrator clears pending fallback when turn completes", () => {

@@ -7,6 +7,8 @@ import {
   describeCommandExecution,
   firstLinePreview,
   groupThreadEntries,
+  isCompletedStatus,
+  isThreadEntryRunning,
   reuseGroupedThreadEntries,
   resolveFileChangeTarget,
   summarizeCommand,
@@ -25,6 +27,7 @@ type ThreadEntryListProps = {
   extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
   suppressFileChanges?: boolean;
   threadId: string;
+  threadBusy?: boolean;
   workspaceRoot: string | null;
 };
 
@@ -147,19 +150,29 @@ function ThreadEntryAttachmentPills({
 
 function ActivityGroupCard({
   extensionOverview,
+  forceOpen = false,
   group,
   suppressFileChanges = false,
   threadId,
   workspaceRoot,
 }: {
   extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
+  forceOpen?: boolean;
   group: Extract<ThreadGroupedEntry, { kind: "activity-group" }>;
   suppressFileChanges?: boolean;
   threadId: string;
   workspaceRoot: string | null;
 }) {
-  const allCompleted = group.entries.every((entry) => "status" in entry && entry.status === "completed");
-  const runningCount = group.entries.filter((entry) => "status" in entry && entry.status !== "completed").length;
+  const runningCount = group.entries.filter(isThreadEntryRunning).length;
+  const allCompleted = group.entries.every((entry) => {
+    if (!("status" in entry)) {
+      return true;
+    }
+    return isCompletedStatus(entry.status);
+  });
+  const shouldOpen = group.isRunning || forceOpen;
+  const summaryLabel = shouldOpen ? group.latestLabel : (group.durationLabel ?? group.latestLabel);
+  const statusLabel = shouldOpen ? (runningCount > 0 ? `${runningCount} running` : "working") : allCompleted ? "" : "stopped";
   const visibleEntries = suppressFileChanges
     ? group.entries.filter((entry) => entry.kind !== "fileChange")
     : group.entries;
@@ -170,10 +183,10 @@ function ActivityGroupCard({
 
   return (
     <article className="px-4 py-1.5" key={group.id}>
-      <details className="group">
+      <details className="group" key={`${group.id}:${shouldOpen ? "open" : "closed"}`} open={shouldOpen ? true : undefined}>
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs">
           <div className="flex min-w-0 items-center gap-1.5">
-            {allCompleted ? (
+            {!shouldOpen && allCompleted ? (
               <Check className="size-3 shrink-0 text-accent" />
             ) : (
               <span className="relative flex size-3 shrink-0 items-center justify-center">
@@ -181,16 +194,16 @@ function ActivityGroupCard({
                 <span className="relative inline-flex size-1.5 rounded-full bg-accent" />
               </span>
             )}
-            <p className="truncate text-ink-muted">{group.latestLabel}</p>
+            <p className="truncate text-ink-muted">{summaryLabel}</p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <span className="text-[0.6875rem] text-ink-muted">{allCompleted ? "done" : `${runningCount} running`}</span>
+            {statusLabel ? <span className="text-[0.6875rem] text-ink-muted">{statusLabel}</span> : null}
             <ChevronRight className="size-3 text-ink-muted transition-transform group-open:rotate-90" />
           </div>
         </summary>
         <div className="mt-1.5 space-y-0.5 pl-5">
           {visibleEntries.map((entry) => (
-            <ThreadEntryCard
+            <WorkLogEntryCard
               entry={entry}
               extensionOverview={extensionOverview}
               key={entry.id}
@@ -201,6 +214,62 @@ function ActivityGroupCard({
         </div>
       </details>
     </article>
+  );
+}
+
+function WorkLogCommentaryEntry({
+  entry,
+  threadId,
+  workspaceRoot,
+}: {
+  entry: DesktopThreadEntry & { kind: "assistant"; body: string; phase?: string; status?: string };
+  threadId: string;
+  workspaceRoot: string | null;
+}) {
+  const liveStreamingBody = useStreamingEntryBody(threadId, entry.id);
+  const entryBody = typeof liveStreamingBody === "string" ? liveStreamingBody : coerceDisplayText(entry.body);
+  const deferredEntryBody = useDeferredValue(entryBody);
+  const body = entry.status === "streaming" ? deferredEntryBody : entryBody;
+
+  if (!body.trim()) {
+    return null;
+  }
+
+  return (
+    <article className="px-4 py-1.5 text-sm leading-[1.65] text-ink">
+      <ThreadMarkdown workspaceRoot={workspaceRoot}>{body}</ThreadMarkdown>
+    </article>
+  );
+}
+
+function isCommentaryAssistantEntry(
+  entry: DesktopThreadEntry,
+): entry is DesktopThreadEntry & { kind: "assistant"; body: string; phase: "commentary"; status?: string } {
+  return entry.kind === "assistant" && "phase" in entry && entry.phase === "commentary";
+}
+
+function WorkLogEntryCard({
+  entry,
+  extensionOverview,
+  threadId,
+  workspaceRoot,
+}: {
+  entry: DesktopThreadEntry;
+  extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
+  threadId: string;
+  workspaceRoot: string | null;
+}) {
+  if (isCommentaryAssistantEntry(entry)) {
+    return <WorkLogCommentaryEntry entry={entry} threadId={threadId} workspaceRoot={workspaceRoot} />;
+  }
+
+  return (
+    <ThreadEntryCard
+      entry={entry}
+      extensionOverview={extensionOverview}
+      threadId={threadId}
+      workspaceRoot={workspaceRoot}
+    />
   );
 }
 
@@ -459,6 +528,7 @@ function ThreadEntryListInner({
   extensionOverview,
   suppressFileChanges = false,
   threadId,
+  threadBusy = false,
   workspaceRoot,
 }: ThreadEntryListProps) {
   const previousEntriesRef = useRef<DesktopThreadEntry[] | null>(null);
@@ -467,13 +537,22 @@ function ThreadEntryListInner({
   const groupedEntries =
     reuseGroupedThreadEntries(previousEntriesRef.current, entries, previousGroupedEntriesRef.current)
     ?? groupThreadEntries(entries);
+  let lastActivityGroupIndex = -1;
+  if (threadBusy) {
+    for (let index = groupedEntries.length - 1; index >= 0; index -= 1) {
+      if (groupedEntries[index].kind === "activity-group") {
+        lastActivityGroupIndex = index;
+        break;
+      }
+    }
+  }
 
   previousEntriesRef.current = entries;
   previousGroupedEntriesRef.current = groupedEntries;
 
   return (
     <>
-      {groupedEntries.map((grouped) =>
+      {groupedEntries.map((grouped, index) =>
         grouped.kind === "passthrough" ? (
           grouped.entry.kind === "fileChange" && suppressFileChanges
             ? null
@@ -481,6 +560,7 @@ function ThreadEntryListInner({
         ) : (
           <ActivityGroupCard
             extensionOverview={extensionOverview}
+            forceOpen={threadBusy && index === lastActivityGroupIndex}
             group={grouped}
             key={grouped.id}
             suppressFileChanges={suppressFileChanges}

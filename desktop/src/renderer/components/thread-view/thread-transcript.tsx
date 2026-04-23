@@ -241,6 +241,7 @@ function ThreadTranscriptInner({
               extensionOverview={extensionOverview}
               suppressFileChanges={hasReviewArtifacts}
               threadId={selectedThread.id}
+              threadBusy={effectiveThreadBusy}
               workspaceRoot={threadFolderRoot}
             />
           ) : (

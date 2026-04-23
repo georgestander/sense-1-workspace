@@ -1,16 +1,16 @@
 import type { DesktopThreadEntry } from "../../lib/live-thread-data.js";
 import { perfMeasure } from "../../lib/perf-debug.ts";
 import { resolveArtifactPath } from "../../lib/thread-artifacts.ts";
-
-const COLLAPSIBLE_KINDS = new Set<string>(["command", "tool", "reasoning"]);
+import {
+  buildActivityGroup,
+  isWorkLogEntry,
+  summarizeActivityGroup,
+  type ThreadActivityGroup,
+} from "./thread-work-log-utils.ts";
+export { isCompletedStatus, isThreadEntryRunning, summarizeActivityGroup } from "./thread-work-log-utils.ts";
 
 export type ThreadGroupedEntry =
-  | {
-      kind: "activity-group";
-      entries: DesktopThreadEntry[];
-      latestLabel: string;
-      id: string;
-    }
+  | ThreadActivityGroup
   | {
       kind: "passthrough";
       entry: DesktopThreadEntry;
@@ -223,25 +223,6 @@ export function describeCommandExecution(entry: {
   };
 }
 
-export function summarizeActivityGroup(entries: DesktopThreadEntry[]): string {
-  const commands = entries.filter((entry) => entry.kind === "command");
-  const tools = entries.filter((entry) => entry.kind === "tool");
-  const reasoning = entries.filter((entry) => entry.kind === "reasoning");
-
-  if (commands.length > 0) {
-    const latest = commands[commands.length - 1];
-    const label = summarizeCommand("command" in latest ? (latest.command as string) : undefined);
-    return commands.length === 1 ? label : `${label} (${commands.length} operations)`;
-  }
-  if (tools.length > 0) {
-    return tools.length === 1 ? "Using a tool" : `Using tools (${tools.length} calls)`;
-  }
-  if (reasoning.length > 0) {
-    return "Thinking";
-  }
-  return `Working (${entries.length} steps)`;
-}
-
 export function groupThreadEntries(entries: DesktopThreadEntry[]): ThreadGroupedEntry[] {
   return perfMeasure("transcript.group-thread-entries", () => {
     const result: ThreadGroupedEntry[] = [];
@@ -254,18 +235,13 @@ export function groupThreadEntries(entries: DesktopThreadEntry[]): ThreadGrouped
       if (currentGroup.length === 1 && currentGroup[0].kind === "reasoning") {
         result.push({ kind: "passthrough", entry: currentGroup[0] });
       } else {
-        result.push({
-          kind: "activity-group",
-          entries: [...currentGroup],
-          latestLabel: summarizeActivityGroup(currentGroup),
-          id: `activity-${currentGroup[0].id}`,
-        });
+        result.push(buildActivityGroup(currentGroup));
       }
       currentGroup = [];
     }
 
     for (const entry of entries) {
-      if (COLLAPSIBLE_KINDS.has(entry.kind)) {
+      if (isWorkLogEntry(entry)) {
         currentGroup.push(entry);
       } else {
         flushGroup();
@@ -307,15 +283,29 @@ export function reuseGroupedThreadEntries(
   }
 
   const lastGroupedEntry = previousGroupedEntries.at(-1);
-  if (!lastGroupedEntry || lastGroupedEntry.kind !== "passthrough" || lastGroupedEntry.entry.id !== nextLastEntry.id) {
+  if (!lastGroupedEntry) {
     return null;
   }
 
-  return [
-    ...previousGroupedEntries.slice(0, -1),
-    {
-      kind: "passthrough",
-      entry: nextLastEntry,
-    },
-  ];
+  if (lastGroupedEntry.kind === "passthrough" && lastGroupedEntry.entry.id === nextLastEntry.id) {
+    return [
+      ...previousGroupedEntries.slice(0, -1),
+      {
+        kind: "passthrough",
+        entry: nextLastEntry,
+      },
+    ];
+  }
+
+  if (lastGroupedEntry.kind === "activity-group" && lastGroupedEntry.entries.at(-1)?.id === nextLastEntry.id) {
+    return [
+      ...previousGroupedEntries.slice(0, -1),
+      buildActivityGroup([
+        ...lastGroupedEntry.entries.slice(0, -1),
+        nextLastEntry,
+      ]),
+    ];
+  }
+
+  return null;
 }

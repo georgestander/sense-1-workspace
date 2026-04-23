@@ -422,6 +422,7 @@ export class ThreadStateAccumulator {
   appendSyntheticEntry(threadId, entry) {
     const buffer = this.getBuffer(threadId);
     const sourceEntry = asRecord(entry) ?? {};
+    const recordedAt = new Date().toISOString();
     const nextEntry = {
       ...sourceEntry,
       id: firstString(sourceEntry.id) || `synthetic-${Date.now()}`,
@@ -429,6 +430,8 @@ export class ThreadStateAccumulator {
       title: firstString(sourceEntry.title) || "Sense-1 activity",
       body: typeof sourceEntry.body === "string" ? sourceEntry.body : "",
       status: firstString(sourceEntry.status) || undefined,
+      startedAt: firstString(sourceEntry.startedAt) || recordedAt,
+      completedAt: firstString(sourceEntry.completedAt) || recordedAt,
     };
 
     buffer.entriesById.set(nextEntry.id, nextEntry);

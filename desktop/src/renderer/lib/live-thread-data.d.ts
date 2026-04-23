@@ -17,6 +17,8 @@ export type DesktopThreadEntry =
       }>;
       status?: string;
       phase?: string;
+      startedAt?: string;
+      completedAt?: string;
     }
   | {
       id: string;
@@ -24,6 +26,8 @@ export type DesktopThreadEntry =
       title: string;
       summary: string;
       body: string;
+      startedAt?: string;
+      completedAt?: string;
     }
   | {
       id: string;
@@ -31,6 +35,8 @@ export type DesktopThreadEntry =
       title: string;
       body: string;
       steps: string[];
+      startedAt?: string;
+      completedAt?: string;
     }
   | {
       id: string;
@@ -42,6 +48,8 @@ export type DesktopThreadEntry =
       status: string;
       exitCode: number | null;
       durationMs: number | null;
+      startedAt?: string;
+      completedAt?: string;
     }
   | {
       id: string;
@@ -49,6 +57,8 @@ export type DesktopThreadEntry =
       title: string;
       status: string;
       changes: Array<{ path?: string; kind?: string; diff?: string }>;
+      startedAt?: string;
+      completedAt?: string;
     };
 
 export interface DesktopChangeGroup {

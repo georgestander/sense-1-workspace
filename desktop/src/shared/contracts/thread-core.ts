@@ -105,6 +105,8 @@ export type DesktopThreadEntry =
       readonly attachments?: DesktopUserMessageAttachment[];
       readonly status?: string;
       readonly phase?: string;
+      readonly startedAt?: string;
+      readonly completedAt?: string;
     }
   | {
       readonly id: string;
@@ -112,6 +114,8 @@ export type DesktopThreadEntry =
       readonly title: string;
       readonly summary: string;
       readonly body: string;
+      readonly startedAt?: string;
+      readonly completedAt?: string;
     }
   | {
       readonly id: string;
@@ -119,6 +123,8 @@ export type DesktopThreadEntry =
       readonly title: string;
       readonly body: string;
       readonly steps: string[];
+      readonly startedAt?: string;
+      readonly completedAt?: string;
     }
   | {
       readonly id: string;
@@ -130,6 +136,8 @@ export type DesktopThreadEntry =
       readonly status: string;
       readonly exitCode: number | null;
       readonly durationMs: number | null;
+      readonly startedAt?: string;
+      readonly completedAt?: string;
     }
   | {
       readonly id: string;
@@ -137,6 +145,8 @@ export type DesktopThreadEntry =
       readonly title: string;
       readonly status: string;
       readonly changes: Array<{ readonly path?: string; readonly kind?: string; readonly diff?: string }>;
+      readonly startedAt?: string;
+      readonly completedAt?: string;
     };
 
 export interface DesktopThreadChangeGroup {
