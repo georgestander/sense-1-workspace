@@ -12,6 +12,7 @@ import {
   reuseGroupedThreadEntries,
   resolveFileChangeTarget,
   summarizeCommand,
+  summarizeWorkLogEntry,
   type ThreadGroupedEntry,
 } from "./thread-view-utils.js";
 import { type DesktopThreadEntry } from "../../lib/live-thread-data.js";
@@ -173,9 +174,12 @@ function ActivityGroupCard({
   const shouldOpen = group.isRunning || forceOpen;
   const summaryLabel = shouldOpen ? group.latestLabel : (group.durationLabel ?? group.latestLabel);
   const statusLabel = shouldOpen ? (runningCount > 0 ? `${runningCount} running` : "working") : allCompleted ? "" : "stopped";
-  const visibleEntries = suppressFileChanges
-    ? group.entries.filter((entry) => entry.kind !== "fileChange")
-    : group.entries;
+  const visibleEntries = group.entries.filter((entry) => {
+    if (entry.kind === "reasoning") {
+      return false;
+    }
+    return !(suppressFileChanges && entry.kind === "fileChange");
+  });
 
   if (visibleEntries.length === 0) {
     return null;
@@ -248,9 +252,59 @@ function isCommentaryAssistantEntry(
   return entry.kind === "assistant" && "phase" in entry && entry.phase === "commentary";
 }
 
+function renderWorkLogEntryDetails(entry: DesktopThreadEntry, workspaceRoot: string | null) {
+  const body = "body" in entry ? coerceDisplayText(entry.body).trim() : "";
+
+  if (entry.kind === "command") {
+    return (
+      <div className="space-y-1.5">
+        <p className="rounded bg-surface-soft px-2.5 py-1.5 font-mono text-[0.6875rem] text-ink">{coerceDisplayText(entry.command, "Command execution")}</p>
+        {body ? (
+          <pre className="max-h-48 overflow-auto rounded-lg bg-surface-soft px-3 py-2 text-xs whitespace-pre-wrap text-ink">{body}</pre>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (entry.kind === "tool") {
+    if (!body || body === "Sense-1 used a connected tool.") {
+      return null;
+    }
+    return (
+      <ThreadMarkdown className="text-xs text-ink-soft" workspaceRoot={workspaceRoot}>
+        {body}
+      </ThreadMarkdown>
+    );
+  }
+
+  if (entry.kind === "fileChange") {
+    if (entry.changes.length === 0) {
+      return null;
+    }
+    return (
+      <div className="space-y-1">
+        {entry.changes.map((change, index) => (
+          <p className="truncate rounded bg-surface-soft px-2.5 py-1.5 text-xs text-ink" key={`${entry.id}-work-log-change-${index.toString()}`}>
+            {coerceDisplayText(change.kind, "changed")}: {coerceDisplayText(change.path, "Unknown path")}
+          </p>
+        ))}
+      </div>
+    );
+  }
+
+  if (!body) {
+    return null;
+  }
+
+  return (
+    <ThreadMarkdown className="text-xs text-ink-soft" workspaceRoot={workspaceRoot}>
+      {body}
+    </ThreadMarkdown>
+  );
+}
+
 function WorkLogEntryCard({
   entry,
-  extensionOverview,
   threadId,
   workspaceRoot,
 }: {
@@ -263,13 +317,35 @@ function WorkLogEntryCard({
     return <WorkLogCommentaryEntry entry={entry} threadId={threadId} workspaceRoot={workspaceRoot} />;
   }
 
+  const isRunning = isThreadEntryRunning(entry);
+  const detail = renderWorkLogEntryDetails(entry, workspaceRoot);
+
+  if (!detail) {
+    return (
+      <article className="px-4 py-1 text-xs text-ink-muted">
+        <div className="flex items-center justify-between gap-2">
+          <span>{summarizeWorkLogEntry(entry)}</span>
+          {isRunning ? <span className="shrink-0 text-[0.6875rem] text-ink-faint">running</span> : null}
+        </div>
+      </article>
+    );
+  }
+
   return (
-    <ThreadEntryCard
-      entry={entry}
-      extensionOverview={extensionOverview}
-      threadId={threadId}
-      workspaceRoot={workspaceRoot}
-    />
+    <article className="px-4 py-1 text-xs text-ink-muted">
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
+          <span>{summarizeWorkLogEntry(entry)}</span>
+          <span className="flex shrink-0 items-center gap-1.5">
+            {isRunning ? <span className="text-[0.6875rem] text-ink-faint">running</span> : null}
+            <ChevronRight className="size-3 text-ink-muted transition-transform group-open:rotate-90" />
+          </span>
+        </summary>
+        <div className="mt-1 pl-2">
+          {detail}
+        </div>
+      </details>
+    </article>
   );
 }
 

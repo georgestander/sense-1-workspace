@@ -37,6 +37,8 @@ export function normalizeDesktopPersonality(value) {
 export const DEFAULT_DESKTOP_MODEL = "gpt-5.4-mini";
 const DEFAULT_DESKTOP_PERSONALITY = "friendly";
 export const DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS = "Follow the Sense-1 desktop runtime contract.";
+export const DESKTOP_PROGRESS_COMMENTARY_INSTRUCTION =
+  "During active work, keep the user oriented with short natural progress commentary. Before starting a meaningful tool or command batch, and after a useful result, blocker, or change in plan, send a first-person progress update that says what you are doing and what comes next. Keep it sparse and specific: do not narrate every low-level tool call, do not expose hidden chain-of-thought, and do not delay tool execution just to write updates.";
 const DEFAULT_DESKTOP_APPROVAL_POSTURE = "onRequest";
 const DEFAULT_DESKTOP_SANDBOX_POSTURE = "workspaceWrite";
 const DEFAULT_DESKTOP_OPERATING_MODE = "auto";
@@ -316,6 +318,14 @@ function buildPolicyRuleGroups({
           developerInstruction: resolvedSettings.runtimeInstructions,
         },
         {
+          id: "progress-commentary",
+          label: "Progress commentary",
+          currentValue: "Natural updates",
+          description:
+            "Sense-1 should talk back during longer tool-heavy turns with short first-person updates instead of leaving the transcript quiet or exposing raw tool chatter.",
+          developerInstruction: DESKTOP_PROGRESS_COMMENTARY_INSTRUCTION,
+        },
+        {
           id: "personality",
           label: "Voice",
           currentValue: personalityRule.currentValue,
@@ -485,6 +495,7 @@ function collectDeveloperInstructions(groups) {
 
   return [
     "runtime-guidance",
+    "progress-commentary",
     "verbosity",
     "response-structure",
     "selected-folder-scope",

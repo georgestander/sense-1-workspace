@@ -28,6 +28,7 @@ type TurnProgressState = {
   lastBody: string | null;
   latestUserText: string | null;
   pendingBody: string | null;
+  sawCommentary: boolean;
   timer: TimerHandle | null;
 };
 
@@ -225,7 +226,7 @@ export class RuntimeProgressNarrator {
     if ((method === "item/started" || method === "item/completed") && item?.type === "agentMessage") {
       const phase = firstString(item.phase);
       if (phase === "commentary" || phase === "final_answer") {
-        this.#markVisible(threadId, turnId);
+        this.#markVisible(threadId, turnId, phase === "commentary");
       }
       return;
     }
@@ -235,6 +236,10 @@ export class RuntimeProgressNarrator {
     }
 
     const state = this.#getTurn(threadId, turnId);
+    if (state.sawCommentary) {
+      return;
+    }
+
     const body = bodyForItem(item, state.latestUserText);
     if (!body) {
       return;
@@ -266,14 +271,18 @@ export class RuntimeProgressNarrator {
       lastBody: null,
       latestUserText: null,
       pendingBody: null,
+      sawCommentary: false,
       timer: null,
     };
     this.#turns.set(key, state);
     return state;
   }
 
-  #markVisible(threadId: string, turnId: string): void {
+  #markVisible(threadId: string, turnId: string, isCommentary = false): void {
     const state = this.#getTurn(threadId, turnId);
+    if (isCommentary) {
+      state.sawCommentary = true;
+    }
     state.lastVisibleAt = this.#now();
     state.pendingBody = null;
     this.#clearScheduledTimer(state);

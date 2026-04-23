@@ -44,6 +44,26 @@ const APPROVAL_METHOD_KINDS = {
   "item/permissions/requestApproval": "permissions",
 };
 
+const TERMINAL_ENTRY_STATUSES = new Set(["blocked", "canceled", "cancelled", "complete", "completed", "done", "error", "errored", "failed", "success", "succeeded"]);
+
+function isTerminalEntryStatus(status) {
+  const resolved = firstString(status);
+  return Boolean(resolved && TERMINAL_ENTRY_STATUSES.has(resolved.toLowerCase()));
+}
+
+function normalizeCompletedEntryStatus(entry) {
+  if (!entry || typeof entry !== "object" || !("status" in entry)) {
+    return entry;
+  }
+  if (isTerminalEntryStatus(entry.status)) {
+    return entry;
+  }
+  return {
+    ...entry,
+    status: "completed",
+  };
+}
+
 export function applyEntryNotification({
   buffers,
   message,
@@ -227,6 +247,7 @@ export function applyEntryNotification({
     if (!entry) {
       return [];
     }
+    entry = normalizeCompletedEntryStatus(entry);
 
     const existingEntry = buffer.entriesById.get(entry.id);
     entry = {

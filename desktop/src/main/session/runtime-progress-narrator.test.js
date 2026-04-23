@@ -112,6 +112,38 @@ test("RuntimeProgressNarrator suppresses fallback when commentary arrives", () =
   assert.equal(harness.emitted.length, 0);
 });
 
+test("RuntimeProgressNarrator does not duplicate later tool progress after commentary", () => {
+  const harness = createHarness();
+
+  harness.narrator.observe({
+    method: "turn/started",
+    params: { threadId: "thread-1", turn: { id: "turn-1" } },
+  }, harness.emit);
+  harness.narrator.observe({
+    method: "item/started",
+    params: {
+      threadId: "thread-1",
+      turnId: "turn-1",
+      item: {
+        id: "commentary-1",
+        type: "agentMessage",
+        phase: "commentary",
+      },
+    },
+  }, harness.emit);
+  harness.narrator.observe({
+    method: "item/started",
+    params: {
+      threadId: "thread-1",
+      turnId: "turn-1",
+      item: { id: "tool-1", type: "webSearch" },
+    },
+  }, harness.emit);
+
+  harness.advance(10000);
+  assert.equal(harness.emitted.length, 0);
+});
+
 test("RuntimeProgressNarrator uses the latest user request for natural tool fallback", () => {
   const harness = createHarness();
 

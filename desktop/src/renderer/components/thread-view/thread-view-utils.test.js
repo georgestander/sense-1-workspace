@@ -5,6 +5,7 @@ import {
   describeCommandExecution,
   groupThreadEntries,
   reuseGroupedThreadEntries,
+  summarizeActivityGroup,
   summarizeCommand,
 } from "./thread-view-utils.ts";
 
@@ -198,6 +199,46 @@ test("groupThreadEntries marks active work logs as running without a completed d
   assert.equal(grouped[0].kind, "activity-group");
   assert.equal(grouped[0].isRunning, true);
   assert.equal(grouped[0].durationLabel, null);
+});
+
+test("groupThreadEntries keeps reasoning inside hidden activity groups", () => {
+  const grouped = groupThreadEntries([
+    {
+      id: "reasoning-1",
+      kind: "reasoning",
+      title: "Thinking",
+      body: "",
+      summary: "Reasoning updated",
+      status: "completed",
+    },
+  ]);
+
+  assert.equal(grouped.length, 1);
+  assert.equal(grouped[0].kind, "activity-group");
+  assert.deepEqual(grouped[0].entries.map((entry) => entry.id), ["reasoning-1"]);
+});
+
+test("summarizeActivityGroup excludes reasoning implementation noise", () => {
+  assert.equal(
+    summarizeActivityGroup([
+      {
+        id: "tool-1",
+        kind: "tool",
+        title: "Tool call",
+        body: "https://example.com",
+        status: "completed",
+      },
+      {
+        id: "reasoning-1",
+        kind: "reasoning",
+        title: "Thinking",
+        body: "",
+        summary: "Reasoning updated",
+        status: "completed",
+      },
+    ]),
+    "Called 1 tool",
+  );
 });
 
 test("summarizeCommand humanizes shell-wrapped skill scaffold commands", () => {

@@ -367,6 +367,52 @@ test("item/started keeps commentary agentMessage streaming until completion", ()
   assert.equal(completed[0].entry.status, "complete");
 });
 
+test("item/completed normalizes tool entries without explicit status to completed", () => {
+  const acc = new ThreadStateAccumulator();
+  acc.loadSnapshot("thread-tool-complete", {
+    id: "thread-tool-complete",
+    title: "Tool completion",
+    subtitle: "",
+    state: "running",
+    updatedAt: "2026-03-23T00:00:00.000Z",
+    updatedLabel: "just now",
+    workspaceRoot: null,
+    entries: [],
+    changeGroups: [],
+    progressSummary: [],
+    hasLoadedDetails: true,
+  });
+
+  acc.applyNotification({
+    method: "item/started",
+    params: {
+      threadId: "thread-tool-complete",
+      item: {
+        id: "tool-1",
+        type: "webSearch",
+        query: "current payments platforms",
+        status: "running",
+      },
+    },
+  });
+
+  const completed = acc.applyNotification({
+    method: "item/completed",
+    params: {
+      threadId: "thread-tool-complete",
+      item: {
+        id: "tool-1",
+        type: "webSearch",
+        query: "current payments platforms",
+      },
+    },
+  });
+
+  assert.equal(completed[0].kind, "entryCompleted");
+  assert.equal(completed[0].entry.kind, "tool");
+  assert.equal(completed[0].entry.status, "completed");
+});
+
 test("applyNotification returns empty array for unknown methods", () => {
   const acc = new ThreadStateAccumulator();
   const deltas = acc.applyNotification({

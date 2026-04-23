@@ -8,6 +8,7 @@ import {
   type ThreadActivityGroup,
 } from "./thread-work-log-utils.ts";
 export { isCompletedStatus, isThreadEntryRunning, summarizeActivityGroup } from "./thread-work-log-utils.ts";
+export { summarizeWorkLogEntry } from "./thread-work-log-utils.ts";
 
 export type ThreadGroupedEntry =
   | ThreadActivityGroup
@@ -232,11 +233,7 @@ export function groupThreadEntries(entries: DesktopThreadEntry[]): ThreadGrouped
       if (currentGroup.length === 0) {
         return;
       }
-      if (currentGroup.length === 1 && currentGroup[0].kind === "reasoning") {
-        result.push({ kind: "passthrough", entry: currentGroup[0] });
-      } else {
-        result.push(buildActivityGroup(currentGroup));
-      }
+      result.push(buildActivityGroup(currentGroup));
       currentGroup = [];
     }
 

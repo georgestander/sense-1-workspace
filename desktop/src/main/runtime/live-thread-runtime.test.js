@@ -71,6 +71,7 @@ function buildExpectedInstructions({
       .join(" "),
     developerInstructions: [
       runtimeInstructions.trim() || DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS,
+      "During active work, keep the user oriented with short natural progress commentary. Before starting a meaningful tool or command batch, and after a useful result, blocker, or change in plan, send a first-person progress update that says what you are doing and what comes next. Keep it sparse and specific: do not narrate every low-level tool call, do not expose hidden chain-of-thought, and do not delay tool execution just to write updates.",
       buildExpectedVerbosityInstruction(resolvedVerbosity),
       (runtimeInstructions.trim() || DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS) === DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS
         ? "Structure responses so they skim well: lead with the headline claim or pattern, then supporting detail. Use short H3 headings (###) to mark sections when a response has three or more distinct parts. Use Markdown tables for comparisons, option matrices, or per-item mappings - one row per item. Use numbered lists for ordered or ranked items (steps, priorities, options) and bullets for unordered collections. Bold the key phrase in each paragraph so a skimmer catches the point. Use fenced code blocks with a language label for code, commands, or config, and inline `code` for short identifiers, flags, or filenames. Use blockquotes (>) to surface a direct quote or constraint from source material. Prefer two short paragraphs over one long one - one idea per paragraph."
@@ -105,7 +106,8 @@ test("describePolicyRules returns stable grouped rules for the default desktop s
     "Permissions & approvals",
   ]);
   assert.equal(groups[0]?.rules[0]?.currentValue, "Default");
-  assert.equal(groups[0]?.rules[1]?.currentValue, "Friendly");
+  assert.equal(groups[0]?.rules[1]?.currentValue, "Natural updates");
+  assert.equal(groups[0]?.rules[2]?.currentValue, "Friendly");
   assert.equal(groups[3]?.rules[0]?.currentValue, "Ask on request");
   assert.equal(groups[2]?.rules.at(-1)?.currentValue, "Auto");
 });
@@ -125,8 +127,9 @@ test("describePolicyRules reflects behavior-affecting settings changes in plain 
   const workspace = groups.find((group) => group.id === "workspace-boundaries");
 
   assert.equal(identity?.rules[0]?.currentValue, "Custom");
-  assert.equal(identity?.rules[1]?.currentValue, "Pragmatic");
-  assert.equal(identity?.rules[2]?.currentValue, "High");
+  assert.equal(identity?.rules[1]?.currentValue, "Natural updates");
+  assert.equal(identity?.rules[2]?.currentValue, "Pragmatic");
+  assert.equal(identity?.rules[3]?.currentValue, "High");
   assert.match(approvals?.rules[0]?.description ?? "", /trusted contexts/i);
   assert.match(approvals?.rules[1]?.description ?? "", /read-only posture/i);
   assert.equal(workspace?.rules.at(-1)?.currentValue, "Preview");

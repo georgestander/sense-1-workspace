@@ -82,7 +82,6 @@ function fileChangeCounts(entries: DesktopThreadEntry[]): Map<string, number> {
 export function summarizeActivityGroup(entries: DesktopThreadEntry[]): string {
   const commands = entries.filter((entry) => entry.kind === "command").length;
   const tools = entries.filter((entry) => entry.kind === "tool").length;
-  const reasoning = entries.filter((entry) => entry.kind === "reasoning").length;
   const counts = fileChangeCounts(entries);
   const parts: string[] = [];
 
@@ -95,9 +94,6 @@ export function summarizeActivityGroup(entries: DesktopThreadEntry[]): string {
   if (tools > 0) {
     parts.push(`called ${pluralize(tools, "tool")}`);
   }
-  if (reasoning > 0) {
-    parts.push(`updated ${pluralize(reasoning, "thought")}`);
-  }
 
   if (parts.length > 0) {
     return capitalize(parts.join(", "));
@@ -106,6 +102,28 @@ export function summarizeActivityGroup(entries: DesktopThreadEntry[]): string {
     return entries.length === 1 ? "Progress update" : "Progress updates";
   }
   return `Worked through ${pluralize(entries.length, "step")}`;
+}
+
+export function summarizeWorkLogEntry(entry: DesktopThreadEntry): string {
+  if (entry.kind === "command") {
+    return "Ran 1 command";
+  }
+  if (entry.kind === "tool") {
+    const body = coerceDisplayText(entry.body).trim().toLowerCase();
+    if (body.includes("http") || body.includes("site:")) {
+      return "Checked 1 source";
+    }
+    return "Called 1 tool";
+  }
+  if (entry.kind === "fileChange") {
+    const counts = fileChangeCounts([entry]);
+    const parts = [...counts.entries()].map(([kind, count]) => `${kind} ${pluralize(count, "file")}`);
+    return parts.length > 0 ? capitalize(parts.join(", ")) : "Updated files";
+  }
+  if (entry.kind === "reasoning") {
+    return "Reasoning updated";
+  }
+  return "Worked on the request";
 }
 
 function parseTime(value: unknown): number | null {
