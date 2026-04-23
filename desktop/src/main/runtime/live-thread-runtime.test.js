@@ -211,6 +211,28 @@ test("buildDesktopThreadSnapshot shapes transcript, progress, and file groups fo
   assert.equal(snapshot.hasLoadedDetails, true);
 });
 
+test("buildDesktopThreadSnapshot treats statusless snapshot tool items as completed", () => {
+  const snapshot = buildDesktopThreadSnapshot({
+    id: "thread-tool-1",
+    turns: [
+      {
+        id: "turn-tool-1",
+        items: [
+          {
+            id: "tool-1",
+            type: "webSearch",
+            query: "Cape Town bookstore hours",
+          },
+        ],
+      },
+    ],
+  });
+
+  assert.equal(snapshot.entries.length, 1);
+  assert.equal(snapshot.entries[0].kind, "tool");
+  assert.equal(snapshot.entries[0].status, "completed");
+});
+
 test("buildDesktopThreadSnapshot maps native plan items into plan entries", () => {
   const snapshot = buildDesktopThreadSnapshot({
     id: "thread-plan-1",

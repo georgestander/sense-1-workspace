@@ -28,6 +28,7 @@ type TurnProgressState = {
   lastBody: string | null;
   latestUserText: string | null;
   pendingBody: string | null;
+  pendingItemId: string | null;
   sawCommentary: boolean;
   timer: TimerHandle | null;
 };
@@ -158,6 +159,29 @@ function bodyForItem(item: Record<string, unknown>, latestUserText: string | nul
   return null;
 }
 
+function completedBodyForItem(item: Record<string, unknown>): string | null {
+  const type = firstString(item.type);
+  if (type === "commandExecution") {
+    return "The command finished; I'm checking the result and continuing.";
+  }
+  if (type === "fileChange") {
+    return "The file changes finished; I'm verifying the result before wrapping up.";
+  }
+  if (type === "webSearch") {
+    return "The source lookup finished; I'm using the results now.";
+  }
+  if (type === "mcpToolCall" || type === "dynamicToolCall" || type === "collabToolCall") {
+    return "The connected tool returned; I'm folding the result back into the answer.";
+  }
+  if (type === "imageView") {
+    return "The image check finished; I'm using what I found on screen.";
+  }
+  if (type === "contextCompaction") {
+    return "Context is refreshed; I'm continuing with the focused thread state.";
+  }
+  return null;
+}
+
 export class RuntimeProgressNarrator {
   readonly #enabled: boolean;
   readonly #now: () => number;
@@ -231,12 +255,32 @@ export class RuntimeProgressNarrator {
       return;
     }
 
-    if (method !== "item/started" || !item) {
+    if (!item) {
       return;
     }
 
     const state = this.#getTurn(threadId, turnId);
     if (state.sawCommentary) {
+      return;
+    }
+
+    if (method === "item/completed") {
+      if (firstString(item.id) !== state.pendingItemId) {
+        return;
+      }
+      const body = completedBodyForItem(item);
+      if (!body) {
+        state.pendingBody = null;
+        state.pendingItemId = null;
+        this.#clearScheduledTimer(state);
+        return;
+      }
+      state.pendingBody = body;
+      this.#schedule(state, emit);
+      return;
+    }
+
+    if (method !== "item/started") {
       return;
     }
 
@@ -246,6 +290,7 @@ export class RuntimeProgressNarrator {
     }
 
     state.pendingBody = body;
+    state.pendingItemId = firstString(item.id);
     this.#schedule(state, emit);
   }
 
@@ -271,6 +316,7 @@ export class RuntimeProgressNarrator {
       lastBody: null,
       latestUserText: null,
       pendingBody: null,
+      pendingItemId: null,
       sawCommentary: false,
       timer: null,
     };
@@ -285,6 +331,7 @@ export class RuntimeProgressNarrator {
     }
     state.lastVisibleAt = this.#now();
     state.pendingBody = null;
+    state.pendingItemId = null;
     this.#clearScheduledTimer(state);
   }
 

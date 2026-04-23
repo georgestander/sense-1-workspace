@@ -112,6 +112,40 @@ test("RuntimeProgressNarrator suppresses fallback when commentary arrives", () =
   assert.equal(harness.emitted.length, 0);
 });
 
+test("RuntimeProgressNarrator updates pending fallback when a fast tool completes", () => {
+  const harness = createHarness();
+
+  harness.narrator.observe({
+    method: "turn/started",
+    params: { threadId: "thread-1", turn: { id: "turn-1" } },
+  }, harness.emit);
+  harness.narrator.observe({
+    method: "item/started",
+    params: {
+      threadId: "thread-1",
+      turnId: "turn-1",
+      item: { id: "cmd-1", type: "commandExecution" },
+    },
+  }, harness.emit);
+  harness.advance(1000);
+  harness.narrator.observe({
+    method: "item/completed",
+    params: {
+      threadId: "thread-1",
+      turnId: "turn-1",
+      item: { id: "cmd-1", type: "commandExecution", status: "completed" },
+    },
+  }, harness.emit);
+
+  harness.advance(3000);
+
+  assert.equal(harness.emitted.length, 1);
+  assert.equal(
+    harness.emitted[0].entry.body,
+    "The command finished; I'm checking the result and continuing.",
+  );
+});
+
 test("RuntimeProgressNarrator does not duplicate later tool progress after commentary", () => {
   const harness = createHarness();
 

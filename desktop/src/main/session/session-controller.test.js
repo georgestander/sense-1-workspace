@@ -1173,7 +1173,8 @@ test("getDesktopPolicyRules returns grouped policy copy from the resolved deskto
   const workspace = result.groups.find((group) => group.id === "workspace-boundaries");
 
   assert.equal(identity?.rules[0]?.currentValue, "Custom");
-  assert.equal(identity?.rules[1]?.currentValue, "Pragmatic");
+  assert.equal(identity?.rules[1]?.currentValue, "Natural updates");
+  assert.equal(identity?.rules[2]?.currentValue, "Pragmatic");
   assert.match(approvals?.rules[1]?.description ?? "", /read-only posture/i);
   assert.equal(workspace?.rules.at(-1)?.currentValue, "Auto");
   assert.equal(result.groups.some((group) => group.id === "planning"), false);

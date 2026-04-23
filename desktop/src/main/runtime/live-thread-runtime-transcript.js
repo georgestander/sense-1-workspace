@@ -177,7 +177,7 @@ function mapItemToThreadEntry(item) {
       kind: "tool",
       title: "Tool call",
       body: [item.tool, item.query, item.path].filter(Boolean).join(" • ") || "Sense-1 used a connected tool.",
-      status: item.status || "running",
+      status: item.status || "completed",
     };
   }
 

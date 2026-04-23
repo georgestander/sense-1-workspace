@@ -77,6 +77,20 @@ test("buildThreadEntries preserves commentary phase as completed progress", () =
   ]);
 });
 
+test("buildThreadEntries treats statusless snapshot tool items as completed", () => {
+  const entries = buildThreadEntries([
+    {
+      id: "tool-1",
+      type: "webSearch",
+      query: "Cape Town bookstore hours",
+    },
+  ]);
+
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].kind, "tool");
+  assert.equal(entries[0].status, "completed");
+});
+
 test("buildThreadEntries coerces non-string command output into safe text", () => {
   const entries = buildThreadEntries([
     {

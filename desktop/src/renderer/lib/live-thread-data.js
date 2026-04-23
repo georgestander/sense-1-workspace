@@ -272,7 +272,7 @@ export function mapItemToThreadEntry(item) {
       kind: "tool",
       title: "Tool call",
       body: [coerceText(item.tool), coerceText(item.query), coerceText(item.path)].filter(Boolean).join(" • ") || "Sense-1 used a connected tool.",
-      status: item.status || "running",
+      status: item.status || "completed",
     };
   }
 
