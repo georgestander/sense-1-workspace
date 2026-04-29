@@ -36,6 +36,7 @@ import {
   isApiKeyAccountType,
 } from "./session/api-key-credits-notification.ts";
 import { DesktopBugReportingService } from "./bug-reporting/desktop-bug-reporting-service.ts";
+import { DesktopBrowserService } from "./browser/desktop-browser-service.ts";
 import {
   classifyBootstrapSetup,
   classifyRenderProcessGone,
@@ -681,6 +682,7 @@ const bugReportingService = new DesktopBugReportingService({
   getRecentMainSentryEvents: () => recentMainSentryEvents.snapshot(),
   captureManualBugReport: captureDesktopManualBugReport,
 });
+const desktopBrowserService = new DesktopBrowserService();
 let runtimeStartInFlight: Promise<void> | null = null;
 let isGracefulQuitInProgress = false;
 
@@ -1047,6 +1049,24 @@ async function bootstrapMainProcess(): Promise<void> {
     projectedWorkspaces: async (request) => await desktopSessionController.projectedWorkspaces(request.limit),
     projectedWorkspaceByRoot: async (request) => await desktopSessionController.projectedWorkspaceByRoot(request.rootPath),
     projectedSessions: async (request) => await desktopSessionController.projectedSessions(request.workspaceId, request.limit),
+    browserOpen: async (request) => await desktopBrowserService.open(request),
+    browserClose: async (request) => desktopBrowserService.close(request.threadId),
+    browserSetBounds: async (request) => desktopBrowserService.setBounds(request.threadId, request.bounds),
+    browserNavigate: async (request) => await desktopBrowserService.navigate(request.threadId, request.url),
+    browserGoBack: async (request) => await desktopBrowserService.goBack(request.threadId),
+    browserGoForward: async (request) => await desktopBrowserService.goForward(request.threadId),
+    browserReload: async (request) => await desktopBrowserService.reload(request.threadId),
+    browserStop: async (request) => await desktopBrowserService.stop(request.threadId),
+    browserSetViewport: async (request) => desktopBrowserService.setViewport(request.threadId, request.viewport, request.bounds),
+    browserScreenshot: async (request) => await desktopBrowserService.screenshot(request.threadId),
+    browserInspect: async (request) => await desktopBrowserService.inspect(request.threadId, request.selector),
+    browserClick: async (request) => await desktopBrowserService.click(request.threadId, request.x, request.y),
+    browserType: async (request) => await desktopBrowserService.type(request.threadId, request.x, request.y, request.text),
+    browserConsole: async (request) => desktopBrowserService.console(request.threadId),
+    browserNetwork: async (request) => desktopBrowserService.network(request.threadId),
+    browserTrustCheck: async (request) => desktopBrowserService.checkTrust(request.url),
+    browserTrustUpdate: async (request) => desktopBrowserService.updateTrust(request.origin, request.decision),
+    browserTrustState: async () => desktopBrowserService.getTrustState(),
     getDesktopSettings: async () => await desktopSessionController.getDesktopSettings(),
     getDesktopPolicyRules: async () => await desktopSessionController.getDesktopPolicyRules(),
     updateDesktopSettings: async (request) => await desktopSessionController.updateDesktopSettings(request.settings),

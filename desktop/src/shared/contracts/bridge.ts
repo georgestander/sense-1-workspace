@@ -1,5 +1,25 @@
 import type { DesktopBootstrap } from "./bootstrap.js";
 import type {
+  DesktopBrowserBoundsRequest,
+  DesktopBrowserConsoleResult,
+  DesktopBrowserInspectRequest,
+  DesktopBrowserInspectResult,
+  DesktopBrowserNavigateRequest,
+  DesktopBrowserOpenRequest,
+  DesktopBrowserPointRequest,
+  DesktopBrowserScreenshotRequest,
+  DesktopBrowserScreenshotResult,
+  DesktopBrowserState,
+  DesktopBrowserThreadRequest,
+  DesktopBrowserTrustCheckRequest,
+  DesktopBrowserTrustCheckResult,
+  DesktopBrowserTrustRequest,
+  DesktopBrowserTrustState,
+  DesktopBrowserTypeRequest,
+  DesktopBrowserNetworkResult,
+  DesktopBrowserViewportRequest,
+} from "./browser.js";
+import type {
   DesktopBugReportDraft,
   DesktopBugReportResult,
   DesktopBugReportingStatus,
@@ -181,5 +201,25 @@ export interface DesktopBridge {
     toggleMaximize(): Promise<WindowToggleResult>;
     close(): Promise<WindowActionResult>;
     openExternalUrl(url: string): Promise<void>;
+  };
+  browser: {
+    open(request: DesktopBrowserOpenRequest): Promise<DesktopBrowserState>;
+    close(request: DesktopBrowserThreadRequest): Promise<void>;
+    setBounds(request: DesktopBrowserBoundsRequest): Promise<void>;
+    navigate(request: DesktopBrowserNavigateRequest): Promise<DesktopBrowserState>;
+    goBack(request: DesktopBrowserThreadRequest): Promise<DesktopBrowserState>;
+    goForward(request: DesktopBrowserThreadRequest): Promise<DesktopBrowserState>;
+    reload(request: DesktopBrowserThreadRequest): Promise<DesktopBrowserState>;
+    stop(request: DesktopBrowserThreadRequest): Promise<DesktopBrowserState>;
+    setViewport(request: DesktopBrowserViewportRequest): Promise<DesktopBrowserState>;
+    screenshot(request: DesktopBrowserScreenshotRequest): Promise<DesktopBrowserScreenshotResult>;
+    inspect(request: DesktopBrowserInspectRequest): Promise<DesktopBrowserInspectResult>;
+    click(request: DesktopBrowserPointRequest): Promise<DesktopBrowserState>;
+    type(request: DesktopBrowserTypeRequest): Promise<DesktopBrowserState>;
+    console(request: DesktopBrowserThreadRequest): Promise<DesktopBrowserConsoleResult>;
+    network(request: DesktopBrowserThreadRequest): Promise<DesktopBrowserNetworkResult>;
+    checkTrust(request: DesktopBrowserTrustCheckRequest): Promise<DesktopBrowserTrustCheckResult>;
+    updateTrust(request: DesktopBrowserTrustRequest): Promise<DesktopBrowserTrustState>;
+    getTrustState(): Promise<DesktopBrowserTrustState>;
   };
 }

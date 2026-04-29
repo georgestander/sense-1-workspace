@@ -1,7 +1,10 @@
-import { memo, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { memo, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { Globe2 } from "lucide-react";
 import { type DesktopApprovalDecision, type DesktopApprovalEvent, type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopExtensionOverviewResult, type DesktopInputQuestion, type DesktopInputRequestState, type DesktopModelEntry, type DesktopThreadChangeGroup, type DesktopThreadSnapshot } from "../../main/contracts";
+import { ThreadBrowserPane } from "./browser/ThreadBrowserPane.js";
 import { ThreadComposer } from "./thread-view/thread-composer.js";
 import { ThreadTranscript } from "./thread-view/thread-transcript.js";
+import { Button } from "./ui/button.js";
 
 export interface ThreadViewProps {
   selectedThreadId: string;
@@ -118,10 +121,17 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     footerStatusText,
     onReportBug,
   } = props;
+  const [browserOpen, setBrowserOpen] = useState(false);
+
   return (
-    <>
-      <div className="mx-auto max-w-3xl px-6 pb-2 pt-5">
-        <h2 className="font-display truncate text-lg font-semibold tracking-tight">{selectedThread.title}</h2>
+    <div className="flex min-h-0 flex-1">
+      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-6 pb-2 pt-5">
+        <h2 className="font-display min-w-0 truncate text-lg font-semibold tracking-tight">{selectedThread.title}</h2>
+        <Button className="h-8 shrink-0 px-3 text-xs" onClick={() => setBrowserOpen((current) => !current)} type="button" variant={browserOpen ? "default" : "secondary"}>
+          <Globe2 className="size-3.5" />
+          Browser
+        </Button>
       </div>
 
       <ThreadTranscript
@@ -180,6 +190,15 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         handleServiceTierSelection={handleServiceTierSelection}
         attachedFiles={attachedFiles}
       />
-    </>
+      </div>
+
+      {browserOpen ? (
+        <ThreadBrowserPane
+          onClose={() => setBrowserOpen(false)}
+          submitSelectedThreadPrompt={submitSelectedThreadPrompt}
+          threadId={selectedThreadId}
+        />
+      ) : null}
+    </div>
   );
 });

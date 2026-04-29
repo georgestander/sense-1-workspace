@@ -1,5 +1,6 @@
 export * from "./automations.js";
 export * from "./bootstrap.js";
+export * from "./browser.js";
 export * from "./bug-reporting.js";
 export * from "./bridge.js";
 export * from "./events.js";

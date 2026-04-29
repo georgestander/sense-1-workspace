@@ -23,6 +23,24 @@ import {
   type DesktopAutomationListResult,
   type DesktopAutomationRunNowRequest,
   type DesktopAutomationSaveRequest,
+  type DesktopBrowserBoundsRequest,
+  type DesktopBrowserConsoleResult,
+  type DesktopBrowserInspectRequest,
+  type DesktopBrowserInspectResult,
+  type DesktopBrowserNavigateRequest,
+  type DesktopBrowserNetworkResult,
+  type DesktopBrowserOpenRequest,
+  type DesktopBrowserPointRequest,
+  type DesktopBrowserScreenshotRequest,
+  type DesktopBrowserScreenshotResult,
+  type DesktopBrowserState,
+  type DesktopBrowserThreadRequest,
+  type DesktopBrowserTrustCheckRequest,
+  type DesktopBrowserTrustCheckResult,
+  type DesktopBrowserTrustRequest,
+  type DesktopBrowserTrustState,
+  type DesktopBrowserTypeRequest,
+  type DesktopBrowserViewportRequest,
   type DesktopApprovalResponseRequest,
   type DesktopExtensionOverviewRequest,
   type DesktopExtensionOverviewResult,
@@ -178,6 +196,24 @@ type DesktopIpcServices = {
   projectedWorkspaces(request: ProjectedWorkspacesRequest): Promise<ProjectedWorkspacesResult>;
   projectedWorkspaceByRoot(request: ProjectedWorkspaceByRootRequest): Promise<ProjectedWorkspaceDetailResult>;
   projectedSessions(request: ProjectedSessionsRequest): Promise<ProjectedSessionsResult>;
+  browserOpen(request: DesktopBrowserOpenRequest): Promise<DesktopBrowserState>;
+  browserClose(request: DesktopBrowserThreadRequest): Promise<void>;
+  browserSetBounds(request: DesktopBrowserBoundsRequest): Promise<void>;
+  browserNavigate(request: DesktopBrowserNavigateRequest): Promise<DesktopBrowserState>;
+  browserGoBack(request: DesktopBrowserThreadRequest): Promise<DesktopBrowserState>;
+  browserGoForward(request: DesktopBrowserThreadRequest): Promise<DesktopBrowserState>;
+  browserReload(request: DesktopBrowserThreadRequest): Promise<DesktopBrowserState>;
+  browserStop(request: DesktopBrowserThreadRequest): Promise<DesktopBrowserState>;
+  browserSetViewport(request: DesktopBrowserViewportRequest): Promise<DesktopBrowserState>;
+  browserScreenshot(request: DesktopBrowserScreenshotRequest): Promise<DesktopBrowserScreenshotResult>;
+  browserInspect(request: DesktopBrowserInspectRequest): Promise<DesktopBrowserInspectResult>;
+  browserClick(request: DesktopBrowserPointRequest): Promise<DesktopBrowserState>;
+  browserType(request: DesktopBrowserTypeRequest): Promise<DesktopBrowserState>;
+  browserConsole(request: DesktopBrowserThreadRequest): Promise<DesktopBrowserConsoleResult>;
+  browserNetwork(request: DesktopBrowserThreadRequest): Promise<DesktopBrowserNetworkResult>;
+  browserTrustCheck(request: DesktopBrowserTrustCheckRequest): Promise<DesktopBrowserTrustCheckResult>;
+  browserTrustUpdate(request: DesktopBrowserTrustRequest): Promise<DesktopBrowserTrustState>;
+  browserTrustState(): Promise<DesktopBrowserTrustState>;
 };
 
 export function registerDesktopIpcHandlers(services: DesktopIpcServices): void {
@@ -626,6 +662,132 @@ export function registerDesktopIpcHandlers(services: DesktopIpcServices): void {
     IPC_CHANNELS.projectedSessions,
     async (_event, request: ProjectedSessionsRequest): Promise<ProjectedSessionsResult> => {
       return await services.projectedSessions(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserOpen,
+    async (_event, request: DesktopBrowserOpenRequest): Promise<DesktopBrowserState> => {
+      return await services.browserOpen(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserClose,
+    async (_event, request: DesktopBrowserThreadRequest): Promise<void> => {
+      await services.browserClose(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserSetBounds,
+    async (_event, request: DesktopBrowserBoundsRequest): Promise<void> => {
+      await services.browserSetBounds(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserNavigate,
+    async (_event, request: DesktopBrowserNavigateRequest): Promise<DesktopBrowserState> => {
+      return await services.browserNavigate(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserGoBack,
+    async (_event, request: DesktopBrowserThreadRequest): Promise<DesktopBrowserState> => {
+      return await services.browserGoBack(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserGoForward,
+    async (_event, request: DesktopBrowserThreadRequest): Promise<DesktopBrowserState> => {
+      return await services.browserGoForward(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserReload,
+    async (_event, request: DesktopBrowserThreadRequest): Promise<DesktopBrowserState> => {
+      return await services.browserReload(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserStop,
+    async (_event, request: DesktopBrowserThreadRequest): Promise<DesktopBrowserState> => {
+      return await services.browserStop(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserSetViewport,
+    async (_event, request: DesktopBrowserViewportRequest): Promise<DesktopBrowserState> => {
+      return await services.browserSetViewport(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserScreenshot,
+    async (_event, request: DesktopBrowserScreenshotRequest): Promise<DesktopBrowserScreenshotResult> => {
+      return await services.browserScreenshot(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserInspect,
+    async (_event, request: DesktopBrowserInspectRequest): Promise<DesktopBrowserInspectResult> => {
+      return await services.browserInspect(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserClick,
+    async (_event, request: DesktopBrowserPointRequest): Promise<DesktopBrowserState> => {
+      return await services.browserClick(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserType,
+    async (_event, request: DesktopBrowserTypeRequest): Promise<DesktopBrowserState> => {
+      return await services.browserType(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserConsole,
+    async (_event, request: DesktopBrowserThreadRequest): Promise<DesktopBrowserConsoleResult> => {
+      return await services.browserConsole(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserNetwork,
+    async (_event, request: DesktopBrowserThreadRequest): Promise<DesktopBrowserNetworkResult> => {
+      return await services.browserNetwork(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserTrustCheck,
+    async (_event, request: DesktopBrowserTrustCheckRequest): Promise<DesktopBrowserTrustCheckResult> => {
+      return await services.browserTrustCheck(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserTrustUpdate,
+    async (_event, request: DesktopBrowserTrustRequest): Promise<DesktopBrowserTrustState> => {
+      return await services.browserTrustUpdate(request);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.browserTrustState,
+    async (): Promise<DesktopBrowserTrustState> => {
+      return await services.browserTrustState();
     },
   );
 
