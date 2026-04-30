@@ -21,7 +21,9 @@ import { resolveWorkspaceFilePath } from "../right-rail/RightRailSection";
 import { useStreamingEntryBody } from "../../state/session/session-stream-live-bodies.ts";
 import type { DesktopExtensionOverviewResult } from "../../../main/contracts";
 import { stripResolvedPromptShortcutText } from "../../../shared/prompt-shortcuts.ts";
+import { hasBrowserUseMention, stripBrowserUseTranscriptText } from "../../../shared/browser-use-invocation.ts";
 import { buildStreamingAssistantPreview } from "./streaming-assistant-preview.js";
+import browserUseIconUrl from "../../assets/browser-use.png";
 
 type ThreadEntryListProps = {
   entries: DesktopThreadEntry[];
@@ -83,19 +85,30 @@ function EntryCopyButton({ text }: { text: string }) {
 
 function ThreadEntryShortcutPills({
   matches,
+  showBrowserUse,
 }: {
   matches: Array<{
     kind: "app" | "plugin" | "skill";
     label: string;
     token: string;
   }>;
+  showBrowserUse?: boolean;
 }) {
-  if (matches.length === 0) {
+  if (matches.length === 0 && !showBrowserUse) {
     return null;
   }
 
   return (
     <div className="mb-2 flex flex-wrap items-center gap-2">
+      {showBrowserUse ? (
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[0.6875rem] font-semibold text-canvas shadow-[var(--shadow-raised)]"
+          title="@browser-use -> Browser Use"
+        >
+          <img alt="" className="size-3.5 rounded-sm" src={browserUseIconUrl} />
+          <span className="font-bold">Browser Use</span>
+        </span>
+      ) : null}
       {matches.map((match) => {
         const Icon = match.kind === "app" ? Blocks : match.kind === "plugin" ? PlugZap : Sparkles;
         return (
@@ -404,16 +417,20 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
         ? coerceDisplayText(entry.body)
         : "";
   const deferredEntryBody = useDeferredValue(entryBody);
-  const visibleUserBody = entry.kind === "user" && extensionOverview
-    ? stripResolvedPromptShortcutText(entryBody, extensionOverview)
+  const hasBrowserUseShortcut = entry.kind === "user" && entryBody.includes("@") && hasBrowserUseMention(entryBody);
+  const visibleUserBody = entry.kind === "user"
+    ? hasBrowserUseShortcut
+      ? stripBrowserUseTranscriptText(extensionOverview ? stripResolvedPromptShortcutText(entryBody, extensionOverview) : entryBody)
+      : extensionOverview ? stripResolvedPromptShortcutText(entryBody, extensionOverview) : entryBody
     : entryBody;
 
   if (entry.kind === "user") {
     return (
       <article className="user-bubble ml-auto w-full max-w-[78%] rounded-xl px-3 py-2 text-[0.8125rem]">
-        {"promptShortcuts" in entry && Array.isArray(entry.promptShortcuts) && entry.promptShortcuts.length > 0 ? (
-          <ThreadEntryShortcutPills matches={entry.promptShortcuts} />
-        ) : null}
+        <ThreadEntryShortcutPills
+          matches={"promptShortcuts" in entry && Array.isArray(entry.promptShortcuts) ? entry.promptShortcuts : []}
+          showBrowserUse={hasBrowserUseShortcut}
+        />
         {"attachments" in entry && Array.isArray(entry.attachments) && entry.attachments.length > 0 ? (
           <ThreadEntryAttachmentPills attachments={entry.attachments} workspaceRoot={workspaceRoot} />
         ) : null}

@@ -14,7 +14,13 @@ import {
 import { useComposerDictation } from "../../features/session/use-composer-dictation.js";
 import { type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopExtensionOverviewResult, type DesktopModelEntry } from "../../../main/contracts";
 import { replaceActivePromptShortcut, resolvePromptShortcutSuggestions } from "../../../shared/prompt-shortcuts.ts";
-import { buildBrowserUsePrompt, hasBrowserUseMention, type BrowserUseContext } from "../../../shared/browser-use-invocation.ts";
+import {
+  buildBrowserUsePrompt,
+  hasBrowserUseMention,
+  replaceActiveBrowserUseShortcut,
+  resolveActiveBrowserUseShortcutSuggestion,
+  type BrowserUseContext,
+} from "../../../shared/browser-use-invocation.ts";
 import browserUseIconUrl from "../../assets/browser-use.png";
 
 type ThreadComposerProps = {
@@ -46,6 +52,31 @@ type ThreadComposerProps = {
   variant?: "floating" | "rail";
   onReportBug: () => void;
 };
+
+function BrowserUseShortcutSuggestionButton({ onSelect }: { onSelect: () => void }) {
+  return (
+    <div className="rounded-2xl border border-line bg-surface-glass p-2 shadow-[var(--shadow-menu)] backdrop-blur-sm">
+      <p className="px-2 pb-1 text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-muted">
+        Browser shortcut
+      </p>
+      <button
+        className="flex w-full items-center gap-2 rounded-xl bg-ink px-2 py-1.5 text-left text-[0.6875rem] text-canvas transition-colors"
+        onMouseDown={(event) => {
+          event.preventDefault();
+          onSelect();
+        }}
+        onClick={(event) => event.preventDefault()}
+        type="button"
+      >
+        <img alt="" className="size-3.5 shrink-0 rounded-sm" src={browserUseIconUrl} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-semibold">Browser Use</span>
+          <span className="block truncate text-canvas/70">@browser-use · Operate the in-app browser</span>
+        </span>
+      </button>
+    </div>
+  );
+}
 
 function ThreadComposerInner({
   tenant,
@@ -99,6 +130,10 @@ function ThreadComposerInner({
   const visibleShortcutSuggestions = shortcutSuggestions.slice(0, 8);
   const fastModeSuggestions = useMemo(
     () => resolveFastModeSuggestions(threadPrompt, shortcutCursorIndex),
+    [threadPrompt, shortcutCursorIndex],
+  );
+  const browserUseSuggestion = useMemo(
+    () => resolveActiveBrowserUseShortcutSuggestion(threadPrompt, shortcutCursorIndex),
     [threadPrompt, shortcutCursorIndex],
   );
 
@@ -158,6 +193,24 @@ function ThreadComposerInner({
     });
   }
 
+  function applyBrowserUseSuggestion() {
+    const selectionIndex =
+      composerRef.current && document.activeElement === composerRef.current
+        ? composerRef.current.selectionStart ?? shortcutCursorIndex
+        : shortcutCursorIndex;
+    let nextSelection = replaceActiveBrowserUseShortcut(threadPrompt, selectionIndex);
+    if (nextSelection.prompt === threadPrompt && selectionIndex !== threadPrompt.length) {
+      nextSelection = replaceActiveBrowserUseShortcut(threadPrompt, threadPrompt.length);
+    }
+    setThreadPrompt(nextSelection.prompt);
+    setShortcutCursorIndex(nextSelection.cursorIndex);
+    setShortcutSelectionIndex(0);
+    requestAnimationFrame(() => {
+      composerRef.current?.focus();
+      composerRef.current?.setSelectionRange(nextSelection.cursorIndex, nextSelection.cursorIndex);
+    });
+  }
+
   function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (fastModeSuggestions.length > 0) {
       if (event.key === "ArrowDown") {
@@ -173,6 +226,18 @@ function ThreadComposerInner({
       if ((event.key === "Enter" && !event.shiftKey) || event.key === "Tab") {
         event.preventDefault();
         applyFastSuggestion(fastModeSuggestions[shortcutSelectionIndex]?.command ?? fastModeSuggestions[0]?.command ?? "");
+        return;
+      }
+      if (event.key === "Escape") {
+        setShortcutSelectionIndex(0);
+        return;
+      }
+    }
+
+    if (browserUseSuggestion) {
+      if ((event.key === "Enter" && !event.shiftKey) || event.key === "Tab") {
+        event.preventDefault();
+        applyBrowserUseSuggestion();
         return;
       }
       if (event.key === "Escape") {
@@ -287,6 +352,11 @@ function ThreadComposerInner({
             suggestions={visibleShortcutSuggestions}
           />
         ) : null}
+        {fastModeSuggestions.length === 0 && visibleShortcutSuggestions.length === 0 && browserUseSuggestion ? (
+          <BrowserUseShortcutSuggestionButton
+            onSelect={applyBrowserUseSuggestion}
+          />
+        ) : null}
         <div className="flex flex-wrap items-center gap-2">
           {hasBrowserUseMention(deferredThreadPrompt) ? (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0F766E] px-3 py-1 text-xs font-semibold text-white shadow-[var(--shadow-raised)]">
@@ -395,7 +465,7 @@ function ThreadComposerInner({
               aria-label="Use Browser Use"
               disabled={composerDisabled}
               onClick={() => {
-                setThreadPrompt((current) => hasBrowserUseMention(current) ? current : `${current.trimEnd()}${current.trim() ? " " : ""}@ browser use `);
+                setThreadPrompt((current) => hasBrowserUseMention(current) ? current : `${current.trimEnd()}${current.trim() ? " " : ""}@browser-use `);
                 requestAnimationFrame(() => composerRef.current?.focus());
               }}
               size="icon"

@@ -284,7 +284,7 @@ export function ThreadBrowserPane({ threadId, requestedUrl = null, submitSelecte
   }
 
   return (
-    <aside className="flex min-h-0 w-[48%] min-w-[420px] flex-col border-l border-line bg-surface-high">
+    <aside className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-line bg-surface-high">
       <div className="flex shrink-0 items-center gap-2 border-b border-line px-3 py-2">
         <Button aria-label="Close browser" className="h-8 w-8 px-0" onClick={onClose} type="button" variant="secondary">
           <X className="size-4" />
