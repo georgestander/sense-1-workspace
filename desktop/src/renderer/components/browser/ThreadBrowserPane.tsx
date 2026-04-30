@@ -80,7 +80,8 @@ export function ThreadBrowserPane({ threadId, requestedUrl = null, submitSelecte
   useEffect(() => {
     const stored = readStoredBrowserState()[threadId];
     const initialViewport = stored?.viewport ?? "desktop";
-    const initialUrl = stored?.url ?? DEFAULT_URL;
+    const initialUrl = requestedUrl ?? stored?.url ?? DEFAULT_URL;
+    handledRequestedUrlRef.current = requestedUrl;
     setViewport(initialViewport);
     setAddress(initialUrl);
     const bounds = measureBounds();
@@ -108,7 +109,7 @@ export function ThreadBrowserPane({ threadId, requestedUrl = null, submitSelecte
   }, [measureBounds, onStateChange, rememberState, threadId]);
 
   useEffect(() => {
-    if (!requestedUrl || handledRequestedUrlRef.current === requestedUrl) {
+    if (!state || !requestedUrl || handledRequestedUrlRef.current === requestedUrl) {
       return;
     }
     handledRequestedUrlRef.current = requestedUrl;

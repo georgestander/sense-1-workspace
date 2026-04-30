@@ -123,6 +123,12 @@ export default function App() {
   }, [activeView, sessionState.selectedThreadId]);
 
   useEffect(() => {
+    if (activeView !== "home" || !sessionState.selectedThreadId) {
+      setBrowserOpen(false);
+    }
+  }, [activeView, sessionState.selectedThreadId]);
+
+  useEffect(() => {
     const view =
       activeView === "home"
         ? (sessionState.selectedThreadId ? "thread" : "start")
