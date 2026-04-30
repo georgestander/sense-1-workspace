@@ -14,6 +14,14 @@ import {
 import { useComposerDictation } from "../../features/session/use-composer-dictation.js";
 import { type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopExtensionOverviewResult, type DesktopModelEntry } from "../../../main/contracts";
 import { replaceActivePromptShortcut, resolvePromptShortcutSuggestions } from "../../../shared/prompt-shortcuts.ts";
+import {
+  buildBrowserUsePrompt,
+  hasBrowserUseMention,
+  replaceActiveBrowserUseShortcut,
+  resolveActiveBrowserUseShortcutSuggestion,
+  type BrowserUseContext,
+} from "../../../shared/browser-use-invocation.ts";
+import browserUseIconUrl from "../../assets/browser-use.png";
 
 type ThreadComposerProps = {
   tenant: DesktopBootstrapTenant | null;
@@ -40,8 +48,35 @@ type ThreadComposerProps = {
   effectiveThreadBusy: boolean;
   interruptTurn: () => Promise<void>;
   submitSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
+  browserUseContext?: BrowserUseContext | null;
+  variant?: "floating" | "rail";
   onReportBug: () => void;
 };
+
+function BrowserUseShortcutSuggestionButton({ onSelect }: { onSelect: () => void }) {
+  return (
+    <div className="rounded-2xl border border-line bg-surface-glass p-2 shadow-[var(--shadow-menu)] backdrop-blur-sm">
+      <p className="px-2 pb-1 text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-muted">
+        Browser shortcut
+      </p>
+      <button
+        className="flex w-full items-center gap-2 rounded-xl bg-ink px-2 py-1.5 text-left text-[0.6875rem] text-canvas transition-colors"
+        onMouseDown={(event) => {
+          event.preventDefault();
+          onSelect();
+        }}
+        onClick={(event) => event.preventDefault()}
+        type="button"
+      >
+        <img alt="" className="size-3.5 shrink-0 rounded-sm" src={browserUseIconUrl} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-semibold">Browser Use</span>
+          <span className="block truncate text-canvas/70">@browser-use · Operate the in-app browser</span>
+        </span>
+      </button>
+    </div>
+  );
+}
 
 function ThreadComposerInner({
   tenant,
@@ -68,8 +103,11 @@ function ThreadComposerInner({
   effectiveThreadBusy,
   interruptTurn,
   submitSelectedThreadPrompt,
+  browserUseContext = null,
+  variant = "floating",
   onReportBug,
 }: ThreadComposerProps) {
+  const isRail = variant === "rail";
   const teamIdentity = buildThreadComposerIdentity(tenant, teamSetup);
   const [threadPrompt, setThreadPrompt] = useState(threadPromptOverride);
   const composerDisabled = !teamIdentity.canContinueThread;
@@ -93,6 +131,10 @@ function ThreadComposerInner({
   const visibleShortcutSuggestions = shortcutSuggestions.slice(0, 8);
   const fastModeSuggestions = useMemo(
     () => resolveFastModeSuggestions(threadPrompt, shortcutCursorIndex),
+    [threadPrompt, shortcutCursorIndex],
+  );
+  const browserUseSuggestion = useMemo(
+    () => resolveActiveBrowserUseShortcutSuggestion(threadPrompt, shortcutCursorIndex),
     [threadPrompt, shortcutCursorIndex],
   );
 
@@ -152,6 +194,24 @@ function ThreadComposerInner({
     });
   }
 
+  function applyBrowserUseSuggestion() {
+    const selectionIndex =
+      composerRef.current && document.activeElement === composerRef.current
+        ? composerRef.current.selectionStart ?? shortcutCursorIndex
+        : shortcutCursorIndex;
+    let nextSelection = replaceActiveBrowserUseShortcut(threadPrompt, selectionIndex);
+    if (nextSelection.prompt === threadPrompt && selectionIndex !== threadPrompt.length) {
+      nextSelection = replaceActiveBrowserUseShortcut(threadPrompt, threadPrompt.length);
+    }
+    setThreadPrompt(nextSelection.prompt);
+    setShortcutCursorIndex(nextSelection.cursorIndex);
+    setShortcutSelectionIndex(0);
+    requestAnimationFrame(() => {
+      composerRef.current?.focus();
+      composerRef.current?.setSelectionRange(nextSelection.cursorIndex, nextSelection.cursorIndex);
+    });
+  }
+
   function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (fastModeSuggestions.length > 0) {
       if (event.key === "ArrowDown") {
@@ -167,6 +227,18 @@ function ThreadComposerInner({
       if ((event.key === "Enter" && !event.shiftKey) || event.key === "Tab") {
         event.preventDefault();
         applyFastSuggestion(fastModeSuggestions[shortcutSelectionIndex]?.command ?? fastModeSuggestions[0]?.command ?? "");
+        return;
+      }
+      if (event.key === "Escape") {
+        setShortcutSelectionIndex(0);
+        return;
+      }
+    }
+
+    if (browserUseSuggestion) {
+      if ((event.key === "Enter" && !event.shiftKey) || event.key === "Tab") {
+        event.preventDefault();
+        applyBrowserUseSuggestion();
         return;
       }
       if (event.key === "Escape") {
@@ -208,7 +280,10 @@ function ThreadComposerInner({
     if (!submittedPrompt) {
       return;
     }
-    const didSubmit = await submitSelectedThreadPrompt(submittedPrompt);
+    const resolvedPrompt = hasBrowserUseMention(submittedPrompt)
+      ? buildBrowserUsePrompt(submittedPrompt, browserUseContext ?? { threadId: selectedThreadId, url: null, title: null })
+      : submittedPrompt;
+    const didSubmit = await submitSelectedThreadPrompt(resolvedPrompt);
     if (!didSubmit) {
       return;
     }
@@ -222,7 +297,10 @@ function ThreadComposerInner({
     if (!queuedPrompt) {
       return;
     }
-    const didQueue = await queueSelectedThreadPrompt(queuedPrompt);
+    const resolvedPrompt = hasBrowserUseMention(queuedPrompt)
+      ? buildBrowserUsePrompt(queuedPrompt, browserUseContext ?? { threadId: selectedThreadId, url: null, title: null })
+      : queuedPrompt;
+    const didQueue = await queueSelectedThreadPrompt(resolvedPrompt);
     if (!didQueue) {
       return;
     }
@@ -232,8 +310,13 @@ function ThreadComposerInner({
   }
 
   return (
-    <div className="shrink-0" style={{ height: spacerHeight + 24 }}>
-      <div ref={floatingRef} className="fixed bottom-3 left-1/2 z-50 flex w-full max-w-3xl -translate-x-1/2 flex-col gap-3 rounded-[1.7rem] border border-line bg-surface-high p-3 shadow-[var(--shadow-composer)]">
+    <div className="shrink-0" style={isRail ? undefined : { height: spacerHeight + 24 }}>
+      <div
+        ref={floatingRef}
+        className={isRail
+          ? "flex max-h-[42vh] flex-col gap-2 overflow-y-auto border-t border-line bg-surface-high p-2"
+          : "fixed bottom-3 left-1/2 z-50 flex w-full max-w-3xl -translate-x-1/2 flex-col gap-3 rounded-[1.7rem] border border-line bg-surface-high p-3 shadow-[var(--shadow-composer)]"}
+      >
         {taskError ? (
           <p className="rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft" role="alert">
             {taskError}
@@ -270,11 +353,22 @@ function ThreadComposerInner({
             suggestions={visibleShortcutSuggestions}
           />
         ) : null}
+        {fastModeSuggestions.length === 0 && visibleShortcutSuggestions.length === 0 && browserUseSuggestion ? (
+          <BrowserUseShortcutSuggestionButton
+            onSelect={applyBrowserUseSuggestion}
+          />
+        ) : null}
         <div className="flex flex-wrap items-center gap-2">
+          {hasBrowserUseMention(deferredThreadPrompt) ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0F766E] px-3 py-1 text-xs font-semibold text-white shadow-[var(--shadow-raised)]">
+              <img alt="" className="size-3.5 rounded-sm" src={browserUseIconUrl} />
+              <span className="font-bold">Browser Use</span>
+            </span>
+          ) : null}
           <ShortcutPillRow overview={extensionOverview} prompt={deferredThreadPrompt} />
         </div>
         <textarea
-          className="min-h-[5.5rem] resize-none rounded-xl border border-line bg-canvas px-3 py-2 text-sm outline-none transition-all placeholder:text-muted focus-visible:ring-[3px] focus-visible:ring-accent/30 disabled:cursor-not-allowed disabled:opacity-70"
+          className={`${isRail ? "min-h-[4.25rem] rounded-lg px-2.5 py-2 text-[0.8125rem]" : "min-h-[5.5rem] rounded-xl px-3 py-2 text-sm"} resize-none border border-line bg-canvas outline-none transition-all placeholder:text-muted focus-visible:ring-[3px] focus-visible:ring-accent/30 disabled:cursor-not-allowed disabled:opacity-70`}
           disabled={composerDisabled}
           onClick={(event) => setShortcutCursorIndex(event.currentTarget.selectionStart ?? event.currentTarget.value.length)}
           onKeyDown={handleComposerKeyDown}
@@ -306,8 +400,8 @@ function ThreadComposerInner({
             ))}
           </div>
         ) : null}
-        <div className="flex items-center justify-between gap-1.5">
-          <div className="flex items-center gap-1.5">
+        <div className={isRail ? "flex flex-wrap items-center justify-between gap-1.5" : "flex items-center justify-between gap-1.5"}>
+          <div className={isRail ? "flex min-w-0 flex-1 flex-wrap items-center gap-1" : "flex items-center gap-1.5"}>
             <Button
               aria-label="Add local files"
               disabled={composerDisabled || effectiveThreadBusy}
@@ -317,14 +411,14 @@ function ThreadComposerInner({
                   setAttachedFiles((current) => [...new Set([...current, ...paths])]);
                 }
               }}
-              size="icon"
+              size={isRail ? "icon-sm" : "icon"}
               variant="secondary"
             >
               <Paperclip />
             </Button>
-            <label className="inline-flex items-center gap-2 rounded-xl border border-line px-2 py-1 text-xs text-muted">
+            <label className={isRail ? "inline-flex min-w-0 max-w-[7.25rem] items-center rounded-lg border border-line px-2 py-1 text-[0.6875rem] text-muted" : "inline-flex items-center gap-2 rounded-xl border border-line px-2 py-1 text-xs text-muted"}>
               <select
-                className="bg-transparent text-ink outline-none"
+                className="min-w-0 max-w-full bg-transparent text-ink outline-none"
                 disabled={composerDisabled || modelOptions.length === 0}
                 onChange={(event) => handleModelSelection(event.target.value)}
                 value={selectedModel || ""}
@@ -340,10 +434,10 @@ function ThreadComposerInner({
                 )}
               </select>
             </label>
-            <label className="inline-flex items-center gap-2 rounded-xl border border-line px-2 py-1 text-xs text-muted">
-              <BrainCircuit className="size-3.5" />
+            <label className={isRail ? "inline-flex min-w-0 max-w-[6.5rem] items-center gap-1 rounded-lg border border-line px-2 py-1 text-[0.6875rem] text-muted" : "inline-flex items-center gap-2 rounded-xl border border-line px-2 py-1 text-xs text-muted"}>
+              <BrainCircuit className={isRail ? "size-3 shrink-0" : "size-3.5"} />
               <select
-                className="bg-transparent text-ink outline-none"
+                className="min-w-0 max-w-full bg-transparent text-ink outline-none"
                 disabled={composerDisabled || reasoningOptions.length === 0}
                 onChange={(event) => setReasoning(event.target.value)}
                 value={selectedReasoning || ""}
@@ -360,17 +454,30 @@ function ThreadComposerInner({
               </select>
             </label>
             <button
-              className={`inline-flex items-center gap-2 rounded-xl border px-2 py-1 text-xs ${selectedServiceTier === "fast" ? "border-warning bg-warning-faint text-ink" : "border-line text-muted"}`}
+              className={`inline-flex shrink-0 items-center gap-1 rounded-lg border px-2 py-1 ${isRail ? "text-[0.6875rem]" : "text-xs"} ${selectedServiceTier === "fast" ? "border-warning bg-warning-faint text-ink" : "border-line text-muted"}`}
               disabled={composerDisabled}
               onClick={() => handleServiceTierSelection(selectedServiceTier === "fast" ? "flex" : "fast")}
               type="button"
             >
-              <Zap className="size-3" />
+              <Zap className="size-3 shrink-0" />
               Fast
             </button>
             <Button
+              aria-label="Use Browser Use"
+              disabled={composerDisabled}
+              onClick={() => {
+                setThreadPrompt((current) => hasBrowserUseMention(current) ? current : `${current.trimEnd()}${current.trim() ? " " : ""}@browser-use `);
+                requestAnimationFrame(() => composerRef.current?.focus());
+              }}
+              size={isRail ? "icon-sm" : "icon"}
+              type="button"
+              variant="secondary"
+            >
+              <img alt="" className={isRail ? "size-3.5 rounded-sm" : "size-4 rounded-sm"} src={browserUseIconUrl} />
+            </Button>
+            <Button
               aria-label="Report a bug"
-              className="ml-1"
+              className={isRail ? "" : "ml-1"}
               onClick={onReportBug}
               size="icon-sm"
               type="button"
@@ -379,7 +486,7 @@ function ThreadComposerInner({
               <Bug />
             </Button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className={isRail ? "ml-auto flex shrink-0 items-center gap-1" : "flex items-center gap-2"}>
             {dictation.recordingIndicator ? (
               <VoiceRecordingPill
                 elapsedLabel={dictation.recordingIndicator.elapsedLabel}
@@ -391,7 +498,7 @@ function ThreadComposerInner({
                 aria-label="Start voice input"
                 disabled={composerDisabled}
                 onClick={() => dictation.toggle()}
-                size="icon"
+                size={isRail ? "icon-sm" : "icon"}
                 variant="secondary"
               >
                 <Mic />
@@ -414,7 +521,7 @@ function ThreadComposerInner({
                 </Button>
               </>
             ) : (
-              <Button aria-label="Send message" disabled={sendDisabled} onClick={() => void handleSubmit()} size="icon" variant="default">
+              <Button aria-label="Send message" disabled={sendDisabled} onClick={() => void handleSubmit()} size={isRail ? "icon-sm" : "icon"} variant="default">
                 <Send />
               </Button>
             )}

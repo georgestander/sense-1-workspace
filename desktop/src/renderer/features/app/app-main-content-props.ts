@@ -138,7 +138,7 @@ export function buildThreadViewProps({
   modelState,
   rightRail,
   transcript,
-}: BuildThreadViewPropsArgs): ThreadViewProps | null {
+}: BuildThreadViewPropsArgs): Omit<ThreadViewProps, "browserOpen" | "setBrowserOpen"> | null {
   perfCount("build.ThreadViewProps");
   const selectedThread = sessionState.selectedThread;
   if (!selectedThread) {

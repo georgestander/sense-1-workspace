@@ -181,10 +181,11 @@ const rehypePlugins = [rehypeHighlight];
 type ThreadMarkdownProps = {
   children: string;
   className?: string;
+  onOpenInternalBrowser?: (url: string) => void;
   workspaceRoot?: string | null;
 };
 
-function ThreadMarkdownInner({ children, className, workspaceRoot = null }: ThreadMarkdownProps) {
+function ThreadMarkdownInner({ children, className, onOpenInternalBrowser, workspaceRoot = null }: ThreadMarkdownProps) {
   const markdownSource = children ?? "";
   const hasVisibleContent = markdownSource.trim().length > 0;
   const enableSyntaxHighlighting = hasVisibleContent && hasFencedCodeBlocks(markdownSource);
@@ -276,6 +277,10 @@ function ThreadMarkdownInner({ children, className, workspaceRoot = null }: Thre
               return;
             }
             event.preventDefault();
+            if (onOpenInternalBrowser) {
+              onOpenInternalBrowser(resolvedHref);
+              return;
+            }
             const bridge = (window as unknown as {
               sense1Desktop?: {
                 window?: { openExternalUrl?: (url: string) => Promise<unknown> };
@@ -291,7 +296,7 @@ function ThreadMarkdownInner({ children, className, workspaceRoot = null }: Thre
         </a>
       );
     },
-  }), [workspaceRoot]);
+  }), [onOpenInternalBrowser, workspaceRoot]);
 
   if (!hasVisibleContent) {
     return <div className={cn("thread-markdown", className)} />;

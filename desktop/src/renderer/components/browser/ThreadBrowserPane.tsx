@@ -13,8 +13,10 @@ import { ThreadBrowserToolbar } from "./ThreadBrowserToolbar.js";
 
 interface ThreadBrowserPaneProps {
   threadId: string;
+  requestedUrl?: string | null;
   submitSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
   onClose: () => void;
+  onStateChange?: (state: DesktopBrowserState | null) => void;
 }
 
 interface StoredThreadBrowserState {
@@ -27,8 +29,9 @@ type InteractionMode = "none" | "comment" | "click" | "type";
 const STORAGE_KEY = "sense1.thread-browser.v1";
 const DEFAULT_URL = "about:blank";
 
-export function ThreadBrowserPane({ threadId, submitSelectedThreadPrompt, onClose }: ThreadBrowserPaneProps) {
+export function ThreadBrowserPane({ threadId, requestedUrl = null, submitSelectedThreadPrompt, onClose, onStateChange }: ThreadBrowserPaneProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const handledRequestedUrlRef = useRef<string | null>(null);
   const [state, setState] = useState<DesktopBrowserState | null>(null);
   const [address, setAddress] = useState(DEFAULT_URL);
   const [viewport, setViewport] = useState<DesktopBrowserViewportPreset>("desktop");
@@ -77,7 +80,8 @@ export function ThreadBrowserPane({ threadId, submitSelectedThreadPrompt, onClos
   useEffect(() => {
     const stored = readStoredBrowserState()[threadId];
     const initialViewport = stored?.viewport ?? "desktop";
-    const initialUrl = stored?.url ?? DEFAULT_URL;
+    const initialUrl = requestedUrl ?? stored?.url ?? DEFAULT_URL;
+    handledRequestedUrlRef.current = requestedUrl;
     setViewport(initialViewport);
     setAddress(initialUrl);
     const bounds = measureBounds();
@@ -90,6 +94,7 @@ export function ThreadBrowserPane({ threadId, submitSelectedThreadPrompt, onClos
       .then((nextState) => {
         if (cancelled) return;
         setState(nextState);
+        onStateChange?.(nextState);
         setAddress(nextState.url ?? initialUrl);
         rememberState(nextState, initialViewport);
       })
@@ -98,9 +103,28 @@ export function ThreadBrowserPane({ threadId, submitSelectedThreadPrompt, onClos
       });
     return () => {
       cancelled = true;
+      onStateChange?.(null);
       void window.sense1Desktop.browser.close({ threadId });
     };
-  }, [measureBounds, rememberState, threadId]);
+  }, [measureBounds, onStateChange, rememberState, threadId]);
+
+  useEffect(() => {
+    if (!state || !requestedUrl || handledRequestedUrlRef.current === requestedUrl) {
+      return;
+    }
+    handledRequestedUrlRef.current = requestedUrl;
+    let cancelled = false;
+    void window.sense1Desktop.browser.navigate({ threadId, url: requestedUrl }).then((nextState) => {
+      if (cancelled) return;
+      setState(nextState);
+      onStateChange?.(nextState);
+      setAddress(nextState.url ?? requestedUrl);
+      rememberState(nextState, viewport);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [onStateChange, rememberState, requestedUrl, threadId, viewport]);
 
   useEffect(() => {
     const target = hostRef.current;
@@ -136,6 +160,7 @@ export function ThreadBrowserPane({ threadId, submitSelectedThreadPrompt, onClos
     setStatusText(null);
     const nextState = await window.sense1Desktop.browser.navigate({ threadId, url: address });
     setState(nextState);
+    onStateChange?.(nextState);
     setAddress(nextState.url ?? address);
     rememberState(nextState, viewport);
   }
@@ -146,6 +171,7 @@ export function ThreadBrowserPane({ threadId, submitSelectedThreadPrompt, onClos
     setViewport(nextViewport);
     const nextState = await window.sense1Desktop.browser.setViewport({ threadId, viewport: nextViewport, bounds });
     setState(nextState);
+    onStateChange?.(nextState);
     rememberState(nextState, nextViewport);
   }
 
@@ -241,7 +267,9 @@ export function ThreadBrowserPane({ threadId, submitSelectedThreadPrompt, onClos
       return;
     }
     if (interactionMode === "click") {
-      setState(await window.sense1Desktop.browser.click({ threadId, x, y }));
+      const nextState = await window.sense1Desktop.browser.click({ threadId, x, y });
+      setState(nextState);
+      onStateChange?.(nextState);
       setInteractionMode("none");
       return;
     }
@@ -250,12 +278,14 @@ export function ThreadBrowserPane({ threadId, submitSelectedThreadPrompt, onClos
       setStatusText("Enter text before using Browser Use type.");
       return;
     }
-    setState(await window.sense1Desktop.browser.type({ threadId, x, y, text }));
+    const nextState = await window.sense1Desktop.browser.type({ threadId, x, y, text });
+    setState(nextState);
+    onStateChange?.(nextState);
     setInteractionMode("none");
   }
 
   return (
-    <aside className="flex min-h-0 w-[48%] min-w-[420px] flex-col border-l border-line bg-surface-high">
+    <aside className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-line bg-surface-high">
       <div className="flex shrink-0 items-center gap-2 border-b border-line px-3 py-2">
         <Button aria-label="Close browser" className="h-8 w-8 px-0" onClick={onClose} type="button" variant="secondary">
           <X className="size-4" />
@@ -274,7 +304,10 @@ export function ThreadBrowserPane({ threadId, submitSelectedThreadPrompt, onClos
         onOpenExternal={() => activeUrl && void window.sense1Desktop.window.openExternalUrl(activeUrl)}
         onSendEvidence={() => void sendScreenshotEvidence()}
         onSetInteractionMode={setInteractionMode}
-        onStateChange={setState}
+        onStateChange={(nextState) => {
+          setState(nextState);
+          onStateChange?.(nextState);
+        }}
         onUpdateViewport={(nextViewport) => void updateViewport(nextViewport)}
         state={state}
         threadId={threadId}
