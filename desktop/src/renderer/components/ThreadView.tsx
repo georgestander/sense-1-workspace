@@ -168,117 +168,87 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
 
   return (
     <div className="flex min-h-0 flex-1">
+      <div
+        className={browserOpen ? "flex min-h-0 min-w-0 shrink-0 flex-col bg-canvas" : "flex min-w-0 flex-1 flex-col"}
+        style={browserOpen ? { width: composerRailWidth } : undefined}
+      >
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-6 pb-2 pt-5">
+          <h2 className="font-display min-w-0 truncate text-lg font-semibold tracking-tight">{selectedThread.title}</h2>
+          <Button className="h-8 shrink-0 px-3 text-xs" onClick={() => browserOpen ? setBrowserOpen(false) : openInternalBrowser()} type="button" variant={browserOpen ? "default" : "secondary"}>
+            <Globe2 className="size-3.5" />
+            Browser
+          </Button>
+        </div>
+
+        <ThreadTranscript
+          cancelWorkspacePermission={cancelWorkspacePermission}
+          clarificationAnswer={clarificationAnswer}
+          clarificationPending={clarificationPending}
+          configNotices={configNotices}
+          effectiveThreadBusy={effectiveThreadBusy}
+          extensionOverview={extensionOverview}
+          footerStatusText={footerStatusText}
+          grantWorkspacePermission={grantWorkspacePermission}
+          hasStructuredQuestions={hasStructuredQuestions}
+          isClarifying={isClarifying}
+          onOpenInternalBrowser={openInternalBrowser}
+          pendingPermission={pendingPermission}
+          processingApprovalIds={processingApprovalIds}
+          rightRailChangeGroups={rightRailChangeGroups}
+          respondToApproval={respondToApproval}
+          respondToInputRequest={respondToInputRequest}
+          selectedChipIndex={selectedChipIndex}
+          selectedThread={selectedThread}
+          selectedThreadApprovals={selectedThreadApprovals}
+          setClarificationAnswer={setClarificationAnswer}
+          setClarificationPending={setClarificationPending}
+          setSelectedChipIndex={setSelectedChipIndex}
+          structuredQuestions={structuredQuestions}
+          threadInteractionState={threadInteractionState}
+          threadInputRequest={threadInputRequest}
+          transcriptContainerRef={transcriptContainerRef}
+          transcriptEndRef={transcriptEndRef}
+        />
+
+        <ThreadComposer
+          availableModels={availableModels}
+          browserUseContext={{ threadId: selectedThreadId, url: browserState?.url ?? null, title: browserState?.title ?? null }}
+          effectiveThreadBusy={effectiveThreadBusy}
+          extensionOverview={extensionOverview}
+          handleModelSelection={handleModelSelection}
+          interruptTurn={interruptTurn}
+          modelOptions={modelOptions}
+          onReportBug={onReportBug}
+          pickFiles={pickFiles}
+          queueSelectedThreadPrompt={queueSelectedThreadPrompt}
+          queuedMessageCount={queuedMessageCount}
+          reasoningOptions={reasoningOptions}
+          REASONING_LABELS={REASONING_LABELS}
+          selectedThreadId={selectedThreadId}
+          selectedModel={selectedModel}
+          selectedReasoning={selectedReasoning}
+          selectedServiceTier={selectedServiceTier}
+          setAttachedFiles={setAttachedFiles}
+          setReasoning={setReasoning}
+          submitSelectedThreadPrompt={submitSelectedThreadPrompt}
+          taskError={taskError}
+          tenant={tenant}
+          teamSetup={teamSetup}
+          threadPromptOverride={threadPromptOverride}
+          handleServiceTierSelection={handleServiceTierSelection}
+          attachedFiles={attachedFiles}
+          variant={browserOpen ? "rail" : "floating"}
+        />
+      </div>
+
       {browserOpen ? (
-        <>
-          <aside className="min-h-0 shrink-0" style={{ width: composerRailWidth }}>
-            <ThreadComposer
-              availableModels={availableModels}
-              browserUseContext={{ threadId: selectedThreadId, url: browserState?.url ?? null, title: browserState?.title ?? null }}
-              effectiveThreadBusy={effectiveThreadBusy}
-              extensionOverview={extensionOverview}
-              handleModelSelection={handleModelSelection}
-              interruptTurn={interruptTurn}
-              modelOptions={modelOptions}
-              onReportBug={onReportBug}
-              pickFiles={pickFiles}
-              queueSelectedThreadPrompt={queueSelectedThreadPrompt}
-              queuedMessageCount={queuedMessageCount}
-              reasoningOptions={reasoningOptions}
-              REASONING_LABELS={REASONING_LABELS}
-              selectedThreadId={selectedThreadId}
-              selectedModel={selectedModel}
-              selectedReasoning={selectedReasoning}
-              selectedServiceTier={selectedServiceTier}
-              setAttachedFiles={setAttachedFiles}
-              setReasoning={setReasoning}
-              submitSelectedThreadPrompt={submitSelectedThreadPrompt}
-              taskError={taskError}
-              tenant={tenant}
-              teamSetup={teamSetup}
-              threadPromptOverride={threadPromptOverride}
-              handleServiceTierSelection={handleServiceTierSelection}
-              attachedFiles={attachedFiles}
-              variant="rail"
-            />
-          </aside>
-          <div
-            aria-label="Resize browser composer rail"
-            className="w-1.5 shrink-0 cursor-col-resize border-x border-line bg-surface-soft hover:bg-accent/20"
-            onPointerDown={handleComposerRailResizeStart}
-            role="separator"
-          />
-        </>
+        <div
+          aria-label="Resize thread and browser panes"
+          className="w-1.5 shrink-0 cursor-col-resize border-x border-line bg-surface-soft hover:bg-accent/20"
+          onPointerDown={handleComposerRailResizeStart}
+          role="separator"
+        />
       ) : null}
-      <div className="flex min-w-0 flex-1 flex-col">
-      <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-6 pb-2 pt-5">
-        <h2 className="font-display min-w-0 truncate text-lg font-semibold tracking-tight">{selectedThread.title}</h2>
-        <Button className="h-8 shrink-0 px-3 text-xs" onClick={() => browserOpen ? setBrowserOpen(false) : openInternalBrowser()} type="button" variant={browserOpen ? "default" : "secondary"}>
-          <Globe2 className="size-3.5" />
-          Browser
-        </Button>
-      </div>
-
-      <ThreadTranscript
-        cancelWorkspacePermission={cancelWorkspacePermission}
-        clarificationAnswer={clarificationAnswer}
-        clarificationPending={clarificationPending}
-        configNotices={configNotices}
-        effectiveThreadBusy={effectiveThreadBusy}
-        extensionOverview={extensionOverview}
-        footerStatusText={footerStatusText}
-        grantWorkspacePermission={grantWorkspacePermission}
-        hasStructuredQuestions={hasStructuredQuestions}
-        isClarifying={isClarifying}
-        onOpenInternalBrowser={openInternalBrowser}
-        pendingPermission={pendingPermission}
-        processingApprovalIds={processingApprovalIds}
-        rightRailChangeGroups={rightRailChangeGroups}
-        respondToApproval={respondToApproval}
-        respondToInputRequest={respondToInputRequest}
-        selectedChipIndex={selectedChipIndex}
-        selectedThread={selectedThread}
-        selectedThreadApprovals={selectedThreadApprovals}
-        setClarificationAnswer={setClarificationAnswer}
-        setClarificationPending={setClarificationPending}
-        setSelectedChipIndex={setSelectedChipIndex}
-        structuredQuestions={structuredQuestions}
-        threadInteractionState={threadInteractionState}
-        threadInputRequest={threadInputRequest}
-        transcriptContainerRef={transcriptContainerRef}
-        transcriptEndRef={transcriptEndRef}
-      />
-
-      {!browserOpen ? (
-      <ThreadComposer
-        availableModels={availableModels}
-        browserUseContext={{ threadId: selectedThreadId, url: browserState?.url ?? null, title: browserState?.title ?? null }}
-        effectiveThreadBusy={effectiveThreadBusy}
-        extensionOverview={extensionOverview}
-        handleModelSelection={handleModelSelection}
-        interruptTurn={interruptTurn}
-        modelOptions={modelOptions}
-        onReportBug={onReportBug}
-        pickFiles={pickFiles}
-        queueSelectedThreadPrompt={queueSelectedThreadPrompt}
-        queuedMessageCount={queuedMessageCount}
-        reasoningOptions={reasoningOptions}
-        REASONING_LABELS={REASONING_LABELS}
-        selectedThreadId={selectedThreadId}
-        selectedModel={selectedModel}
-        selectedReasoning={selectedReasoning}
-        selectedServiceTier={selectedServiceTier}
-        setAttachedFiles={setAttachedFiles}
-        setReasoning={setReasoning}
-        submitSelectedThreadPrompt={submitSelectedThreadPrompt}
-        taskError={taskError}
-        tenant={tenant}
-        teamSetup={teamSetup}
-        threadPromptOverride={threadPromptOverride}
-        handleServiceTierSelection={handleServiceTierSelection}
-        attachedFiles={attachedFiles}
-      />
-      ) : null}
-      </div>
 
       {browserOpen ? (
         <ThreadBrowserPane

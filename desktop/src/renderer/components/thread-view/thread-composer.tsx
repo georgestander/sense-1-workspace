@@ -244,11 +244,11 @@ function ThreadComposerInner({
   }
 
   return (
-    <div className={variant === "rail" ? "h-full min-h-0 shrink-0" : "shrink-0"} style={variant === "rail" ? undefined : { height: spacerHeight + 24 }}>
+    <div className="shrink-0" style={variant === "rail" ? undefined : { height: spacerHeight + 24 }}>
       <div
         ref={floatingRef}
         className={variant === "rail"
-          ? "flex h-full min-h-0 flex-col gap-3 overflow-y-auto border-r border-line bg-surface-high p-3"
+          ? "flex max-h-[45vh] flex-col gap-3 overflow-y-auto border-t border-line bg-surface-high p-3"
           : "fixed bottom-3 left-1/2 z-50 flex w-full max-w-3xl -translate-x-1/2 flex-col gap-3 rounded-[1.7rem] border border-line bg-surface-high p-3 shadow-[var(--shadow-composer)]"}
       >
         {taskError ? (
