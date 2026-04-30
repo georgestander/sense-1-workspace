@@ -1,10 +1,20 @@
-import { memo, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { memo, useCallback, useEffect, useState, type Dispatch, type PointerEvent, type RefObject, type SetStateAction } from "react";
 import { Globe2 } from "lucide-react";
-import { type DesktopApprovalDecision, type DesktopApprovalEvent, type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopExtensionOverviewResult, type DesktopInputQuestion, type DesktopInputRequestState, type DesktopModelEntry, type DesktopThreadChangeGroup, type DesktopThreadSnapshot } from "../../main/contracts";
+import { type DesktopApprovalDecision, type DesktopApprovalEvent, type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopBrowserState, type DesktopExtensionOverviewResult, type DesktopInputQuestion, type DesktopInputRequestState, type DesktopModelEntry, type DesktopThreadChangeGroup, type DesktopThreadSnapshot } from "../../main/contracts";
 import { ThreadBrowserPane } from "./browser/ThreadBrowserPane.js";
 import { ThreadComposer } from "./thread-view/thread-composer.js";
 import { ThreadTranscript } from "./thread-view/thread-transcript.js";
 import { Button } from "./ui/button.js";
+
+const BROWSER_COMPOSER_RAIL_WIDTH_KEY = "sense1.browser-composer-rail-width.v1";
+const BROWSER_COMPOSER_MIN_WIDTH = 320;
+const BROWSER_COMPOSER_DEFAULT_WIDTH = 360;
+const BROWSER_COMPOSER_MAX_WIDTH = 520;
+
+function readBrowserComposerRailWidth(): number {
+  const parsed = Number(window.localStorage.getItem(BROWSER_COMPOSER_RAIL_WIDTH_KEY));
+  return Number.isFinite(parsed) ? Math.min(BROWSER_COMPOSER_MAX_WIDTH, Math.max(BROWSER_COMPOSER_MIN_WIDTH, parsed)) : BROWSER_COMPOSER_DEFAULT_WIDTH;
+}
 
 export interface ThreadViewProps {
   selectedThreadId: string;
@@ -122,13 +132,87 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     onReportBug,
   } = props;
   const [browserOpen, setBrowserOpen] = useState(false);
+  const [browserRequestedUrl, setBrowserRequestedUrl] = useState<string | null>(null);
+  const [browserState, setBrowserState] = useState<DesktopBrowserState | null>(null);
+  const [composerRailWidth, setComposerRailWidth] = useState(readBrowserComposerRailWidth);
+
+  const openInternalBrowser = useCallback((url?: string) => {
+    if (url?.trim()) {
+      setBrowserRequestedUrl(url);
+    }
+    setBrowserOpen(true);
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(BROWSER_COMPOSER_RAIL_WIDTH_KEY, String(composerRailWidth));
+  }, [composerRailWidth]);
+
+  function handleComposerRailResizeStart(event: PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = composerRailWidth;
+    const maxWidth = Math.min(BROWSER_COMPOSER_MAX_WIDTH, Math.max(BROWSER_COMPOSER_MIN_WIDTH, Math.round(window.innerWidth * 0.45)));
+
+    const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
+      const nextWidth = Math.min(maxWidth, Math.max(BROWSER_COMPOSER_MIN_WIDTH, startWidth + moveEvent.clientX - startX));
+      setComposerRailWidth(nextWidth);
+    };
+    const handlePointerUp = () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+  }
 
   return (
     <div className="flex min-h-0 flex-1">
+      {browserOpen ? (
+        <>
+          <aside className="min-h-0 shrink-0" style={{ width: composerRailWidth }}>
+            <ThreadComposer
+              availableModels={availableModels}
+              browserUseContext={{ threadId: selectedThreadId, url: browserState?.url ?? null, title: browserState?.title ?? null }}
+              effectiveThreadBusy={effectiveThreadBusy}
+              extensionOverview={extensionOverview}
+              handleModelSelection={handleModelSelection}
+              interruptTurn={interruptTurn}
+              modelOptions={modelOptions}
+              onReportBug={onReportBug}
+              pickFiles={pickFiles}
+              queueSelectedThreadPrompt={queueSelectedThreadPrompt}
+              queuedMessageCount={queuedMessageCount}
+              reasoningOptions={reasoningOptions}
+              REASONING_LABELS={REASONING_LABELS}
+              selectedThreadId={selectedThreadId}
+              selectedModel={selectedModel}
+              selectedReasoning={selectedReasoning}
+              selectedServiceTier={selectedServiceTier}
+              setAttachedFiles={setAttachedFiles}
+              setReasoning={setReasoning}
+              submitSelectedThreadPrompt={submitSelectedThreadPrompt}
+              taskError={taskError}
+              tenant={tenant}
+              teamSetup={teamSetup}
+              threadPromptOverride={threadPromptOverride}
+              handleServiceTierSelection={handleServiceTierSelection}
+              attachedFiles={attachedFiles}
+              variant="rail"
+            />
+          </aside>
+          <div
+            aria-label="Resize browser composer rail"
+            className="w-1.5 shrink-0 cursor-col-resize border-x border-line bg-surface-soft hover:bg-accent/20"
+            onPointerDown={handleComposerRailResizeStart}
+            role="separator"
+          />
+        </>
+      ) : null}
       <div className="flex min-w-0 flex-1 flex-col">
       <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-6 pb-2 pt-5">
         <h2 className="font-display min-w-0 truncate text-lg font-semibold tracking-tight">{selectedThread.title}</h2>
-        <Button className="h-8 shrink-0 px-3 text-xs" onClick={() => setBrowserOpen((current) => !current)} type="button" variant={browserOpen ? "default" : "secondary"}>
+        <Button className="h-8 shrink-0 px-3 text-xs" onClick={() => browserOpen ? setBrowserOpen(false) : openInternalBrowser()} type="button" variant={browserOpen ? "default" : "secondary"}>
           <Globe2 className="size-3.5" />
           Browser
         </Button>
@@ -145,6 +229,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         grantWorkspacePermission={grantWorkspacePermission}
         hasStructuredQuestions={hasStructuredQuestions}
         isClarifying={isClarifying}
+        onOpenInternalBrowser={openInternalBrowser}
         pendingPermission={pendingPermission}
         processingApprovalIds={processingApprovalIds}
         rightRailChangeGroups={rightRailChangeGroups}
@@ -163,8 +248,10 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         transcriptEndRef={transcriptEndRef}
       />
 
+      {!browserOpen ? (
       <ThreadComposer
         availableModels={availableModels}
+        browserUseContext={{ threadId: selectedThreadId, url: browserState?.url ?? null, title: browserState?.title ?? null }}
         effectiveThreadBusy={effectiveThreadBusy}
         extensionOverview={extensionOverview}
         handleModelSelection={handleModelSelection}
@@ -190,11 +277,14 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         handleServiceTierSelection={handleServiceTierSelection}
         attachedFiles={attachedFiles}
       />
+      ) : null}
       </div>
 
       {browserOpen ? (
         <ThreadBrowserPane
           onClose={() => setBrowserOpen(false)}
+          onStateChange={setBrowserState}
+          requestedUrl={browserRequestedUrl}
           submitSelectedThreadPrompt={submitSelectedThreadPrompt}
           threadId={selectedThreadId}
         />

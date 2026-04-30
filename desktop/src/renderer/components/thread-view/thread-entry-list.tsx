@@ -29,6 +29,7 @@ type ThreadEntryListProps = {
   suppressFileChanges?: boolean;
   threadId: string;
   threadBusy?: boolean;
+  onOpenInternalBrowser?: (url: string) => void;
   workspaceRoot: string | null;
 };
 
@@ -153,6 +154,7 @@ function ActivityGroupCard({
   extensionOverview,
   forceOpen = false,
   group,
+  onOpenInternalBrowser,
   suppressFileChanges = false,
   threadId,
   workspaceRoot,
@@ -160,6 +162,7 @@ function ActivityGroupCard({
   extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
   forceOpen?: boolean;
   group: Extract<ThreadGroupedEntry, { kind: "activity-group" }>;
+  onOpenInternalBrowser?: (url: string) => void;
   suppressFileChanges?: boolean;
   threadId: string;
   workspaceRoot: string | null;
@@ -211,6 +214,7 @@ function ActivityGroupCard({
               entry={entry}
               extensionOverview={extensionOverview}
               key={entry.id}
+              onOpenInternalBrowser={onOpenInternalBrowser}
               threadId={threadId}
               workspaceRoot={workspaceRoot}
             />
@@ -223,10 +227,12 @@ function ActivityGroupCard({
 
 function WorkLogCommentaryEntry({
   entry,
+  onOpenInternalBrowser,
   threadId,
   workspaceRoot,
 }: {
   entry: DesktopThreadEntry & { kind: "assistant"; body: string; phase?: string; status?: string };
+  onOpenInternalBrowser?: (url: string) => void;
   threadId: string;
   workspaceRoot: string | null;
 }) {
@@ -241,7 +247,7 @@ function WorkLogCommentaryEntry({
 
   return (
     <article className="px-4 py-1.5 text-sm leading-[1.65] text-ink">
-      <ThreadMarkdown workspaceRoot={workspaceRoot}>{body}</ThreadMarkdown>
+      <ThreadMarkdown onOpenInternalBrowser={onOpenInternalBrowser} workspaceRoot={workspaceRoot}>{body}</ThreadMarkdown>
     </article>
   );
 }
@@ -252,7 +258,7 @@ function isCommentaryAssistantEntry(
   return entry.kind === "assistant" && "phase" in entry && entry.phase === "commentary";
 }
 
-function renderWorkLogEntryDetails(entry: DesktopThreadEntry, workspaceRoot: string | null) {
+function renderWorkLogEntryDetails(entry: DesktopThreadEntry, workspaceRoot: string | null, onOpenInternalBrowser?: (url: string) => void) {
   const body = "body" in entry ? coerceDisplayText(entry.body).trim() : "";
 
   if (entry.kind === "command") {
@@ -271,7 +277,7 @@ function renderWorkLogEntryDetails(entry: DesktopThreadEntry, workspaceRoot: str
       return null;
     }
     return (
-      <ThreadMarkdown className="text-xs text-ink-soft" workspaceRoot={workspaceRoot}>
+      <ThreadMarkdown className="text-xs text-ink-soft" onOpenInternalBrowser={onOpenInternalBrowser} workspaceRoot={workspaceRoot}>
         {body}
       </ThreadMarkdown>
     );
@@ -297,7 +303,7 @@ function renderWorkLogEntryDetails(entry: DesktopThreadEntry, workspaceRoot: str
   }
 
   return (
-    <ThreadMarkdown className="text-xs text-ink-soft" workspaceRoot={workspaceRoot}>
+    <ThreadMarkdown className="text-xs text-ink-soft" onOpenInternalBrowser={onOpenInternalBrowser} workspaceRoot={workspaceRoot}>
       {body}
     </ThreadMarkdown>
   );
@@ -305,20 +311,22 @@ function renderWorkLogEntryDetails(entry: DesktopThreadEntry, workspaceRoot: str
 
 function WorkLogEntryCard({
   entry,
+  onOpenInternalBrowser,
   threadId,
   workspaceRoot,
 }: {
   entry: DesktopThreadEntry;
   extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
+  onOpenInternalBrowser?: (url: string) => void;
   threadId: string;
   workspaceRoot: string | null;
 }) {
   if (isCommentaryAssistantEntry(entry)) {
-    return <WorkLogCommentaryEntry entry={entry} threadId={threadId} workspaceRoot={workspaceRoot} />;
+    return <WorkLogCommentaryEntry entry={entry} onOpenInternalBrowser={onOpenInternalBrowser} threadId={threadId} workspaceRoot={workspaceRoot} />;
   }
 
   const isRunning = isThreadEntryRunning(entry);
-  const detail = renderWorkLogEntryDetails(entry, workspaceRoot);
+  const detail = renderWorkLogEntryDetails(entry, workspaceRoot, onOpenInternalBrowser);
 
   if (!detail) {
     return (
@@ -353,12 +361,14 @@ function areThreadEntryCardPropsEqual(
   previousProps: {
     entry: DesktopThreadEntry;
     extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
+    onOpenInternalBrowser?: (url: string) => void;
     threadId: string;
     workspaceRoot: string | null;
   },
   nextProps: {
     entry: DesktopThreadEntry;
     extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
+    onOpenInternalBrowser?: (url: string) => void;
     threadId: string;
     workspaceRoot: string | null;
   },
@@ -366,6 +376,7 @@ function areThreadEntryCardPropsEqual(
   return previousProps.entry === nextProps.entry
     && previousProps.threadId === nextProps.threadId
     && previousProps.workspaceRoot === nextProps.workspaceRoot
+    && previousProps.onOpenInternalBrowser === nextProps.onOpenInternalBrowser
     && (
       previousProps.entry.kind !== "user"
       || previousProps.extensionOverview === nextProps.extensionOverview
@@ -375,11 +386,13 @@ function areThreadEntryCardPropsEqual(
 const ThreadEntryCard = memo(function ThreadEntryCard({
   entry,
   extensionOverview,
+  onOpenInternalBrowser,
   threadId,
   workspaceRoot,
 }: {
   entry: DesktopThreadEntry;
   extensionOverview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills"> | null;
+  onOpenInternalBrowser?: (url: string) => void;
   threadId: string;
   workspaceRoot: string | null;
 }) {
@@ -404,7 +417,7 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
         {"attachments" in entry && Array.isArray(entry.attachments) && entry.attachments.length > 0 ? (
           <ThreadEntryAttachmentPills attachments={entry.attachments} workspaceRoot={workspaceRoot} />
         ) : null}
-        <ThreadMarkdown className="thread-markdown-user" workspaceRoot={workspaceRoot}>
+        <ThreadMarkdown className="thread-markdown-user" onOpenInternalBrowser={onOpenInternalBrowser} workspaceRoot={workspaceRoot}>
           {visibleUserBody}
         </ThreadMarkdown>
       </article>
@@ -432,7 +445,7 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
             </div>
           </>
         ) : (
-          <ThreadMarkdown workspaceRoot={workspaceRoot}>{entryBody}</ThreadMarkdown>
+          <ThreadMarkdown onOpenInternalBrowser={onOpenInternalBrowser} workspaceRoot={workspaceRoot}>{entryBody}</ThreadMarkdown>
         )}
         {!isStreamingAssistant && entryBody.trim() ? (
           <div className="mt-1 flex items-center justify-start">
@@ -488,7 +501,7 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
               <ChevronRight className="size-3.5 text-muted transition-transform group-open:rotate-90" />
             </div>
           </summary>
-          <ThreadMarkdown className="mt-2 pl-6 text-ink-soft" workspaceRoot={workspaceRoot}>
+          <ThreadMarkdown className="mt-2 pl-6 text-ink-soft" onOpenInternalBrowser={onOpenInternalBrowser} workspaceRoot={workspaceRoot}>
             {entryBody}
           </ThreadMarkdown>
         </details>
@@ -553,7 +566,7 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
     return (
       <article className="px-4 py-2 text-sm">
         <p className="text-xs uppercase tracking-[0.11em] text-muted">{entry.title}</p>
-        <ThreadMarkdown className="mt-2" workspaceRoot={workspaceRoot}>
+        <ThreadMarkdown className="mt-2" onOpenInternalBrowser={onOpenInternalBrowser} workspaceRoot={workspaceRoot}>
           {entryBody}
         </ThreadMarkdown>
         {entry.steps.length > 0 ? (
@@ -578,7 +591,7 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
             <span className="text-xs uppercase tracking-[0.11em] text-ink-faint">{entry.title}</span>
             <span className="ml-auto text-xs text-ink-faint">{coerceDisplayText(entry.summary, "Reasoning updated")}</span>
           </summary>
-          <ThreadMarkdown className="mt-2 text-sm text-ink-faint" workspaceRoot={workspaceRoot}>
+          <ThreadMarkdown className="mt-2 text-sm text-ink-faint" onOpenInternalBrowser={onOpenInternalBrowser} workspaceRoot={workspaceRoot}>
             {entryBody}
           </ThreadMarkdown>
         </details>
@@ -592,7 +605,7 @@ const ThreadEntryCard = memo(function ThreadEntryCard({
         <p className="text-xs uppercase tracking-[0.11em] text-muted">{entry.title}</p>
         {"status" in entry && entry.status ? <span className="text-xs text-muted">{coerceDisplayText(entry.status)}</span> : null}
       </div>
-      <ThreadMarkdown className="mt-2" workspaceRoot={workspaceRoot}>
+      <ThreadMarkdown className="mt-2" onOpenInternalBrowser={onOpenInternalBrowser} workspaceRoot={workspaceRoot}>
         {entryBody}
       </ThreadMarkdown>
     </article>
@@ -605,6 +618,7 @@ function ThreadEntryListInner({
   suppressFileChanges = false,
   threadId,
   threadBusy = false,
+  onOpenInternalBrowser,
   workspaceRoot,
 }: ThreadEntryListProps) {
   const previousEntriesRef = useRef<DesktopThreadEntry[] | null>(null);
@@ -632,13 +646,14 @@ function ThreadEntryListInner({
         grouped.kind === "passthrough" ? (
           grouped.entry.kind === "fileChange" && suppressFileChanges
             ? null
-            : <ThreadEntryCard entry={grouped.entry} extensionOverview={extensionOverview} key={grouped.entry.id} threadId={threadId} workspaceRoot={workspaceRoot} />
+            : <ThreadEntryCard entry={grouped.entry} extensionOverview={extensionOverview} key={grouped.entry.id} onOpenInternalBrowser={onOpenInternalBrowser} threadId={threadId} workspaceRoot={workspaceRoot} />
         ) : (
           <ActivityGroupCard
             extensionOverview={extensionOverview}
             forceOpen={threadBusy && index === lastActivityGroupIndex}
             group={grouped}
             key={grouped.id}
+            onOpenInternalBrowser={onOpenInternalBrowser}
             suppressFileChanges={suppressFileChanges}
             threadId={threadId}
             workspaceRoot={workspaceRoot}

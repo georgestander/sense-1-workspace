@@ -14,6 +14,8 @@ import {
 import { useComposerDictation } from "../../features/session/use-composer-dictation.js";
 import { type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopExtensionOverviewResult, type DesktopModelEntry } from "../../../main/contracts";
 import { replaceActivePromptShortcut, resolvePromptShortcutSuggestions } from "../../../shared/prompt-shortcuts.ts";
+import { buildBrowserUsePrompt, hasBrowserUseMention, type BrowserUseContext } from "../../../shared/browser-use-invocation.ts";
+import browserUseIconUrl from "../../assets/browser-use.png";
 
 type ThreadComposerProps = {
   tenant: DesktopBootstrapTenant | null;
@@ -40,6 +42,8 @@ type ThreadComposerProps = {
   effectiveThreadBusy: boolean;
   interruptTurn: () => Promise<void>;
   submitSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
+  browserUseContext?: BrowserUseContext | null;
+  variant?: "floating" | "rail";
   onReportBug: () => void;
 };
 
@@ -68,6 +72,8 @@ function ThreadComposerInner({
   effectiveThreadBusy,
   interruptTurn,
   submitSelectedThreadPrompt,
+  browserUseContext = null,
+  variant = "floating",
   onReportBug,
 }: ThreadComposerProps) {
   const teamIdentity = buildThreadComposerIdentity(tenant, teamSetup);
@@ -208,7 +214,10 @@ function ThreadComposerInner({
     if (!submittedPrompt) {
       return;
     }
-    const didSubmit = await submitSelectedThreadPrompt(submittedPrompt);
+    const resolvedPrompt = hasBrowserUseMention(submittedPrompt)
+      ? buildBrowserUsePrompt(submittedPrompt, browserUseContext ?? { threadId: selectedThreadId, url: null, title: null })
+      : submittedPrompt;
+    const didSubmit = await submitSelectedThreadPrompt(resolvedPrompt);
     if (!didSubmit) {
       return;
     }
@@ -222,7 +231,10 @@ function ThreadComposerInner({
     if (!queuedPrompt) {
       return;
     }
-    const didQueue = await queueSelectedThreadPrompt(queuedPrompt);
+    const resolvedPrompt = hasBrowserUseMention(queuedPrompt)
+      ? buildBrowserUsePrompt(queuedPrompt, browserUseContext ?? { threadId: selectedThreadId, url: null, title: null })
+      : queuedPrompt;
+    const didQueue = await queueSelectedThreadPrompt(resolvedPrompt);
     if (!didQueue) {
       return;
     }
@@ -232,8 +244,13 @@ function ThreadComposerInner({
   }
 
   return (
-    <div className="shrink-0" style={{ height: spacerHeight + 24 }}>
-      <div ref={floatingRef} className="fixed bottom-3 left-1/2 z-50 flex w-full max-w-3xl -translate-x-1/2 flex-col gap-3 rounded-[1.7rem] border border-line bg-surface-high p-3 shadow-[var(--shadow-composer)]">
+    <div className={variant === "rail" ? "h-full min-h-0 shrink-0" : "shrink-0"} style={variant === "rail" ? undefined : { height: spacerHeight + 24 }}>
+      <div
+        ref={floatingRef}
+        className={variant === "rail"
+          ? "flex h-full min-h-0 flex-col gap-3 overflow-y-auto border-r border-line bg-surface-high p-3"
+          : "fixed bottom-3 left-1/2 z-50 flex w-full max-w-3xl -translate-x-1/2 flex-col gap-3 rounded-[1.7rem] border border-line bg-surface-high p-3 shadow-[var(--shadow-composer)]"}
+      >
         {taskError ? (
           <p className="rounded-xl bg-surface-soft px-3 py-2 text-sm text-ink-soft" role="alert">
             {taskError}
@@ -271,6 +288,12 @@ function ThreadComposerInner({
           />
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
+          {hasBrowserUseMention(deferredThreadPrompt) ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0F766E] px-3 py-1 text-xs font-semibold text-white shadow-[var(--shadow-raised)]">
+              <img alt="" className="size-3.5 rounded-sm" src={browserUseIconUrl} />
+              <span className="font-bold">Browser Use</span>
+            </span>
+          ) : null}
           <ShortcutPillRow overview={extensionOverview} prompt={deferredThreadPrompt} />
         </div>
         <textarea
@@ -368,6 +391,19 @@ function ThreadComposerInner({
               <Zap className="size-3" />
               Fast
             </button>
+            <Button
+              aria-label="Use Browser Use"
+              disabled={composerDisabled}
+              onClick={() => {
+                setThreadPrompt((current) => hasBrowserUseMention(current) ? current : `${current.trimEnd()}${current.trim() ? " " : ""}@ browser use `);
+                requestAnimationFrame(() => composerRef.current?.focus());
+              }}
+              size="icon"
+              type="button"
+              variant="secondary"
+            >
+              <img alt="" className="size-4 rounded-sm" src={browserUseIconUrl} />
+            </Button>
             <Button
               aria-label="Report a bug"
               className="ml-1"

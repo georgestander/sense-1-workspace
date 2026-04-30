@@ -33,6 +33,7 @@ type ThreadTranscriptProps = {
   transcriptEndRef: RefObject<HTMLDivElement | null>;
   configNotices: Array<{ id: number; text: string }>;
   footerStatusText: string;
+  onOpenInternalBrowser?: (url: string) => void;
   effectiveThreadBusy: boolean;
   pendingPermission: {
     rootPath: string;
@@ -199,6 +200,7 @@ function ThreadTranscriptInner({
   transcriptEndRef,
   configNotices,
   footerStatusText,
+  onOpenInternalBrowser,
   effectiveThreadBusy,
   pendingPermission,
   grantWorkspacePermission,
@@ -242,6 +244,7 @@ function ThreadTranscriptInner({
               suppressFileChanges={hasReviewArtifacts}
               threadId={selectedThread.id}
               threadBusy={effectiveThreadBusy}
+              onOpenInternalBrowser={onOpenInternalBrowser}
               workspaceRoot={threadFolderRoot}
             />
           ) : (
@@ -359,6 +362,7 @@ function areThreadTranscriptPropsEqual(
     && previousProps.transcriptEndRef === nextProps.transcriptEndRef
     && areConfigNoticesEqual(previousProps.configNotices, nextProps.configNotices)
     && previousProps.footerStatusText === nextProps.footerStatusText
+    && previousProps.onOpenInternalBrowser === nextProps.onOpenInternalBrowser
     && previousProps.effectiveThreadBusy === nextProps.effectiveThreadBusy
     && previousProps.pendingPermission === nextProps.pendingPermission
     && previousProps.grantWorkspacePermission === nextProps.grantWorkspacePermission
