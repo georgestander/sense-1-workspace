@@ -1,10 +1,8 @@
 import { memo, useCallback, useEffect, useState, type Dispatch, type PointerEvent, type RefObject, type SetStateAction } from "react";
-import { Globe2 } from "lucide-react";
 import { type DesktopApprovalDecision, type DesktopApprovalEvent, type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopBrowserState, type DesktopExtensionOverviewResult, type DesktopInputQuestion, type DesktopInputRequestState, type DesktopModelEntry, type DesktopThreadChangeGroup, type DesktopThreadSnapshot } from "../../main/contracts";
 import { ThreadBrowserPane } from "./browser/ThreadBrowserPane.js";
 import { ThreadComposer } from "./thread-view/thread-composer.js";
 import { ThreadTranscript } from "./thread-view/thread-transcript.js";
-import { Button } from "./ui/button.js";
 
 const BROWSER_COMPOSER_RAIL_WIDTH_KEY = "sense1.browser-composer-rail-width.v1";
 const BROWSER_COMPOSER_MIN_WIDTH = 320;
@@ -77,6 +75,8 @@ export interface ThreadViewProps {
   configNotices: Array<{ id: number; text: string }>;
   footerStatusText: string;
   onReportBug: () => void;
+  browserOpen: boolean;
+  setBrowserOpen: Dispatch<SetStateAction<boolean>>;
 }
 
 export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
@@ -130,8 +130,9 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     configNotices,
     footerStatusText,
     onReportBug,
+    browserOpen,
+    setBrowserOpen,
   } = props;
-  const [browserOpen, setBrowserOpen] = useState(false);
   const [browserRequestedUrl, setBrowserRequestedUrl] = useState<string | null>(null);
   const [browserState, setBrowserState] = useState<DesktopBrowserState | null>(null);
   const [composerRailWidth, setComposerRailWidth] = useState(readBrowserComposerRailWidth);
@@ -174,10 +175,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
       >
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-6 pb-2 pt-5">
           <h2 className="font-display min-w-0 truncate text-lg font-semibold tracking-tight">{selectedThread.title}</h2>
-          <Button className="h-8 shrink-0 px-3 text-xs" onClick={() => browserOpen ? setBrowserOpen(false) : openInternalBrowser()} type="button" variant={browserOpen ? "default" : "secondary"}>
-            <Globe2 className="size-3.5" />
-            Browser
-          </Button>
         </div>
 
         <ThreadTranscript

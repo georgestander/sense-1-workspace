@@ -46,10 +46,12 @@ export default function App() {
   const [folderMenuOpen, setFolderMenuOpen] = useState(false);
   const [workspaceFolder, setWorkspaceFolder] = useState<string | null>(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [browserOpen, setBrowserOpen] = useState(false);
   const openAutomations = useCallback(() => setActiveView("automations"), []);
   const openPlugins = useCallback(() => setActiveView("plugins"), []);
   const toggleLeftRail = useCallback(() => setLeftRailOpen((value) => !value), []);
   const toggleRightRail = useCallback(() => setRightRailOpen((value) => !value), []);
+  const toggleBrowser = useCallback(() => setBrowserOpen((value) => !value), []);
 
   const sessionState = useDesktopSessionState({ model, reasoningEffort: reasoning, serviceTier });
   const settingsController = useSettingsController({
@@ -213,7 +215,13 @@ export default function App() {
     }
 
     if (sessionState.selectedThread && threadViewProps) {
-      return <ThreadView {...threadViewProps} />;
+      return (
+        <ThreadView
+          {...threadViewProps}
+          browserOpen={browserOpen}
+          setBrowserOpen={setBrowserOpen}
+        />
+      );
     }
 
     return <StartSurface {...startSurfaceProps} />;
@@ -229,6 +237,7 @@ export default function App() {
     automations.selectedAutomation,
     automations.selectedAutomationId,
     automations.setSelectedAutomationId,
+    browserOpen,
     management.error,
     management.installPlugin,
     management.loadOverview,
@@ -303,6 +312,9 @@ export default function App() {
       showRightRail={showHomeRightRail}
       rightRailOpen={rightRailOpen}
       onToggleRightRail={toggleRightRail}
+      showBrowserToggle={activeView === "home" && Boolean(sessionState.selectedThread)}
+      browserOpen={browserOpen}
+      onToggleBrowser={toggleBrowser}
       runtimeStatus={sessionState.runtimeStatus}
       leftSidebarProps={leftSidebarProps}
       mainContent={mainContent}

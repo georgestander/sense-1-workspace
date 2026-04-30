@@ -1,5 +1,5 @@
 import { memo, type ComponentProps, type ReactNode } from "react";
-import { House, PanelLeft, PanelRight } from "lucide-react";
+import { Globe2, House, PanelLeft, PanelRight } from "lucide-react";
 
 import { Button } from "./ui/button";
 import { CrashRecoveryPrompt } from "./crash-recovery/CrashRecoveryPrompt";
@@ -20,6 +20,9 @@ export interface DesktopAuthenticatedShellProps {
   showRightRail: boolean;
   rightRailOpen: boolean;
   onToggleRightRail: () => void;
+  showBrowserToggle: boolean;
+  browserOpen: boolean;
+  onToggleBrowser: () => void;
   runtimeStatus: ComponentProps<typeof VersionBadgeLink>["runtimeStatus"];
   leftSidebarProps: LeftSidebarProps;
   mainContent: ReactNode;
@@ -37,6 +40,9 @@ export const DesktopAuthenticatedShell = memo(function DesktopAuthenticatedShell
   showRightRail,
   rightRailOpen,
   onToggleRightRail,
+  showBrowserToggle,
+  browserOpen,
+  onToggleBrowser,
   runtimeStatus,
   leftSidebarProps,
   mainContent,
@@ -84,6 +90,17 @@ export const DesktopAuthenticatedShell = memo(function DesktopAuthenticatedShell
           </button>
         </div>
         <div className="flex items-center gap-2">
+          {showBrowserToggle ? (
+            <Button
+              aria-label={browserOpen ? "Close browser" : "Open browser"}
+              onClick={onToggleBrowser}
+              size="icon-sm"
+              title={browserOpen ? "Close browser" : "Open browser"}
+              variant={browserOpen ? "default" : "ghost"}
+            >
+              <Globe2 />
+            </Button>
+          ) : null}
           {showRightRail ? (
             <Button
               aria-label={rightRailOpen ? "Collapse right sidebar" : "Expand right sidebar"}
