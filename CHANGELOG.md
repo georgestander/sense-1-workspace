@@ -4,6 +4,24 @@ All notable changes to Sense-1 Workspace are recorded here.
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-05-06
+
+### Added
+
+- First-class Browser Use workspaces now keep the in-app browser, thread transcript, and composer together so browser-driven work can happen inside the desktop shell.
+
+### Changed
+
+- Browser workspaces now open as the default target for browser links and expose the controls in shell chrome instead of hiding them inside the page surface.
+- Browser Use approvals are now session-scoped and handled from the composer, reducing repeated approval prompts during navigation.
+- Browser Use runtime handling is more reliable: redirects no longer fail navigation, Node REPL browser helpers can inspect pages through the in-app browser, and Browser Use turns no longer fall back to web lookup after an explicit invocation.
+- Browser rails, composer layout, and Browser Use shortcut pills were tightened for better readability in light and dark mode.
+
+### Fixed
+
+- Browser Use no longer publishes a predictable fixed local socket path; the in-app browser backend now uses a per-profile private socket path and passes it to the Node REPL runtime.
+- README screenshots now resolve on GitHub after the asset path move.
+
 ## [0.13.4] - 2026-04-23
 
 ### Added
