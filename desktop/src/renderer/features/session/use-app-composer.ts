@@ -85,7 +85,7 @@ export function useAppComposer({
     setThreadPromptInputItems([...inputItems]);
   }
 
-  async function submitSelectedThreadPrompt(threadPrompt: string) {
+  async function submitSelectedThreadPrompt(threadPrompt: string, inputItems: DesktopAppServerInputItem[] = []) {
     if (await handleFastModeCommand(threadPrompt)) {
       setThreadPromptOverride("");
       setThreadPromptInputItems([]);
@@ -94,9 +94,10 @@ export function useAppComposer({
       return true;
     }
 
+    const effectiveInputItems = [...threadPromptInputItems, ...inputItems];
     const request = buildSelectedThreadRunRequest({
       attachedFiles,
-      inputItems: threadPromptInputItems,
+      inputItems: effectiveInputItems,
       selectedThread,
       threadPrompt,
     });
@@ -107,11 +108,12 @@ export function useAppComposer({
       canSteerSelectedThread,
       effectiveThreadBusy,
     });
+    const hasShortcutInputItems = (request.inputItems?.length ?? 0) > 0;
     if (useBusyThreadActions && attachedFiles.length > 0) {
       setTaskError("Finish the current run before sending attachments.");
       return false;
     }
-    if (useBusyThreadActions && (request.inputItems?.length ?? 0) > 0) {
+    if (hasShortcutInputItems && effectiveThreadBusy) {
       setTaskError("Finish the current run before invoking a plugin, app, or skill shortcut.");
       return false;
     }
@@ -122,7 +124,7 @@ export function useAppComposer({
     requestAnimationFrame(() => {
       transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
     });
-    if (useBusyThreadActions) {
+    if (useBusyThreadActions && !hasShortcutInputItems) {
       await steerTurn(request.prompt);
       return true;
     }
@@ -130,7 +132,7 @@ export function useAppComposer({
     return true;
   }
 
-  async function queueSelectedThreadPrompt(threadPrompt: string) {
+  async function queueSelectedThreadPrompt(threadPrompt: string, inputItems: DesktopAppServerInputItem[] = []) {
     if (await handleFastModeCommand(threadPrompt)) {
       setThreadPromptOverride("");
       setThreadPromptInputItems([]);
@@ -139,9 +141,10 @@ export function useAppComposer({
       return true;
     }
 
+    const effectiveInputItems = [...threadPromptInputItems, ...inputItems];
     const request = buildSelectedThreadRunRequest({
       attachedFiles,
-      inputItems: threadPromptInputItems,
+      inputItems: effectiveInputItems,
       selectedThread,
       threadPrompt,
     });
@@ -152,11 +155,12 @@ export function useAppComposer({
       canSteerSelectedThread,
       effectiveThreadBusy,
     });
+    const hasShortcutInputItems = (request.inputItems?.length ?? 0) > 0;
     if (useBusyThreadActions && attachedFiles.length > 0) {
       setTaskError("Finish the current run before sending attachments.");
       return false;
     }
-    if (useBusyThreadActions && (request.inputItems?.length ?? 0) > 0) {
+    if (hasShortcutInputItems && effectiveThreadBusy) {
       setTaskError("Finish the current run before invoking a plugin, app, or skill shortcut.");
       return false;
     }
@@ -167,7 +171,7 @@ export function useAppComposer({
     requestAnimationFrame(() => {
       transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
     });
-    if (useBusyThreadActions) {
+    if (useBusyThreadActions && !hasShortcutInputItems) {
       await queueTurnInput(request.prompt);
       return true;
     }
@@ -175,8 +179,11 @@ export function useAppComposer({
     return true;
   }
 
-  async function submitDraftTask() {
-    if (await handleFastModeCommand(draftPrompt)) {
+  async function submitDraftTask(draftPromptOverride?: string, inputItems: DesktopAppServerInputItem[] = []) {
+    const prompt = draftPromptOverride ?? draftPrompt;
+    const mergedInputItems = [...draftPromptInputItems, ...inputItems];
+
+    if (await handleFastModeCommand(prompt)) {
       setDraftPrompt("");
       setDraftPromptInputItems([]);
       setAttachedFiles([]);
@@ -186,8 +193,8 @@ export function useAppComposer({
 
     const request = buildDraftRunRequest({
       attachedFiles,
-      draftPrompt,
-      inputItems: draftPromptInputItems,
+      draftPrompt: prompt,
+      inputItems: mergedInputItems,
       workInFolder,
       workspaceFolder,
     });

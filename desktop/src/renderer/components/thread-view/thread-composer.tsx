@@ -1,5 +1,5 @@
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from "react";
-import { BrainCircuit, Bug, Mic, Paperclip, Send, Square, Zap } from "lucide-react";
+import { BrainCircuit, Mic, Paperclip, Send, Square, Zap } from "lucide-react";
 
 import { Button } from "../ui/button";
 import { FastModeSuggestionMenu } from "../composer/fast-mode-suggestion-menu.js";
@@ -12,11 +12,12 @@ import {
   resolveFastModeSuggestions,
 } from "../../features/session/fast-mode-command.js";
 import { useComposerDictation } from "../../features/session/use-composer-dictation.js";
-import { type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopExtensionOverviewResult, type DesktopModelEntry } from "../../../main/contracts";
-import { replaceActivePromptShortcut, resolvePromptShortcutSuggestions } from "../../../shared/prompt-shortcuts.ts";
+import { type DesktopAppServerInputItem, type DesktopBootstrapTeamSetup, type DesktopBootstrapTenant, type DesktopExtensionOverviewResult, type DesktopModelEntry } from "../../../main/contracts";
+import { replaceActivePromptShortcut, resolvePromptShortcutInputItems, resolvePromptShortcutSuggestions } from "../../../shared/prompt-shortcuts.ts";
 import {
   buildBrowserUsePrompt,
   hasBrowserUseMention,
+  inferBrowserUseRequestedUrl,
   replaceActiveBrowserUseShortcut,
   resolveActiveBrowserUseShortcutSuggestion,
   type BrowserUseContext,
@@ -39,7 +40,7 @@ type ThreadComposerProps = {
   selectedServiceTier: "flex" | "fast";
   handleModelSelection: (nextModel: string) => void;
   handleServiceTierSelection: (nextServiceTier: "flex" | "fast") => void;
-  queueSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
+  queueSelectedThreadPrompt: (threadPrompt: string, inputItems?: DesktopAppServerInputItem[]) => Promise<boolean>;
   queuedMessageCount: number;
   reasoningOptions: string[];
   REASONING_LABELS: Record<string, string>;
@@ -47,10 +48,11 @@ type ThreadComposerProps = {
   setReasoning: Dispatch<SetStateAction<string>>;
   effectiveThreadBusy: boolean;
   interruptTurn: () => Promise<void>;
-  submitSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
+  submitSelectedThreadPrompt: (threadPrompt: string, inputItems?: DesktopAppServerInputItem[]) => Promise<boolean>;
   browserUseContext?: BrowserUseContext | null;
+  browserUseActive?: boolean;
+  onBrowserUsePrompt?: (url: string | null) => void;
   variant?: "floating" | "rail";
-  onReportBug: () => void;
 };
 
 function BrowserUseShortcutSuggestionButton({ onSelect }: { onSelect: () => void }) {
@@ -104,8 +106,9 @@ function ThreadComposerInner({
   interruptTurn,
   submitSelectedThreadPrompt,
   browserUseContext = null,
+  browserUseActive = false,
+  onBrowserUsePrompt,
   variant = "floating",
-  onReportBug,
 }: ThreadComposerProps) {
   const isRail = variant === "rail";
   const teamIdentity = buildThreadComposerIdentity(tenant, teamSetup);
@@ -212,6 +215,32 @@ function ThreadComposerInner({
     });
   }
 
+  function shouldUseBrowserUse(prompt: string): boolean {
+    return browserUseActive || hasBrowserUseMention(prompt);
+  }
+
+  function buildExecutablePrompt(prompt: string): { prompt: string; inputItems: DesktopAppServerInputItem[] } {
+    const usesBrowserUse = shouldUseBrowserUse(prompt);
+    const shortcutPrompt = usesBrowserUse && !hasBrowserUseMention(prompt)
+      ? `@browser-use ${prompt}`
+      : prompt;
+    const resolvedInputItems = extensionOverview
+      ? resolvePromptShortcutInputItems(shortcutPrompt, extensionOverview)
+      : [];
+
+    if (!usesBrowserUse) {
+      return {
+        prompt,
+        inputItems: resolvedInputItems,
+      };
+    }
+
+    return {
+      prompt: browserUseContext ? buildBrowserUsePrompt(shortcutPrompt, browserUseContext) : shortcutPrompt,
+      inputItems: resolvedInputItems,
+    };
+  }
+
   function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (fastModeSuggestions.length > 0) {
       if (event.key === "ArrowDown") {
@@ -280,10 +309,11 @@ function ThreadComposerInner({
     if (!submittedPrompt) {
       return;
     }
-    const resolvedPrompt = hasBrowserUseMention(submittedPrompt)
-      ? buildBrowserUsePrompt(submittedPrompt, browserUseContext ?? { threadId: selectedThreadId, url: null, title: null })
-      : submittedPrompt;
-    const didSubmit = await submitSelectedThreadPrompt(resolvedPrompt);
+    const executablePrompt = buildExecutablePrompt(submittedPrompt);
+    if (shouldUseBrowserUse(submittedPrompt)) {
+      onBrowserUsePrompt?.(inferBrowserUseRequestedUrl(submittedPrompt));
+    }
+    const didSubmit = await submitSelectedThreadPrompt(executablePrompt.prompt, executablePrompt.inputItems);
     if (!didSubmit) {
       return;
     }
@@ -297,10 +327,11 @@ function ThreadComposerInner({
     if (!queuedPrompt) {
       return;
     }
-    const resolvedPrompt = hasBrowserUseMention(queuedPrompt)
-      ? buildBrowserUsePrompt(queuedPrompt, browserUseContext ?? { threadId: selectedThreadId, url: null, title: null })
-      : queuedPrompt;
-    const didQueue = await queueSelectedThreadPrompt(resolvedPrompt);
+    const executablePrompt = buildExecutablePrompt(queuedPrompt);
+    if (shouldUseBrowserUse(queuedPrompt)) {
+      onBrowserUsePrompt?.(inferBrowserUseRequestedUrl(queuedPrompt));
+    }
+    const didQueue = await queueSelectedThreadPrompt(executablePrompt.prompt, executablePrompt.inputItems);
     if (!didQueue) {
       return;
     }
@@ -359,13 +390,17 @@ function ThreadComposerInner({
           />
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
-          {hasBrowserUseMention(deferredThreadPrompt) ? (
+          {browserUseActive || hasBrowserUseMention(deferredThreadPrompt) ? (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0F766E] px-3 py-1 text-xs font-semibold text-white shadow-[var(--shadow-raised)]">
               <img alt="" className="size-3.5 rounded-sm" src={browserUseIconUrl} />
               <span className="font-bold">Browser Use</span>
             </span>
           ) : null}
-          <ShortcutPillRow overview={extensionOverview} prompt={deferredThreadPrompt} />
+          <ShortcutPillRow
+            hiddenTokens={browserUseActive || hasBrowserUseMention(deferredThreadPrompt) ? ["browser-use"] : []}
+            overview={extensionOverview}
+            prompt={deferredThreadPrompt}
+          />
         </div>
         <textarea
           className={`${isRail ? "min-h-[4.25rem] rounded-lg px-2.5 py-2 text-[0.8125rem]" : "min-h-[5.5rem] rounded-xl px-3 py-2 text-sm"} resize-none border border-line bg-canvas outline-none transition-all placeholder:text-muted focus-visible:ring-[3px] focus-visible:ring-accent/30 disabled:cursor-not-allowed disabled:opacity-70`}
@@ -400,10 +435,11 @@ function ThreadComposerInner({
             ))}
           </div>
         ) : null}
-        <div className={isRail ? "flex flex-wrap items-center justify-between gap-1.5" : "flex items-center justify-between gap-1.5"}>
-          <div className={isRail ? "flex min-w-0 flex-1 flex-wrap items-center gap-1" : "flex items-center gap-1.5"}>
+        <div className={isRail ? "flex min-w-0 items-center gap-0.5 overflow-hidden" : "flex items-center justify-between gap-1.5"}>
+          <div className={isRail ? "flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden" : "flex items-center gap-1.5"}>
             <Button
               aria-label="Add local files"
+              className={isRail ? "size-6 shrink-0 rounded-md [&_svg]:size-3.5" : undefined}
               disabled={composerDisabled || effectiveThreadBusy}
               onClick={async () => {
                 const paths = await pickFiles();
@@ -416,7 +452,7 @@ function ThreadComposerInner({
             >
               <Paperclip />
             </Button>
-            <label className={isRail ? "inline-flex min-w-0 max-w-[7.25rem] items-center rounded-lg border border-line px-2 py-1 text-[0.6875rem] text-muted" : "inline-flex items-center gap-2 rounded-xl border border-line px-2 py-1 text-xs text-muted"}>
+            <label className={isRail ? "inline-flex h-6 w-[4.1rem] shrink-0 items-center rounded-md border border-line px-1 text-[0.625rem] text-muted" : "inline-flex items-center gap-2 rounded-xl border border-line px-2 py-1 text-xs text-muted"}>
               <select
                 className="min-w-0 max-w-full bg-transparent text-ink outline-none"
                 disabled={composerDisabled || modelOptions.length === 0}
@@ -434,8 +470,8 @@ function ThreadComposerInner({
                 )}
               </select>
             </label>
-            <label className={isRail ? "inline-flex min-w-0 max-w-[6.5rem] items-center gap-1 rounded-lg border border-line px-2 py-1 text-[0.6875rem] text-muted" : "inline-flex items-center gap-2 rounded-xl border border-line px-2 py-1 text-xs text-muted"}>
-              <BrainCircuit className={isRail ? "size-3 shrink-0" : "size-3.5"} />
+            <label className={isRail ? "inline-flex h-6 w-[4.25rem] shrink-0 items-center gap-0.5 rounded-md border border-line px-1 text-[0.625rem] text-muted" : "inline-flex items-center gap-2 rounded-xl border border-line px-2 py-1 text-xs text-muted"}>
+              <BrainCircuit className={isRail ? "size-2.5 shrink-0" : "size-3.5"} />
               <select
                 className="min-w-0 max-w-full bg-transparent text-ink outline-none"
                 disabled={composerDisabled || reasoningOptions.length === 0}
@@ -454,7 +490,7 @@ function ThreadComposerInner({
               </select>
             </label>
             <button
-              className={`inline-flex shrink-0 items-center gap-1 rounded-lg border px-2 py-1 ${isRail ? "text-[0.6875rem]" : "text-xs"} ${selectedServiceTier === "fast" ? "border-warning bg-warning-faint text-ink" : "border-line text-muted"}`}
+              className={`inline-flex shrink-0 items-center gap-0.5 rounded-md border ${isRail ? "h-6 px-1 text-[0.625rem]" : "px-2 py-1 text-xs"} ${selectedServiceTier === "fast" ? "border-warning bg-warning-faint text-ink" : "border-line text-muted"}`}
               disabled={composerDisabled}
               onClick={() => handleServiceTierSelection(selectedServiceTier === "fast" ? "flex" : "fast")}
               type="button"
@@ -464,6 +500,7 @@ function ThreadComposerInner({
             </button>
             <Button
               aria-label="Use Browser Use"
+              className={isRail ? "size-6 shrink-0 rounded-md" : undefined}
               disabled={composerDisabled}
               onClick={() => {
                 setThreadPrompt((current) => hasBrowserUseMention(current) ? current : `${current.trimEnd()}${current.trim() ? " " : ""}@browser-use `);
@@ -473,20 +510,10 @@ function ThreadComposerInner({
               type="button"
               variant="secondary"
             >
-              <img alt="" className={isRail ? "size-3.5 rounded-sm" : "size-4 rounded-sm"} src={browserUseIconUrl} />
-            </Button>
-            <Button
-              aria-label="Report a bug"
-              className={isRail ? "" : "ml-1"}
-              onClick={onReportBug}
-              size="icon-sm"
-              type="button"
-              variant="ghost"
-            >
-              <Bug />
+              <img alt="" className={isRail ? "size-3 rounded-sm" : "size-4 rounded-sm"} src={browserUseIconUrl} />
             </Button>
           </div>
-          <div className={isRail ? "ml-auto flex shrink-0 items-center gap-1" : "flex items-center gap-2"}>
+          <div className={isRail ? "ml-auto flex shrink-0 items-center gap-0.5" : "flex items-center gap-2"}>
             {dictation.recordingIndicator ? (
               <VoiceRecordingPill
                 elapsedLabel={dictation.recordingIndicator.elapsedLabel}
@@ -496,6 +523,7 @@ function ThreadComposerInner({
             ) : !effectiveThreadBusy && dictation.supported ? (
               <Button
                 aria-label="Start voice input"
+                className={isRail ? "size-6 rounded-md [&_svg]:size-3.5" : undefined}
                 disabled={composerDisabled}
                 onClick={() => dictation.toggle()}
                 size={isRail ? "icon-sm" : "icon"}
@@ -521,7 +549,7 @@ function ThreadComposerInner({
                 </Button>
               </>
             ) : (
-              <Button aria-label="Send message" disabled={sendDisabled} onClick={() => void handleSubmit()} size={isRail ? "icon-sm" : "icon"} variant="default">
+              <Button aria-label="Send message" className={isRail ? "size-6 rounded-md [&_svg]:size-3.5" : undefined} disabled={sendDisabled} onClick={() => void handleSubmit()} size={isRail ? "icon-sm" : "icon"} variant="default">
                 <Send />
               </Button>
             )}

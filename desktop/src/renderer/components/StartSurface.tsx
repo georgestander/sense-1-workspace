@@ -1,5 +1,5 @@
 import { memo, type Dispatch, type SetStateAction } from "react";
-import type { DesktopBootstrapTeamSetup, DesktopBootstrapTenant, DesktopExtensionOverviewResult, DesktopModelEntry, DesktopThreadSnapshot, ProjectedSessionRecord, ProjectedWorkspaceRecord, SubstrateSessionRecord, SubstrateWorkspaceRecord } from "../../main/contracts";
+import type { DesktopAppServerInputItem, DesktopBootstrapTeamSetup, DesktopBootstrapTenant, DesktopExtensionOverviewResult, DesktopModelEntry, DesktopThreadSnapshot, ProjectedSessionRecord, ProjectedWorkspaceRecord, SubstrateSessionRecord, SubstrateWorkspaceRecord } from "../../main/contracts";
 import type { ThreadRenameTarget } from "../features/threads/use-thread-shell.js";
 import { type FolderOption } from "../state/session/session-types.js";
 import { type WorkspaceSidebarGroup, type WorkspaceSidebarThreadSummary } from "../features/workspace/workspace-sidebar.js";
@@ -27,7 +27,8 @@ export type StartSurfaceProps = {
   handleServiceTierSelection: (nextServiceTier: "flex" | "fast") => void;
   modelOptions: string[];
   availableModels: DesktopModelEntry[];
-  submitDraftTask: () => void;
+  submitDraftTask: (draftPrompt?: string, inputItems?: DesktopAppServerInputItem[]) => void;
+  onBrowserUsePrompt?: (url: string | null) => void;
   activeWorkspaceProjection: ProjectedWorkspaceRecord | null;
   workspaceSessions: ProjectedSessionRecord[];
   workspaceSessionsLoading: boolean;
@@ -105,6 +106,7 @@ export const StartSurface = memo(function StartSurface(props: StartSurfaceProps)
     modelOptions,
     availableModels,
     submitDraftTask,
+    onBrowserUsePrompt = () => {},
     activeWorkspaceProjection,
     workspaceSessions,
     workspaceSessionsLoading,
@@ -164,6 +166,7 @@ export const StartSurface = memo(function StartSurface(props: StartSurfaceProps)
         grantWorkspacePermission={grantWorkspacePermission}
         handleModelSelection={handleModelSelection}
         modelOptions={modelOptions}
+        onBrowserUsePrompt={onBrowserUsePrompt}
         pendingPermission={pendingPermission}
         pickFiles={pickFiles}
         pickRecentFolder={pickRecentFolder}

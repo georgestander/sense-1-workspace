@@ -4,17 +4,19 @@ import { perfMeasure } from "../../lib/perf-debug.ts";
 import { folderDisplayName } from "../session/session-selectors.js";
 import { type FolderOption, type ThreadRecord } from "../session/session-types.js";
 
+function compareThreadsByRecency(left: ThreadRecord, right: ThreadRecord): number {
+  const updatedDelta = Date.parse(right.updatedAt) - Date.parse(left.updatedAt);
+  if (!Number.isNaN(updatedDelta) && updatedDelta !== 0) {
+    return updatedDelta;
+  }
+
+  return left.title.localeCompare(right.title);
+}
+
 function sortThreads(threads: ThreadRecord[]): ThreadRecord[] {
   return perfMeasure(
     "thread-summary.sort",
-    () => [...threads].sort((left, right) => {
-      const updatedDelta = Date.parse(right.updatedAt) - Date.parse(left.updatedAt);
-      if (!Number.isNaN(updatedDelta) && updatedDelta !== 0) {
-        return updatedDelta;
-      }
-
-      return left.title.localeCompare(right.title);
-    }),
+    () => [...threads].sort(compareThreadsByRecency),
     {
       logThresholdMs: 12,
       details: () => ({
@@ -106,7 +108,19 @@ export function mergeThreadDetails(existing: ThreadRecord | undefined, incoming:
 function upsertThread(current: ThreadRecord[], nextThread: ThreadRecord): ThreadRecord[] {
   return perfMeasure(
     "thread-summary.upsert",
-    () => sortThreads([nextThread, ...current.filter((thread) => thread.id !== nextThread.id)]),
+    () => {
+      const withoutThread = current.filter((thread) => thread.id !== nextThread.id);
+      const insertIndex = withoutThread.findIndex((thread) => compareThreadsByRecency(nextThread, thread) < 0);
+      if (insertIndex === -1) {
+        return [...withoutThread, nextThread];
+      }
+
+      return [
+        ...withoutThread.slice(0, insertIndex),
+        nextThread,
+        ...withoutThread.slice(insertIndex),
+      ];
+    },
     {
       logThresholdMs: 20,
       details: () => ({

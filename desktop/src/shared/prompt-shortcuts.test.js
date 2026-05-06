@@ -1,7 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { resolvePromptShortcutSuggestions, stripResolvedPromptShortcutText } from "./prompt-shortcuts.ts";
+import {
+  extractPromptShortcutTokens,
+  replaceActivePromptShortcut,
+  resolvePromptShortcutInputItems,
+  resolvePromptShortcutSuggestions,
+  stripResolvedPromptShortcutText,
+} from "./prompt-shortcuts.ts";
 
 function createOverview() {
   return {
@@ -30,6 +36,42 @@ function createOverview() {
   };
 }
 
+function createBrowserUseOverview() {
+  return {
+    apps: [],
+    plugins: [
+      {
+        id: "browser-use@openai-bundled",
+        name: "browser-use",
+        displayName: "Browser Use",
+        description: "Control the in-app browser with Codex",
+        appIds: [],
+        marketplaceName: "openai-bundled",
+        marketplacePath: "/tmp/openai-bundled/.agents/plugins/marketplace.json",
+        installed: true,
+        enabled: true,
+        installPolicy: "AVAILABLE",
+        authPolicy: "ON_INSTALL",
+        category: "Engineering",
+        capabilities: ["Interactive"],
+        sourcePath: "/tmp/openai-bundled/plugins/browser-use",
+        websiteUrl: null,
+        iconPath: "/tmp/openai-bundled/plugins/browser-use/assets/browser.png",
+      },
+    ],
+    skills: [
+      {
+        name: "browser-use:browser",
+        description: "Use the in-app browser",
+        path: "/tmp/openai-bundled/plugins/browser-use/skills/browser/SKILL.md",
+        scope: "plugin",
+        enabled: true,
+        cwd: null,
+      },
+    ],
+  };
+}
+
 test("stripResolvedPromptShortcutText removes resolved namespaced skill tokens from display copy", () => {
   assert.equal(
     stripResolvedPromptShortcutText("any important emails in $gmail:gmail ?", createOverview()),
@@ -48,6 +90,38 @@ test("stripResolvedPromptShortcutText removes resolved tokens case-insensitively
   assert.equal(
     stripResolvedPromptShortcutText("Any important emails in $GMAIL:GMAIL ?", createOverview()),
     "Any important emails?",
+  );
+});
+
+test("at-prefixed Browser Use shortcut resolves to a structured plugin skill mention", () => {
+  const overview = createBrowserUseOverview();
+  assert.deepEqual(extractPromptShortcutTokens("use @browser-use to open localhost"), ["browser-use"]);
+  assert.deepEqual(resolvePromptShortcutInputItems("use @browser-use to open localhost", overview), [
+    {
+      type: "mention",
+      name: "browser-use:browser",
+      path: "/tmp/openai-bundled/plugins/browser-use/skills/browser/SKILL.md",
+      token: "browser-use",
+    },
+  ]);
+  assert.equal(
+    stripResolvedPromptShortcutText("use @browser-use to open localhost", overview),
+    "use to open localhost",
+  );
+});
+
+test("at-prefixed shortcut suggestions preserve the at trigger when accepted", () => {
+  const overview = createBrowserUseOverview();
+  assert.deepEqual(
+    resolvePromptShortcutSuggestions("@bro", overview).map((entry) => `${entry.trigger}${entry.label}:${entry.token}`),
+    ["@Browser Use:browser-use"],
+  );
+  assert.deepEqual(
+    replaceActivePromptShortcut("@bro", "browser-use", 4),
+    {
+      prompt: "@browser-use ",
+      cursorIndex: 13,
+    },
   );
 });
 

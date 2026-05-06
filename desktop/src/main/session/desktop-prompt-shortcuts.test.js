@@ -94,16 +94,19 @@ test("resolvePromptShortcutInputItems resolves skills, plugin-backed skill alias
         type: "mention",
         name: "autopilot",
         path: "/Users/george/.codex/skills/autopilot/SKILL.md",
+        token: "autopilot",
       },
       {
         type: "mention",
         name: "gmail:gmail",
         path: "/Users/george/.codex/plugins/gmail/skills/gmail/SKILL.md",
+        token: "gmail",
       },
       {
         type: "mention",
         name: "Linear",
         path: "app://linear",
+        token: "linear",
       },
     ],
   );
@@ -495,6 +498,7 @@ test("resolvePromptShortcutInputItems routes multi-skill plugin aliases to the r
         type: "mention",
         name: "life-science-research:research-router-skill",
         path: "/Users/george/.codex/plugins/life-science-research/skills/research-router-skill/SKILL.md",
+        token: "life-science-research",
       },
     ],
   );
@@ -586,6 +590,7 @@ test("replaceActivePromptShortcut inserts the chosen token at the active cursor 
       query: "exc",
       start: 4,
       end: 8,
+      trigger: "$",
     },
   );
   assert.deepEqual(

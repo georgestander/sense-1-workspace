@@ -34,7 +34,7 @@ export function createMainWindow(): BrowserWindow {
   const bundledRendererPath = resolve(runtimeDir, "../renderer/index.html");
 
   const window = new BrowserWindow({
-    show: false,
+    show: true,
     width: 1180,
     height: 780,
     minWidth: 960,
@@ -60,6 +60,20 @@ export function createMainWindow(): BrowserWindow {
     window.maximize();
     window.show();
     window.focus();
+  });
+  setTimeout(() => {
+    if (!window.isDestroyed() && !window.isVisible()) {
+      window.maximize();
+      window.show();
+      window.focus();
+    }
+  }, 1500);
+  window.webContents.once("did-finish-load", () => {
+    if (!window.isVisible()) {
+      window.maximize();
+      window.show();
+      window.focus();
+    }
   });
 
   window.webContents.setWindowOpenHandler(({ url }) => {

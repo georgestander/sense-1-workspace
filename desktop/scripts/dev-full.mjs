@@ -11,6 +11,10 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..", "..");
 const pnpmCommand = resolveScriptCommand("pnpm");
 const processGroupSignalsSupported = process.platform !== "win32";
+const passthroughArgs = process.argv.slice(2);
+if (passthroughArgs[0] === "--") {
+  passthroughArgs.shift();
+}
 
 const managedChildren = [];
 let shuttingDown = false;
@@ -23,11 +27,43 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 
 try {
   logSummary("starting desktop-only flow (main process owns local runtime)");
+  logSummary("preparing bundled Codex runtime");
+  await runPreflightProcess("prepare-runtime", ["-C", "desktop", "exec", "node", "./scripts/prepare-codex-runtime.mjs"]);
   logSummary("starting desktop app");
-  startManagedProcess("desktop", ["-C", "desktop", "dev"]);
+  startManagedProcess("desktop", ["-C", "desktop", "dev", ...passthroughArgs]);
 } catch (error) {
   const message = error instanceof Error ? error.message : "Desktop dev startup failed.";
   await shutdown(1, message);
+}
+
+function runPreflightProcess(label, args, envOverrides = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(pnpmCommand, args, {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        ...envOverrides,
+      },
+      ...resolveScriptSpawnOptions("pnpm"),
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    pipeOutput(child.stdout, label, process.stdout);
+    pipeOutput(child.stderr, label, process.stderr);
+
+    child.on("exit", (code, signal) => {
+      if (normalizeExitCode(code, signal) === 0) {
+        resolve();
+        return;
+      }
+
+      reject(new Error(`${label} exited (${formatExit(code, signal)})`));
+    });
+
+    child.on("error", (error) => {
+      reject(new Error(`${label} failed to start: ${error.message}`));
+    });
+  });
 }
 
 function startManagedProcess(label, args, envOverrides = {}) {

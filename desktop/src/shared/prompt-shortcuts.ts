@@ -19,6 +19,7 @@ export type DesktopPromptShortcutSuggestion = {
   readonly kind: "app" | "plugin" | "skill";
   readonly label: string;
   readonly token: string;
+  readonly trigger?: "$" | "@";
   readonly description: string | null;
 };
 
@@ -26,6 +27,7 @@ export type DesktopActivePromptShortcutQuery = {
   readonly query: string;
   readonly start: number;
   readonly end: number;
+  readonly trigger: "$" | "@";
 };
 
 function escapeShortcutRegex(value: string): string {
@@ -318,6 +320,10 @@ function choosePluginToken(plugin: DesktopPluginRecord): string | null {
   return normalizeShortcutKey(plugin.name) ?? normalizeShortcutKey(plugin.id) ?? normalizeShortcutKey(plugin.displayName);
 }
 
+function isBrowserUsePlugin(plugin: DesktopPluginRecord): boolean {
+  return buildPluginAliasKeys(plugin).includes("browser-use");
+}
+
 function chooseAppToken(app: DesktopAppRecord): string | null {
   return normalizeShortcutKey(app.name) ?? normalizeShortcutKey(app.id);
 }
@@ -399,7 +405,7 @@ export function resolveActivePromptShortcutQuery(
   prompt: string,
   cursorIndex = prompt.length,
 ): DesktopActivePromptShortcutQuery | null {
-  if (typeof prompt !== "string" || !prompt.includes("$")) {
+  if (typeof prompt !== "string" || (!prompt.includes("$") && !prompt.includes("@"))) {
     return null;
   }
 
@@ -409,12 +415,16 @@ export function resolveActivePromptShortcutQuery(
     tokenStart -= 1;
   }
 
-  const dollarIndex = tokenStart - 1;
-  if (dollarIndex < 0 || prompt[dollarIndex] !== "$") {
+  const triggerIndex = tokenStart - 1;
+  if (triggerIndex < 0) {
+    return null;
+  }
+  const trigger = prompt[triggerIndex];
+  if (trigger !== "$" && trigger !== "@") {
     return null;
   }
 
-  const prefixCharacter = dollarIndex > 0 ? prompt[dollarIndex - 1] : null;
+  const prefixCharacter = triggerIndex > 0 ? prompt[triggerIndex - 1] : null;
   if (prefixCharacter && /[A-Za-z0-9_]/u.test(prefixCharacter)) {
     return null;
   }
@@ -426,19 +436,20 @@ export function resolveActivePromptShortcutQuery(
 
   return {
     query: prompt.slice(tokenStart, safeCursorIndex),
-    start: dollarIndex,
+    start: triggerIndex,
     end: tokenEnd,
+    trigger,
   };
 }
 
 export function extractPromptShortcutTokens(prompt: string): string[] {
-  if (typeof prompt !== "string" || !prompt.includes("$")) {
+  if (typeof prompt !== "string" || (!prompt.includes("$") && !prompt.includes("@"))) {
     return [];
   }
 
   const tokens: string[] = [];
   const seen = new Set<string>();
-  const matcher = /(^|[^A-Za-z0-9_])\$([A-Za-z0-9:_-]+)/g;
+  const matcher = /(^|[^A-Za-z0-9_])[$@]([A-Za-z0-9:_-]+)/g;
   let match: RegExpExecArray | null;
 
   while ((match = matcher.exec(prompt)) !== null) {
@@ -571,7 +582,7 @@ export function stripResolvedPromptShortcutText(
   prompt: string,
   overview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills">,
 ): string {
-  if (typeof prompt !== "string" || !prompt.includes("$")) {
+  if (typeof prompt !== "string" || (!prompt.includes("$") && !prompt.includes("@"))) {
     return prompt;
   }
 
@@ -582,7 +593,7 @@ export function stripResolvedPromptShortcutText(
 
   let nextPrompt = prompt;
   for (const token of new Set(matches.map((match) => match.token))) {
-    const matcher = new RegExp(`(^|[^A-Za-z0-9_])\\$${escapeShortcutRegex(token)}(?=$|[^A-Za-z0-9:_-])`, "giu");
+    const matcher = new RegExp(`(^|[^A-Za-z0-9_])[$@]${escapeShortcutRegex(token)}(?=$|[^A-Za-z0-9:_-])`, "giu");
     nextPrompt = nextPrompt.replace(matcher, "$1");
   }
 
@@ -623,7 +634,18 @@ export function resolvePromptShortcutSuggestions(
       continue;
     }
 
-    const token = chooseSuggestionSkillToken(skill, skillAliasCounts);
+    const skillParts = normalizeShortcutKey(skill.name)?.split(":").filter(Boolean) ?? [];
+    const namespace = skillParts[0] ?? null;
+    const owningPlugin = skill.scope === "plugin" && namespace
+      ? overview.plugins.find((plugin) => buildPluginAliasKeys(plugin).includes(skillParts[0] ?? ""))
+      : null;
+    const primaryPluginSkill = namespace
+      ? resolvePluginShortcut(namespace, overview.plugins, overview.skills)?.skill ?? null
+      : null;
+    const isPrimaryPluginSkill = Boolean(primaryPluginSkill?.path && primaryPluginSkill.path === skill.path);
+    const token = owningPlugin && isPrimaryPluginSkill
+      ? namespace
+      : chooseSuggestionSkillToken(skill, skillAliasCounts);
     if (!token || !matchesShortcutQuery(activeQuery.query, token, skill.name, buildSkillLabel(skill))) {
       continue;
     }
@@ -640,9 +662,10 @@ export function resolvePromptShortcutSuggestions(
         path: skill.path,
       },
       kind: skill.scope === "plugin" ? "plugin" : "skill",
-      label: buildSkillLabel(skill),
+      label: owningPlugin && isPrimaryPluginSkill ? owningPlugin.displayName : buildSkillLabel(skill),
       token,
-      description: skill.description,
+      trigger: activeQuery.trigger,
+      description: owningPlugin && isPrimaryPluginSkill ? owningPlugin.description : skill.description,
     });
   }
 
@@ -672,6 +695,7 @@ export function resolvePromptShortcutSuggestions(
         kind: "plugin",
         label: plugin.displayName,
         token,
+        trigger: activeQuery.trigger,
         description: plugin.description,
       });
       continue;
@@ -701,6 +725,7 @@ export function resolvePromptShortcutSuggestions(
       kind: "app",
       label: plugin.displayName,
       token: appToken,
+      trigger: activeQuery.trigger,
       description: plugin.description,
     });
   }
@@ -730,6 +755,7 @@ export function resolvePromptShortcutSuggestions(
       kind: "app",
       label: app.name,
       token,
+      trigger: activeQuery.trigger,
       description: app.description,
     });
   }
@@ -773,6 +799,7 @@ export function resolveManagedExtensionPromptShortcut(
         kind: "plugin",
         label: plugin.displayName,
         token,
+        ...(isBrowserUsePlugin(plugin) ? { trigger: "@" as const } : {}),
         description: plugin.description,
       };
     }
@@ -871,7 +898,7 @@ export function replaceActivePromptShortcut(
 
   const promptSuffix = prompt.slice(activeQuery.end);
   const shouldInsertTrailingSpace = promptSuffix.length === 0 || !/^\s/u.test(promptSuffix);
-  const nextPrompt = `${prompt.slice(0, activeQuery.start)}$${normalizedToken}${shouldInsertTrailingSpace ? " " : ""}${promptSuffix}`;
+  const nextPrompt = `${prompt.slice(0, activeQuery.start)}${activeQuery.trigger}${normalizedToken}${shouldInsertTrailingSpace ? " " : ""}${promptSuffix}`;
   return {
     prompt: nextPrompt,
     cursorIndex: activeQuery.start + normalizedToken.length + 1 + (shouldInsertTrailingSpace ? 1 : 0),
@@ -882,7 +909,10 @@ export function resolvePromptShortcutInputItems(
   prompt: string,
   overview: Pick<DesktopExtensionOverviewResult, "apps" | "plugins" | "skills">,
 ): DesktopAppServerInputItem[] {
-  return resolvePromptShortcutMatches(prompt, overview).map((match) => match.item);
+  return resolvePromptShortcutMatches(prompt, overview).map((match) => ({
+    ...match.item,
+    token: match.token,
+  }));
 }
 
 export function resolveInputItemPromptShortcutMatches(

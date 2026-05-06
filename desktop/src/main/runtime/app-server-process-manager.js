@@ -22,7 +22,7 @@ import {
 import { resolveRuntimeLaunch } from "./app-server-runtime-launch.js";
 import { DESKTOP_APP_VERSION } from "../app/app-version.ts";
 
-export const DEFAULT_STARTUP_TIMEOUT_MS = 5000;
+export const DEFAULT_STARTUP_TIMEOUT_MS = 30000;
 export const DEFAULT_REQUEST_TIMEOUT_MS = 8000;
 export const DEFAULT_MAX_RESTARTS = 1;
 const DEFAULT_RUNTIME_ORIGINATOR = "sense-1-workspace desktop";
@@ -83,6 +83,7 @@ export class AppServerProcessManager extends EventEmitter {
    * @param {number} [options.restartDelayMs]
    * @param {string} [options.codexHome]
    * @param {NodeJS.ProcessEnv} [options.env]
+   * @param {(codexHome: string) => Promise<NodeJS.ProcessEnv | void> | NodeJS.ProcessEnv | void} [options.beforeProfileChange]
    */
   constructor(options = {}) {
     super();
@@ -96,6 +97,7 @@ export class AppServerProcessManager extends EventEmitter {
       restartDelayMs = 300,
       codexHome,
       env,
+      beforeProfileChange,
     } = options;
 
     this.command = command;
@@ -106,6 +108,7 @@ export class AppServerProcessManager extends EventEmitter {
     this.restartDelayMs = Math.max(0, restartDelayMs);
     this.codexHome = codexHome;
     this.env = env;
+    this.beforeProfileChange = beforeProfileChange;
 
     this.rpc = new AppServerStdioJsonRpcClient(requestTimeoutMs);
     this.state = "idle";
@@ -268,7 +271,7 @@ export class AppServerProcessManager extends EventEmitter {
     await this._stopChild({ forceKillMs: 500 });
   }
 
-  async request(method, params) {
+  async request(method, params, timeoutMs) {
     if (method === "initialize") {
       this.cachedInitParams = params ?? {};
     }
@@ -279,7 +282,7 @@ export class AppServerProcessManager extends EventEmitter {
 
     this._setState("busy");
     try {
-      const result = await this.rpc.request(method, params);
+      const result = await this.rpc.request(method, params, timeoutMs);
       if (this.state === "busy") {
         this._setState("ready");
       }
@@ -319,6 +322,13 @@ export class AppServerProcessManager extends EventEmitter {
   async handleProfileChange(codexHome) {
     const nextCodexHome = codexHome || this._defaultCodexHome();
     const currentCodexHome = this.codexHome || this._defaultCodexHome();
+    const envPatch = await this.beforeProfileChange?.(nextCodexHome);
+    if (envPatch && typeof envPatch === "object") {
+      this.env = {
+        ...(this.env ?? {}),
+        ...envPatch,
+      };
+    }
     if (this.child && currentCodexHome === nextCodexHome) {
       this.codexHome = nextCodexHome;
       return;

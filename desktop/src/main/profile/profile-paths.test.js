@@ -46,6 +46,94 @@ test("ensureProfileDirectories syncs missing shared system skills into the profi
   }
 });
 
+test("ensureProfileDirectories exposes the bundled Browser Use plugin in profile config", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const sharedCodexHome = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-shared-codex-home-"));
+  const env = {
+    ...process.env,
+    CODEX_HOME: sharedCodexHome,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const bundledMarketplaceRoot = path.join(sharedCodexHome, ".tmp", "bundled-marketplaces", "openai-bundled");
+  const bundledBrowserUseRoot = path.join(bundledMarketplaceRoot, "plugins", "browser-use");
+
+  try {
+    await fs.mkdir(path.join(bundledMarketplaceRoot, ".agents", "plugins"), { recursive: true });
+    await fs.mkdir(path.join(bundledBrowserUseRoot, ".codex-plugin"), { recursive: true });
+    await fs.mkdir(path.join(bundledBrowserUseRoot, "scripts"), { recursive: true });
+    await fs.mkdir(path.join(bundledBrowserUseRoot, "skills", "browser"), { recursive: true });
+    const nodeReplMcpServerSource = path.join(runtimeStateRoot, "node-repl-mcp-server.mjs");
+    await fs.writeFile(
+      path.join(bundledMarketplaceRoot, ".agents", "plugins", "marketplace.json"),
+      JSON.stringify({ name: "OpenAI bundled" }),
+      "utf8",
+    );
+    await fs.writeFile(
+      path.join(bundledBrowserUseRoot, ".codex-plugin", "plugin.json"),
+      JSON.stringify({
+        name: "browser-use",
+        version: "0.1.0-alpha1",
+        interface: { displayName: "Browser Use" },
+      }),
+      "utf8",
+    );
+    await fs.writeFile(path.join(bundledBrowserUseRoot, "skills", "browser", "SKILL.md"), "# Browser Use\n", "utf8");
+    await fs.writeFile(
+      path.join(bundledBrowserUseRoot, "scripts", "browser-client.mjs"),
+      [
+        'import iT from"node:path";',
+        'function P7(){return"privileged native pipe bridge is not available"}function L7(){let e=import.meta.__codexNativePipe;return e==null||typeof e.createConnection!="function"?null:e}',
+      ].join("\n"),
+      "utf8",
+    );
+    await fs.writeFile(nodeReplMcpServerSource, "#!/usr/bin/env node\n", "utf8");
+
+    const { codexHome } = await ensureProfileDirectories("browser-use-profile", {
+      ...env,
+      SENSE1_NODE_REPL_MCP_SERVER_PATH: nodeReplMcpServerSource,
+    });
+    const profileConfig = await fs.readFile(path.join(codexHome, "config.toml"), "utf8");
+    const profilePluginSkill = path.join(
+      codexHome,
+      "plugins",
+      "cache",
+      "openai-bundled",
+      "browser-use",
+      "0.1.0-alpha1",
+      "skills",
+      "browser",
+      "SKILL.md",
+    );
+
+    assert.match(profileConfig, /\[marketplaces\.openai-bundled\]/u);
+    assert.match(profileConfig, /\[plugins\."browser-use@openai-bundled"\]/u);
+    assert.match(profileConfig, /\[mcp_servers\.node_repl\]/u);
+    assert.match(profileConfig, /node-repl-mcp-server\.mjs/u);
+    assert.match(profileConfig, /enabled = true/u);
+    assert.equal(await fs.readFile(profilePluginSkill, "utf8"), "# Browser Use\n");
+    assert.match(
+      await fs.readFile(path.join(
+        codexHome,
+        "plugins",
+        "cache",
+        "openai-bundled",
+        "browser-use",
+        "0.1.0-alpha1",
+        "scripts",
+        "browser-client.mjs",
+      ), "utf8"),
+      /node:net/u,
+    );
+    assert.equal(
+      await fs.readFile(path.join(codexHome, "tools", "node-repl-mcp-server.mjs"), "utf8"),
+      "#!/usr/bin/env node\n",
+    );
+  } finally {
+    await fs.rm(runtimeStateRoot, { recursive: true, force: true });
+    await fs.rm(sharedCodexHome, { recursive: true, force: true });
+  }
+});
+
 test("ensureProfileDirectories tolerates a shared system skill entry disappearing mid-sync", async () => {
   const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
   const sharedCodexHome = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-shared-codex-home-"));

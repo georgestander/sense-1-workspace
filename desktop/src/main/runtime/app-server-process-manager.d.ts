@@ -18,6 +18,7 @@ export interface AppServerProcessManagerOptions {
   restartDelayMs?: number;
   codexHome?: string;
   env?: NodeJS.ProcessEnv;
+  beforeProfileChange?: (codexHome: string) => Promise<NodeJS.ProcessEnv | void> | NodeJS.ProcessEnv | void;
 }
 
 export class AppServerProcessManager extends EventEmitter {
@@ -27,7 +28,7 @@ export class AppServerProcessManager extends EventEmitter {
   readonly summary: AppServerSummary;
   start(): Promise<void>;
   stop(): Promise<void>;
-  request(method: string, params?: unknown): Promise<unknown>;
+  request(method: string, params?: unknown, timeoutMs?: number): Promise<unknown>;
   readDirectory(directoryPath: string, options?: Record<string, unknown>): Promise<unknown>;
   requestReview(
     threadId: string,

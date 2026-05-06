@@ -1,3 +1,4 @@
+import type { DesktopAppServerInputItem } from "../../../../main/contracts";
 import type { DesktopSessionActionDependencies, DesktopSessionActionHandlers } from "../session-action-types.js";
 import { createRememberSelectedThread } from "./session-action-shared.ts";
 import { createThreadRecord, upsertThread } from "../../../state/threads/thread-summary-state.js";
@@ -25,6 +26,7 @@ export function createSessionThreadActions(
       cwd?: string | null;
       workspaceRoot?: string | null;
       attachments?: string[];
+      inputItems?: DesktopAppServerInputItem[];
     },
     result: {
       permissionRequest?: { rootPath?: string | null } | null;
@@ -144,6 +146,7 @@ export function createSessionThreadActions(
     cwd?: string | null;
     workspaceRoot?: string | null;
     attachments?: string[];
+    inputItems?: DesktopAppServerInputItem[];
   }) {
     const prompt = request.prompt.trim();
     if (!prompt) {
@@ -164,6 +167,7 @@ export function createSessionThreadActions(
         reasoningEffort: deps.reasoningEffort || undefined,
         serviceTier: deps.serviceTier,
         attachments: request.attachments?.length ? request.attachments : undefined,
+        inputItems: request.inputItems?.length ? request.inputItems : undefined,
         runContext: deps.getRunContext() ?? undefined,
       });
 

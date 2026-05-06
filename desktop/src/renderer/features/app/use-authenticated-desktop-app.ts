@@ -169,9 +169,6 @@ export function useAuthenticatedDesktopApp({
     ui: {
       setReasoning: ui.setReasoning,
     },
-    reportBug: {
-      onReportBug: reportBug.openModal,
-    },
     composer: {
       attachedFiles: content.composer.attachedFiles,
       clarificationAnswer: content.composer.clarificationAnswer,
@@ -245,7 +242,6 @@ export function useAuthenticatedDesktopApp({
     content.transcriptContainerRef,
     content.transcriptEndRef,
     extensionOverview,
-    reportBug.openModal,
     sessionState.availableModels,
     sessionState.cancelWorkspacePermission,
     sessionState.grantWorkspacePermission,

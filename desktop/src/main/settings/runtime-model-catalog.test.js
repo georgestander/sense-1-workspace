@@ -70,9 +70,42 @@ test("runtime catalog normalization can fall back to model when id is absent", (
         id: "gpt-5.5",
         name: "GPT-5.5",
         supportedReasoningEfforts: ["xhigh"],
+        defaultReasoningEffort: "medium",
+        isDefault: true,
+      },
+      {
+        id: "gpt-5.4-mini",
+        name: "GPT-5.4 Mini",
+        supportedReasoningEfforts: ["low", "medium", "high", "xhigh"],
+        defaultReasoningEffort: "medium",
+      },
+      {
+        id: "gpt-5.4",
+        name: "GPT-5.4",
+        supportedReasoningEfforts: ["low", "medium", "high", "xhigh"],
+        defaultReasoningEffort: "medium",
       },
     ],
   );
+});
+
+test("runtime catalog seeds the current Sense desktop model surface when app-server is stale", () => {
+  const runtimeModels = [
+    {
+      id: "o3",
+      name: "o3",
+      supportedReasoningEfforts: ["high"],
+    },
+  ];
+
+  const catalog = normalizeRuntimeModelCatalog(runtimeModels, { accountType: "chatgpt" });
+
+  assert.deepEqual(
+    catalog.map((entry) => entry.id),
+    ["gpt-5.5", "gpt-5.4-mini", "gpt-5.4", "o3"],
+  );
+  assert.equal(catalog[0].isDefault, true);
+  assert.deepEqual(catalog[0].supportedReasoningEfforts, ["low", "medium", "high", "xhigh"]);
 });
 
 test("allowed model restrictions apply after auth-mode shaping", () => {
@@ -99,6 +132,7 @@ test("allowed model restrictions apply after auth-mode shaping", () => {
         id: "gpt-5.4",
         name: "GPT-5.4",
         supportedReasoningEfforts: ["low", "medium", "high"],
+        defaultReasoningEffort: "medium",
       },
     ],
   );

@@ -17,6 +17,7 @@ import { ProfileNamingStep } from "./components/ProfileNamingStep";
 import { StartSurface } from "./components/StartSurface";
 import { ThreadView } from "./components/ThreadView";
 import { shouldShowHomeRightRail } from "./features/app/app-view-visibility.js";
+import { hasBrowserUseMention, inferBrowserUseRequestedUrl } from "../shared/browser-use-invocation.ts";
 import type { DesktopPromptShortcutSuggestion } from "../shared/prompt-shortcuts.ts";
 
 // ---------------------------------------------------------------------------
@@ -47,11 +48,27 @@ export default function App() {
   const [workspaceFolder, setWorkspaceFolder] = useState<string | null>(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [browserOpen, setBrowserOpen] = useState(false);
+  const [browserRequestedUrl, setBrowserRequestedUrl] = useState<string | null>(null);
+  const [browserSessionThreadId, setBrowserSessionThreadId] = useState<string | null>(null);
   const openAutomations = useCallback(() => setActiveView("automations"), []);
   const openPlugins = useCallback(() => setActiveView("plugins"), []);
   const toggleLeftRail = useCallback(() => setLeftRailOpen((value) => !value), []);
   const toggleRightRail = useCallback(() => setRightRailOpen((value) => !value), []);
-  const toggleBrowser = useCallback(() => setBrowserOpen((value) => !value), []);
+  const toggleBrowser = useCallback(() => {
+    setBrowserOpen((value) => {
+      if (value) {
+        setBrowserRequestedUrl(null);
+        setBrowserSessionThreadId(null);
+      }
+      return !value;
+    });
+  }, []);
+  const openBrowserForPrompt = useCallback((url: string | null) => {
+    setActiveView("home");
+    setBrowserSessionThreadId(null);
+    setBrowserRequestedUrl(url);
+    setBrowserOpen(true);
+  }, []);
 
   const sessionState = useDesktopSessionState({ model, reasoningEffort: reasoning, serviceTier });
   const settingsController = useSettingsController({
@@ -123,10 +140,37 @@ export default function App() {
   }, [activeView, sessionState.selectedThreadId]);
 
   useEffect(() => {
-    if (activeView !== "home" || !sessionState.selectedThreadId) {
+    if (settingsController.settingsOpen || activeView !== "home" || (!sessionState.selectedThreadId && !browserRequestedUrl)) {
       setBrowserOpen(false);
+      if (settingsController.settingsOpen || activeView !== "home") {
+        setBrowserRequestedUrl(null);
+      }
+      setBrowserSessionThreadId(null);
     }
-  }, [activeView, sessionState.selectedThreadId]);
+  }, [activeView, browserRequestedUrl, sessionState.selectedThreadId, settingsController.settingsOpen]);
+
+  useEffect(() => {
+    if (activeView === "home" && sessionState.selectedThreadId && browserRequestedUrl) {
+      setBrowserOpen(true);
+    }
+  }, [activeView, browserRequestedUrl, sessionState.selectedThreadId]);
+
+  useEffect(() => {
+    const title = sessionState.selectedThread?.title ?? "";
+    if (activeView !== "home" || !sessionState.selectedThreadId || !hasBrowserUseMention(title)) {
+      return;
+    }
+    setBrowserRequestedUrl((current) => current ?? inferBrowserUseRequestedUrl(title));
+    setBrowserOpen(true);
+  }, [activeView, sessionState.selectedThread?.title, sessionState.selectedThreadId]);
+
+  useEffect(() => {
+    return window.sense1Desktop.browser.onBrowserUseOpen((event) => {
+      setActiveView("home");
+      setBrowserSessionThreadId(event.threadId);
+      setBrowserOpen(true);
+    });
+  }, []);
 
   useEffect(() => {
     const view =
@@ -180,7 +224,7 @@ export default function App() {
           }}
           onTryInChat={(shortcut: DesktopPromptShortcutSuggestion) => {
             setActiveView("home");
-            const prompt = `$${shortcut.token} `;
+            const prompt = `${shortcut.trigger ?? "$"}${shortcut.token} `;
             if (sessionState.selectedThread) {
               setThreadPromptSeed(prompt, [shortcut.item]);
               return;
@@ -225,12 +269,17 @@ export default function App() {
         <ThreadView
           {...threadViewProps}
           browserOpen={browserOpen}
+          browserRequestedUrl={browserRequestedUrl}
+          browserSessionThreadId={browserSessionThreadId}
+          onBrowserUsePrompt={openBrowserForPrompt}
+          setBrowserRequestedUrl={setBrowserRequestedUrl}
+          setBrowserSessionThreadId={setBrowserSessionThreadId}
           setBrowserOpen={setBrowserOpen}
         />
       );
     }
 
-    return <StartSurface {...startSurfaceProps} />;
+    return <StartSurface {...startSurfaceProps} onBrowserUsePrompt={openBrowserForPrompt} />;
   }, [
     activeView,
     automations.automations,
@@ -244,6 +293,9 @@ export default function App() {
     automations.selectedAutomationId,
     automations.setSelectedAutomationId,
     browserOpen,
+    browserRequestedUrl,
+    browserSessionThreadId,
+    openBrowserForPrompt,
     management.error,
     management.installPlugin,
     management.loadOverview,

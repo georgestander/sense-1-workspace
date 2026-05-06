@@ -1,4 +1,4 @@
-import type { DesktopApprovalResponseRequest } from "../../../../main/contracts";
+import type { DesktopAppServerInputItem, DesktopApprovalResponseRequest } from "../../../../main/contracts";
 import type { DesktopSessionActionDependencies, DesktopSessionActionHandlers } from "../session-action-types.js";
 import type { PendingApproval } from "../../../state/session/session-types.js";
 import { createThreadRecord, upsertThread } from "../../../state/threads/thread-summary-state.js";
@@ -17,6 +17,7 @@ export function createSessionRunActions(
       cwd?: string | null;
       workspaceRoot?: string | null;
       attachments?: string[];
+      inputItems?: DesktopAppServerInputItem[];
     },
     result: {
       permissionRequest?: { rootPath?: string | null } | null;
@@ -66,6 +67,7 @@ export function createSessionRunActions(
     cwd?: string | null;
     workspaceRoot?: string | null;
     attachments?: string[];
+    inputItems?: DesktopAppServerInputItem[];
   }) {
     const prompt = request.prompt.trim();
     if (!prompt) {
@@ -86,6 +88,7 @@ export function createSessionRunActions(
         reasoningEffort: deps.reasoningEffort || undefined,
         serviceTier: deps.serviceTier,
         attachments: request.attachments?.length ? request.attachments : undefined,
+        inputItems: request.inputItems?.length ? request.inputItems : undefined,
         runContext: deps.getRunContext() ?? undefined,
       });
 

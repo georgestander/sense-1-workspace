@@ -677,6 +677,83 @@ test("runDesktopTask starts a new thread then starts a turn with prompt and cwd"
   assert.match(calls[0]?.params.developerInstructions ?? "", /Prefer short answers by default\./);
 });
 
+test("runDesktopTask disables web search when Browser Use is invoked", async () => {
+  const calls = [];
+  const artifactRoot = "/tmp/sense-session";
+  const runContext = {
+    actor: {
+      id: "actor_george",
+      kind: "user",
+      displayName: "George",
+      email: "george@example.com",
+      homeScopeId: "scope_ops-team_private",
+      trustLevel: "medium",
+    },
+    scope: {
+      id: "scope_ops-team_private",
+      kind: "private",
+      displayName: "ops-team private",
+      profileId: "ops-team",
+    },
+    grants: [
+      {
+        kind: "workspaceRoot",
+        rootPath: artifactRoot,
+        access: "workspaceWrite",
+      },
+    ],
+    policy: {
+      executionPolicyMode: "defaultProfilePrivateScope",
+      approvalPolicy: "onRequest",
+      sandboxPolicy: "workspaceWrite",
+      trustLevel: "medium",
+    },
+  };
+  const manager = {
+    request: async (method, params) => {
+      calls.push({ method, params });
+      if (method === "thread/start") {
+        return {
+          thread: {
+            id: "thread-browser",
+            name: "Browser task",
+            preview: "Browser task",
+            updatedAt: 1_742_367_200,
+            status: { type: "idle" },
+          },
+        };
+      }
+      if (method === "turn/start") {
+        return { turn: { id: "turn-browser" } };
+      }
+      throw new Error(`Unexpected method: ${method}`);
+    },
+  };
+
+  await runDesktopTask(manager, {
+    prompt: "@browser-use inspect the current page",
+    cwd: artifactRoot,
+    inputItems: [
+      {
+        type: "mention",
+        name: "browser-use:browser",
+        path: "/Users/george/.codex/plugins/cache/openai-bundled/browser-use/skills/browser/SKILL.md",
+      },
+    ],
+    model: "gpt-5.4",
+    runContext,
+  });
+
+  const startCall = calls.find((call) => call.method === "thread/start");
+  const turnCall = calls.find((call) => call.method === "turn/start");
+  assert.equal(startCall?.params.config.web_search, "disabled");
+  assert.deepEqual(turnCall?.params.input[0], {
+    type: "mention",
+    name: "browser-use:browser",
+    path: "/Users/george/.codex/plugins/cache/openai-bundled/browser-use/skills/browser/SKILL.md",
+  });
+});
+
 test("runDesktopTask sends attachments as turn/start input items", async () => {
   const calls = [];
   const workspaceRoot = "/tmp/workspace";

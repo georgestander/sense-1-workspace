@@ -4,6 +4,7 @@ import type {
   DesktopApprovalResponseRequest,
   DesktopAuthLoginMethod,
   DesktopAuthLoginRequest,
+  DesktopAppServerInputItem,
   DesktopBootstrap,
   DesktopBridge,
   DesktopOperatingMode,
@@ -17,7 +18,7 @@ import type { FolderOption, PendingApproval, SidebarState, ThreadRecord } from "
 export type PendingPermissionState = {
   rootPath: string;
   displayName: string;
-  originalRequest: { prompt: string; threadId?: string | null; cwd?: string | null; workspaceRoot?: string | null };
+  originalRequest: { prompt: string; threadId?: string | null; cwd?: string | null; workspaceRoot?: string | null; inputItems?: DesktopAppServerInputItem[] };
 } | null;
 
 type ThreadRecordSetter = Dispatch<SetStateAction<ThreadRecord[]>>;
@@ -122,7 +123,7 @@ export type DesktopSessionActionHandlers = {
   restoreThread: (threadId: string) => Promise<boolean>;
   restoreWorkspace: (workspaceId: string) => Promise<boolean>;
   queueTurnInput: (input: string) => Promise<void>;
-  runTask: (request: { prompt: string; threadId?: string | null; cwd?: string | null; workspaceRoot?: string | null; attachments?: string[] }) => Promise<void>;
+  runTask: (request: { prompt: string; threadId?: string | null; cwd?: string | null; workspaceRoot?: string | null; attachments?: string[]; inputItems?: DesktopAppServerInputItem[] }) => Promise<void>;
   selectProfileForBootstrap: (profileId: string) => Promise<boolean>;
   selectThread: (threadId: string, options?: { workspaceRoot?: string | null }) => Promise<void>;
   setWorkspaceOperatingMode: (rootPath: string, mode: DesktopOperatingMode) => Promise<DesktopWorkspacePolicyRecord | null>;

@@ -132,6 +132,7 @@ export function ensureDesktopThread(
     runtimeInstructions?: string | null;
     settings?: Record<string, unknown> | null;
     verbosity?: DesktopVerbosity | null;
+    webSearch?: "live" | "disabled" | null;
     threadId?: string | null;
     workspaceRoot?: string | null;
   },

@@ -1,6 +1,6 @@
 export type DesktopBrowserViewportPreset = "desktop" | "tablet" | "mobile";
 
-export type DesktopBrowserTrustDecision = "allowOnce" | "alwaysAllow" | "block";
+export type DesktopBrowserTrustDecision = "allowSession" | "allowOnce" | "alwaysAllow" | "block";
 
 export interface DesktopBrowserBounds {
   readonly x: number;
@@ -18,6 +18,7 @@ export interface DesktopBrowserState {
   readonly loading: boolean;
   readonly viewport: DesktopBrowserViewportPreset;
   readonly error: string | null;
+  readonly pendingBrowserUseOrigin: string | null;
 }
 
 export interface DesktopBrowserOpenRequest {
@@ -25,6 +26,10 @@ export interface DesktopBrowserOpenRequest {
   readonly bounds: DesktopBrowserBounds;
   readonly url?: string | null;
   readonly viewport?: DesktopBrowserViewportPreset;
+}
+
+export interface DesktopBrowserUseOpenEvent {
+  readonly threadId: string;
 }
 
 export interface DesktopBrowserBoundsRequest {
@@ -105,15 +110,19 @@ export interface DesktopBrowserNetworkResult {
 export interface DesktopBrowserTrustRequest {
   readonly origin: string;
   readonly decision: DesktopBrowserTrustDecision;
+  readonly threadId?: string | null;
 }
 
 export interface DesktopBrowserTrustState {
   readonly allowedOrigins: string[];
   readonly blockedOrigins: string[];
+  readonly allowedSessionIds: string[];
+  readonly blockedSessionIds: string[];
 }
 
 export interface DesktopBrowserTrustCheckRequest {
   readonly url: string;
+  readonly threadId?: string | null;
 }
 
 export interface DesktopBrowserTrustCheckResult {

@@ -84,6 +84,8 @@ export const IPC_CHANNELS = {
   openExternalUrl: "sense1:desktop:shell:open-external-url",
   openFilePath: "sense1:desktop:shell:open-file-path",
   browserOpen: "sense1:desktop:browser:open",
+  browserUseOpen: "sense1:desktop:browser-use:open",
+  browserStateChanged: "sense1:desktop:browser:state-changed",
   browserClose: "sense1:desktop:browser:close",
   browserSetBounds: "sense1:desktop:browser:set-bounds",
   browserNavigate: "sense1:desktop:browser:navigate",

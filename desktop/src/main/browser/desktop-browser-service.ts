@@ -1,4 +1,4 @@
-import { BrowserView, BrowserWindow, session } from "electron";
+import { BrowserView, BrowserWindow, session, type Event as ElectronEvent } from "electron";
 
 import { getMainWindow } from "../window.ts";
 import type {
@@ -21,11 +21,49 @@ import { normalizeBrowserUrl, normalizeOrigin, resolveOrigin } from "./desktop-b
 const DEFAULT_BROWSER_URL = "about:blank";
 const BROWSER_PARTITION = "persist:sense1-browser";
 const MAX_LOG_ENTRIES = 80;
+const BROWSER_USE_CDP_TIMEOUT_MS = 15_000;
 const VIEWPORT_WIDTHS: Record<DesktopBrowserViewportPreset, number | null> = {
   desktop: null,
   tablet: 820,
   mobile: 390,
 };
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_resolve, reject) => {
+        timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+function firstString(...values: Array<unknown>): string | null {
+  for (const value of values) {
+    if (typeof value !== "string") {
+      continue;
+    }
+    const trimmed = value.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+  return null;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export function isIgnorableBrowserUseNavigationError(error: unknown): boolean {
+  return /\bERR_ABORTED\b/u.test(errorMessage(error));
+}
 
 interface BrowserRecord {
   readonly threadId: string;
@@ -36,15 +74,31 @@ interface BrowserRecord {
   url: string | null;
   loading: boolean;
   error: string | null;
+  pendingBrowserUseOrigin: string | null;
   consoleEntries: DesktopBrowserConsoleEntry[];
   networkEntries: DesktopBrowserNetworkEntry[];
 }
 
+export interface BrowserUseTabRecord {
+  readonly id: number;
+  readonly title?: string;
+  readonly url?: string;
+  readonly active?: boolean;
+}
+
 export class DesktopBrowserService {
+  readonly #allowedBrowserUseSessions = new Set<string>();
+  readonly #blockedBrowserUseSessions = new Set<string>();
   readonly #allowedOrigins = new Set<string>();
   readonly #allowedOnceOrigins = new Set<string>();
   readonly #blockedOrigins = new Set<string>();
   readonly #records = new Map<string, BrowserRecord>();
+  readonly #browserUseCdpListeners = new Set<(event: { tabId: string; method: string; params: unknown }) => void>();
+  readonly #onStateChange: ((state: DesktopBrowserState) => void) | null;
+
+  constructor(onStateChange: ((state: DesktopBrowserState) => void) | null = null) {
+    this.#onStateChange = onStateChange;
+  }
 
   async open(request: DesktopBrowserOpenRequest): Promise<DesktopBrowserState> {
     const window = this.#requireWindow();
@@ -52,8 +106,10 @@ export class DesktopBrowserService {
     record.bounds = request.bounds;
     this.#attach(window, record);
     this.#setBounds(record, request.bounds);
-    if (request.url?.trim()) {
-      await this.navigate(request.threadId, request.url);
+    const requestedUrl = request.url?.trim() ?? "";
+    const currentUrl = record.view.webContents.getURL() || record.url;
+    if (requestedUrl && !(requestedUrl === DEFAULT_BROWSER_URL && currentUrl && currentUrl !== DEFAULT_BROWSER_URL)) {
+      await this.navigate(request.threadId, requestedUrl);
     }
     return this.#state(record);
   }
@@ -196,7 +252,82 @@ export class DesktopBrowserService {
     };
   }
 
-  checkTrust(url: string): DesktopBrowserTrustCheckResult {
+  listBrowserUseTabs(sessionId: string): BrowserUseTabRecord[] {
+    const record = this.#ensureBrowserUseRecord(sessionId);
+    return [this.#browserUseTab(record)];
+  }
+
+  createBrowserUseTab(sessionId: string): BrowserUseTabRecord {
+    const record = this.#ensureBrowserUseRecord(sessionId);
+    void record.view.webContents.loadURL(DEFAULT_BROWSER_URL);
+    return this.#browserUseTab(record);
+  }
+
+  getBrowserUseTab(tabId: string | number): BrowserUseTabRecord {
+    return this.#browserUseTab(this.#requireRecordByTabId(tabId));
+  }
+
+  async browserUseAttach(tabId: string | number): Promise<void> {
+    const record = this.#requireRecordByTabId(tabId);
+    const debuggerSession = record.view.webContents.debugger;
+    if (!debuggerSession.isAttached()) {
+      debuggerSession.attach("1.3");
+    }
+  }
+
+  async browserUseDetach(tabId: string | number): Promise<void> {
+    const record = this.#requireRecordByTabId(tabId);
+    const debuggerSession = record.view.webContents.debugger;
+    if (debuggerSession.isAttached()) {
+      debuggerSession.detach();
+    }
+  }
+
+  async browserUseExecuteCdp(
+    tabId: string | number,
+    method: string,
+    commandParams: Record<string, unknown> = {},
+  ): Promise<unknown> {
+    const record = this.#requireRecordByTabId(tabId);
+    if (method === "Page.navigate") {
+      const url = typeof commandParams.url === "string" ? normalizeBrowserUrl(commandParams.url) : null;
+      if (!url) {
+        return { errorText: "Invalid URL" };
+      }
+      record.error = null;
+      try {
+        await record.view.webContents.loadURL(url);
+      } catch (error) {
+        if (!isIgnorableBrowserUseNavigationError(error)) {
+          return { errorText: errorMessage(error) };
+        }
+      }
+      return {};
+    }
+    const debuggerSession = record.view.webContents.debugger;
+    if (!debuggerSession.isAttached()) {
+      debuggerSession.attach("1.3");
+    }
+    return await withTimeout(
+      debuggerSession.sendCommand(method, commandParams),
+      BROWSER_USE_CDP_TIMEOUT_MS,
+      `Browser Use CDP command timed out: ${method}`,
+    );
+  }
+
+  async browserUseMoveMouse(tabId: string | number, x: number, y: number): Promise<void> {
+    const record = this.#requireRecordByTabId(tabId);
+    record.view.webContents.sendInputEvent({ type: "mouseMove", x, y });
+  }
+
+  onBrowserUseCdpEvent(listener: (event: { tabId: string; method: string; params: unknown }) => void): () => void {
+    this.#browserUseCdpListeners.add(listener);
+    return () => {
+      this.#browserUseCdpListeners.delete(listener);
+    };
+  }
+
+  checkTrust(url: string, threadId: string | null = null): DesktopBrowserTrustCheckResult {
     const origin = resolveOrigin(url);
     if (!origin) {
       return {
@@ -205,8 +336,18 @@ export class DesktopBrowserService {
         message: "Browser Use supports http(s), localhost, file previews, and about:blank.",
       };
     }
+    const sessionId = firstString(threadId);
+    if (sessionId && this.#blockedBrowserUseSessions.has(sessionId)) {
+      return { origin, status: "blocked", message: "Browser Use is blocked for this session." };
+    }
+    if (sessionId && this.#allowedBrowserUseSessions.has(sessionId)) {
+      return { origin, status: "allowed", message: null };
+    }
     if (this.#blockedOrigins.has(origin)) {
       return { origin, status: "blocked", message: "This site is blocked for Browser Use." };
+    }
+    if (origin === DEFAULT_BROWSER_URL) {
+      return { origin, status: "allowed", message: null };
     }
     if (this.#allowedOnceOrigins.has(origin)) {
       return { origin, status: "allowed", message: null };
@@ -214,12 +355,29 @@ export class DesktopBrowserService {
     if (this.#allowedOrigins.has(origin)) {
       return { origin, status: "allowed", message: null };
     }
-    return { origin, status: "needsApproval", message: "Allow Browser Use before the agent operates this site." };
+    return { origin, status: "needsApproval", message: "Approve Browser Use for this session before the agent operates the browser." };
   }
 
-  updateTrust(origin: string, decision: DesktopBrowserTrustDecision): DesktopBrowserTrustState {
+  updateTrust(origin: string, decision: DesktopBrowserTrustDecision, threadId: string | null = null): DesktopBrowserTrustState {
     const normalizedOrigin = normalizeOrigin(origin);
     if (!normalizedOrigin) {
+      return this.getTrustState();
+    }
+    const sessionId = firstString(threadId);
+    if (sessionId) {
+      if (decision === "block") {
+        this.#allowedBrowserUseSessions.delete(sessionId);
+        this.#blockedBrowserUseSessions.add(sessionId);
+      } else {
+        this.#blockedBrowserUseSessions.delete(sessionId);
+        this.#allowedBrowserUseSessions.add(sessionId);
+      }
+      for (const record of this.#records.values()) {
+        if (record.threadId === sessionId && record.pendingBrowserUseOrigin) {
+          record.pendingBrowserUseOrigin = null;
+          this.#emitState(record);
+        }
+      }
       return this.getTrustState();
     }
     if (decision === "block") {
@@ -235,13 +393,73 @@ export class DesktopBrowserService {
         this.#allowedOnceOrigins.add(normalizedOrigin);
       }
     }
+    for (const record of this.#records.values()) {
+      if (record.pendingBrowserUseOrigin === normalizedOrigin) {
+        record.pendingBrowserUseOrigin = null;
+        this.#emitState(record);
+      }
+    }
     return this.getTrustState();
+  }
+
+  async waitForBrowserUsePermission(
+    origin: string,
+    timeoutMs = 60_000,
+    threadId: string | null = null,
+  ): Promise<"accept" | "decline"> {
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (!normalizedOrigin) {
+      return "decline";
+    }
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() <= deadline) {
+      const trust = this.checkTrust(normalizedOrigin, threadId);
+      if (trust.status === "allowed") {
+        return "accept";
+      }
+      if (trust.status === "blocked" || trust.status === "invalid") {
+        return "decline";
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    return "decline";
+  }
+
+  async requestBrowserUsePermission(
+    threadId: string,
+    origin: string,
+    timeoutMs = 60_000,
+  ): Promise<"accept" | "decline"> {
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (!normalizedOrigin) {
+      return "decline";
+    }
+    const currentTrust = this.checkTrust(normalizedOrigin, threadId);
+    if (currentTrust.status === "allowed") {
+      return "accept";
+    }
+    if (currentTrust.status === "blocked" || currentTrust.status === "invalid") {
+      return "decline";
+    }
+
+    const record = this.#ensureBrowserUseRecord(threadId);
+    record.pendingBrowserUseOrigin = normalizedOrigin;
+    this.#emitState(record);
+
+    const decision = await this.waitForBrowserUsePermission(normalizedOrigin, timeoutMs, threadId);
+    if (record.pendingBrowserUseOrigin === normalizedOrigin) {
+      record.pendingBrowserUseOrigin = null;
+      this.#emitState(record);
+    }
+    return decision;
   }
 
   getTrustState(): DesktopBrowserTrustState {
     return {
       allowedOrigins: [...this.#allowedOrigins].sort(),
       blockedOrigins: [...this.#blockedOrigins].sort(),
+      allowedSessionIds: [...this.#allowedBrowserUseSessions].sort(),
+      blockedSessionIds: [...this.#blockedBrowserUseSessions].sort(),
     };
   }
 
@@ -267,6 +485,7 @@ export class DesktopBrowserService {
       url: null,
       loading: false,
       error: null,
+      pendingBrowserUseOrigin: null,
       consoleEntries: [],
       networkEntries: [],
     };
@@ -276,24 +495,89 @@ export class DesktopBrowserService {
     return record;
   }
 
+  #ensureBrowserUseRecord(sessionId: string): BrowserRecord {
+    const record = this.#getOrCreateRecord(sessionId, "desktop");
+    const window = this.#requireWindow();
+    this.#attach(window, record);
+    if (record.bounds.width <= 0 || record.bounds.height <= 0) {
+      const [width, height] = window.getContentSize();
+      const leftRailWidth = 420;
+      const topOffset = 80;
+      record.bounds = {
+        x: Math.min(leftRailWidth, Math.max(0, width - 320)),
+        y: topOffset,
+        width: Math.max(320, width - leftRailWidth),
+        height: Math.max(240, height - topOffset),
+      };
+      this.#setBounds(record, record.bounds);
+    }
+    return record;
+  }
+
+  #browserUseTab(record: BrowserRecord): BrowserUseTabRecord {
+    const webContents = record.view.webContents;
+    return {
+      id: webContents.id,
+      title: webContents.getTitle() || record.title || undefined,
+      url: webContents.getURL() || record.url || undefined,
+      active: true,
+    };
+  }
+
+  #requireRecordByTabId(tabId: string | number): BrowserRecord {
+    const normalizedTabId = Number(tabId);
+    if (!Number.isInteger(normalizedTabId) || normalizedTabId <= 0) {
+      throw new Error(`Invalid Browser Use tab id: ${String(tabId)}`);
+    }
+    for (const record of this.#records.values()) {
+      if (record.view.webContents.id === normalizedTabId) {
+        return record;
+      }
+    }
+    throw new Error(`Browser Use tab not found: ${String(tabId)}`);
+  }
+
   #bind(record: BrowserRecord): void {
     const webContents = record.view.webContents;
+    webContents.debugger.on("message", (_event: ElectronEvent, method: string, params: unknown) => {
+      for (const listener of this.#browserUseCdpListeners) {
+        listener({
+          tabId: String(webContents.id),
+          method,
+          params,
+        });
+      }
+    });
     webContents.on("page-title-updated", (_event, title) => {
       record.title = title || null;
+      this.#emitState(record);
     });
     webContents.on("did-start-loading", () => {
       record.loading = true;
       record.error = null;
+      this.#emitState(record);
+    });
+    webContents.on("did-navigate", (_event, url) => {
+      record.url = url || webContents.getURL() || record.url;
+      record.error = null;
+      this.#emitState(record);
+    });
+    webContents.on("did-navigate-in-page", (_event, url) => {
+      record.url = url || webContents.getURL() || record.url;
+      record.error = null;
+      this.#emitState(record);
     });
     webContents.on("did-stop-loading", () => {
       record.loading = false;
       record.url = webContents.getURL() || null;
       record.title = webContents.getTitle() || record.title;
+      this.#emitState(record);
     });
     webContents.on("did-fail-load", (_event, _errorCode, errorDescription, validatedUrl) => {
       record.loading = false;
       record.url = validatedUrl || webContents.getURL() || record.url;
       record.error = errorDescription || "Page failed to load.";
+      this.#emitState(record);
     });
     webContents.on("console-message", (_event, level, message) => {
       record.consoleEntries = [
@@ -365,7 +649,12 @@ export class DesktopBrowserService {
       loading: record.loading,
       viewport: record.viewport,
       error: record.error,
+      pendingBrowserUseOrigin: record.pendingBrowserUseOrigin,
     };
+  }
+
+  #emitState(record: BrowserRecord): void {
+    this.#onStateChange?.(this.#state(record));
   }
 
   #requireRecord(threadId: string): BrowserRecord {

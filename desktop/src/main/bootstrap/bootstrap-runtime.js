@@ -1,6 +1,6 @@
 import { firstString } from "./bootstrap-shared.js";
 
-const RUNTIME_READY_TIMEOUT_MS = 5000;
+const RUNTIME_READY_TIMEOUT_MS = 30000;
 
 export function normalizeRuntimeState(manager, appStartedAt, runtimeInfo = {}) {
   const appVersion = firstString(runtimeInfo.appVersion) || "unknown";

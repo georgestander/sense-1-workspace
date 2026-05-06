@@ -201,6 +201,62 @@ function findShortcutMention(
   }) ?? null;
 }
 
+function findBrowserUseShortcutMention(
+  inputItems: DesktopAppServerInputItem[],
+): (DesktopAppServerInputItem & { type: "mention"; name?: string; path?: string }) | null {
+  return inputItems.find((item): item is DesktopAppServerInputItem & { type: "mention"; name?: string; path?: string } => {
+    if (item.type !== "mention") {
+      return false;
+    }
+
+    const name = typeof item.name === "string" ? item.name.trim().toLowerCase() : "";
+    const itemPath = typeof item.path === "string" ? item.path.trim().toLowerCase() : "";
+    return name === "browser-use:browser"
+      || name === "browser-use"
+      || name === "browser"
+      || itemPath.includes("/browser-use/");
+  }) ?? null;
+}
+
+async function buildBrowserUseInvocationRuntimeInstruction(
+  inputItems: DesktopAppServerInputItem[],
+): Promise<string | null> {
+  const browserUseMention = findBrowserUseShortcutMention(inputItems);
+  const skillPath = browserUseMention?.path?.trim() ?? "";
+  if (!skillPath) {
+    return null;
+  }
+
+  let skillBody = "";
+  try {
+    skillBody = await fs.readFile(skillPath, "utf8");
+  } catch (error) {
+    console.warn(
+      "[desktop:browser-use] Failed to read Browser Use skill; continuing with invocation instruction.",
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+
+  const instructions = [
+    "The user explicitly invoked Browser Use for this turn.",
+    "Use the Browser Use in-app browser workflow for browser navigation, inspection, clicking, typing, screenshots, and page debugging.",
+    "Do not treat the @browser-use token as ordinary text. Do not complete the turn without attempting Browser Use when the user asks for browser action.",
+    "Do not use web search, web lookup, or any external lookup as a fallback for a Browser Use turn.",
+    "If the Browser Use runtime or page inspection is interrupted, stop and report that Browser Use failed instead of answering from another source.",
+    "If a Browser Use session approval prompt is visible, wait for the user to approve it before inspecting, clicking, or typing.",
+  ];
+
+  if (skillBody.trim()) {
+    instructions.push(
+      `<invoked_skill name="browser-use:browser" path="${skillPath}">\n${skillBody.trim()}\n</invoked_skill>`,
+    );
+  } else {
+    instructions.push(`Browser Use skill path: ${skillPath}`);
+  }
+
+  return instructions.join("\n");
+}
+
 function mergeRuntimeInstructions(baseInstructions: string, extraInstruction: string | null): string {
   const trimmedBase = baseInstructions.trim();
   const trimmedExtra = extraInstruction?.trim() ?? "";
@@ -624,13 +680,16 @@ export class DesktopRunStartService {
         sessionArtifactRoot: attachmentArtifactRoot,
         workspaceRoot: effectiveWorkspaceRoot,
       });
-      let inputItems: DesktopAppServerInputItem[] = [];
+      let inputItems: DesktopAppServerInputItem[] = Array.isArray(request.inputItems) ? [...request.inputItems] : [];
       if (extractPromptShortcutTokens(request.prompt).length > 0) {
         try {
-          inputItems = resolvePromptShortcutInputItems(
-            request.prompt,
-            await this.#desktopExtensions.getOverview(),
-          );
+          inputItems = [
+            ...inputItems,
+            ...resolvePromptShortcutInputItems(
+              request.prompt,
+              await this.#desktopExtensions.getOverview(),
+            ),
+          ];
         } catch (error) {
           console.warn(
             "[desktop:shortcut-resolution] Failed to resolve prompt shortcuts; continuing without mention enrichment.",
@@ -648,16 +707,20 @@ export class DesktopRunStartService {
       if (profileCodexHomeAccess.shouldGrantProfileCodexHome) {
         runtimeRunContext = withAdditionalWritableRoots(runContext, [profileCodexHome]);
       }
+      const browserUseInvocationInstruction = await buildBrowserUseInvocationRuntimeInstruction(inputItems);
       const resolvedRuntimeInstructions = mergeRuntimeInstructions(
         mergeRuntimeInstructions(
-          baseRuntimeInstructions,
-          await buildRuntimeContinuityInstruction({
-            artifactRoot: profileArtifactRoot,
-            currentSessionId: existingSession?.id ?? pendingSessionId,
-            dbPath: substrateDbPath,
-            profileId: profile.id,
-            workspaceRoot: effectiveWorkspaceRoot,
-          }),
+          mergeRuntimeInstructions(
+            baseRuntimeInstructions,
+            await buildRuntimeContinuityInstruction({
+              artifactRoot: profileArtifactRoot,
+              currentSessionId: existingSession?.id ?? pendingSessionId,
+              dbPath: substrateDbPath,
+              profileId: profile.id,
+              workspaceRoot: effectiveWorkspaceRoot,
+            }),
+          ),
+          browserUseInvocationInstruction,
         ),
         buildProfileExtensionRuntimeInstruction({
           hasManagedSkillCreationRequest: profileCodexHomeAccess.hasManagedSkillCreationRequest,
