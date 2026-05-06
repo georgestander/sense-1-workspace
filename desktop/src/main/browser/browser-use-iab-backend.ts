@@ -124,8 +124,10 @@ export class BrowserUseIabBackend {
   readonly #browser: DesktopBrowserService;
   readonly #onOpen: ((event: { threadId: string }) => void) | null;
   readonly #socketPathByCodexHome = new Map<string, string>();
+  readonly #socketPathPromiseByCodexHome = new Map<string, Promise<string>>();
   #socketPath: string;
   #server: net.Server | null = null;
+  #startPromise: Promise<void> | null = null;
 
   constructor(
     browser: DesktopBrowserService,
@@ -143,9 +145,20 @@ export class BrowserUseIabBackend {
 
   async configureForCodexHome(codexHome: string): Promise<string> {
     const resolvedCodexHome = path.resolve(codexHome);
-    const socketPath = this.#socketPathByCodexHome.get(resolvedCodexHome)
-      ?? await createPrivateSocketPathForCodexHome(resolvedCodexHome);
-    this.#socketPathByCodexHome.set(resolvedCodexHome, socketPath);
+    let socketPath = this.#socketPathByCodexHome.get(resolvedCodexHome);
+    if (!socketPath) {
+      let socketPathPromise = this.#socketPathPromiseByCodexHome.get(resolvedCodexHome);
+      if (!socketPathPromise) {
+        socketPathPromise = createPrivateSocketPathForCodexHome(resolvedCodexHome).then((createdSocketPath) => {
+          this.#socketPathByCodexHome.set(resolvedCodexHome, createdSocketPath);
+          return createdSocketPath;
+        }).finally(() => {
+          this.#socketPathPromiseByCodexHome.delete(resolvedCodexHome);
+        });
+        this.#socketPathPromiseByCodexHome.set(resolvedCodexHome, socketPathPromise);
+      }
+      socketPath = await socketPathPromise;
+    }
     await this.#setSocketPath(socketPath);
     return socketPath;
   }
@@ -154,9 +167,22 @@ export class BrowserUseIabBackend {
     if (this.#server) {
       return;
     }
+    if (this.#startPromise) {
+      return this.#startPromise;
+    }
+    const socketPath = this.#socketPath;
+    this.#startPromise = this.#listen(socketPath);
+    try {
+      await this.#startPromise;
+    } finally {
+      this.#startPromise = null;
+    }
+  }
+
+  async #listen(socketPath: string): Promise<void> {
     if (process.platform !== "win32") {
-      await ensurePrivateSocketDirectory(this.#socketPath);
-      await fs.rm(this.#socketPath, { force: true });
+      await ensurePrivateSocketDirectory(socketPath);
+      await fs.rm(socketPath, { force: true });
     }
 
     const server = net.createServer((socket) => {
@@ -187,7 +213,7 @@ export class BrowserUseIabBackend {
 
     await new Promise<void>((resolve, reject) => {
       server.once("error", reject);
-      server.listen(this.#socketPath, () => {
+      server.listen(socketPath, () => {
         server.off("error", reject);
         resolve();
       });
@@ -196,6 +222,10 @@ export class BrowserUseIabBackend {
   }
 
   async stop(): Promise<void> {
+    const startPromise = this.#startPromise;
+    if (startPromise) {
+      await startPromise.catch(() => {});
+    }
     const server = this.#server;
     if (!server) {
       return;
@@ -212,7 +242,7 @@ export class BrowserUseIabBackend {
       return;
     }
 
-    const wasRunning = this.#server !== null;
+    const wasRunning = this.#server !== null || this.#startPromise !== null;
     if (wasRunning) {
       await this.stop();
     }

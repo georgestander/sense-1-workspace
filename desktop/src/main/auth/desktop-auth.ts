@@ -111,32 +111,20 @@ export async function startDesktopAuthLogin(
     }
   }
 
-  let authUrl = fallbackUrl;
+  let authUrl: string | null = null;
   try {
     const result = (await manager.request("account/login/start", {
       type: "chatgpt",
     })) as AccountLoginStartResult;
     authUrl =
       (typeof result?.authUrl === "string" && result.authUrl.trim()) ||
-      fallbackUrl;
+      null;
   } catch (error) {
-    authUrl = fallbackUrl;
-    try {
-      await openExternal(authUrl);
-      return {
-        success: true,
-        method: "chatgpt",
-        url: authUrl,
-        reason: `Fell back to direct ChatGPT login: ${formatError(error)}`,
-      };
-    } catch (openError) {
-      return {
-        success: false,
-        method: "chatgpt",
-        url: authUrl,
-        reason: formatError(openError),
-      };
-    }
+    return buildAuthStartFailure("chatgpt", `Could not start Codex ChatGPT sign-in: ${formatError(error)}`);
+  }
+
+  if (!authUrl) {
+    return buildAuthStartFailure("chatgpt", "Codex did not provide a ChatGPT sign-in URL.");
   }
 
   try {

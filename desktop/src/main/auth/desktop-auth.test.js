@@ -67,7 +67,7 @@ test("startDesktopAuthLogin uses runtime-provided authUrl when available", async
   assert.deepEqual(opened, ["https://example.com/login"]);
 });
 
-test("startDesktopAuthLogin falls back to the direct ChatGPT login URL when login/start fails", async () => {
+test("startDesktopAuthLogin fails instead of opening plain ChatGPT when login/start fails", async () => {
   const opened = [];
   const result = await startDesktopAuthLogin(
     createManager({
@@ -107,11 +107,54 @@ test("startDesktopAuthLogin falls back to the direct ChatGPT login URL when logi
     },
   );
 
-  assert.equal(result.success, true);
+  assert.equal(result.success, false);
   assert.equal(result.method, "chatgpt");
-  assert.equal(result.url, "https://chatgpt.com/auth/login");
-  assert.match(result.reason ?? "", /Fell back to direct ChatGPT login/);
-  assert.deepEqual(opened, ["https://chatgpt.com/auth/login"]);
+  assert.equal(result.url, null);
+  assert.match(result.reason ?? "", /Could not start Codex ChatGPT sign-in/);
+  assert.deepEqual(opened, []);
+});
+
+test("startDesktopAuthLogin fails when runtime does not provide a Codex auth URL", async () => {
+  const opened = [];
+  const result = await startDesktopAuthLogin(
+    createManager({
+      request: async (method) => {
+        if (method === "account/read") {
+          return {
+            account: {
+              email: null,
+              type: "chatgpt",
+            },
+            requiresOpenaiAuth: true,
+          };
+        }
+
+        if (method === "thread/list") {
+          return {
+            data: [],
+          };
+        }
+
+        if (method === "account/login/start") {
+          return {};
+        }
+
+        throw new Error(`Unexpected method: ${method}`);
+      },
+    }),
+    {
+      request: { method: "chatgpt" },
+      openExternal: async (url) => {
+        opened.push(url);
+      },
+    },
+  );
+
+  assert.equal(result.success, false);
+  assert.equal(result.method, "chatgpt");
+  assert.equal(result.url, null);
+  assert.match(result.reason ?? "", /did not provide a ChatGPT sign-in URL/);
+  assert.deepEqual(opened, []);
 });
 
 test("startDesktopAuthLogin completes immediately in the e2e auth fixture for the selected profile", async () => {

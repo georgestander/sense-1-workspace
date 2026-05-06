@@ -110,6 +110,63 @@ test("BrowserUseIabBackend creates a private per-profile socket path", async () 
   }
 });
 
+test("BrowserUseIabBackend reuses one private socket path for concurrent profile configuration", async () => {
+  const profileRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-browser-profile-concurrent-"));
+  const codexHome = path.join(profileRoot, "codex-home");
+  const browser = {
+    onBrowserUseCdpEvent() {
+      return () => {};
+    },
+  };
+  const backend = new BrowserUseIabBackend(browser, null);
+
+  try {
+    const socketPaths = await Promise.all([
+      backend.configureForCodexHome(codexHome),
+      backend.configureForCodexHome(codexHome),
+      backend.configureForCodexHome(codexHome),
+    ]);
+
+    assert.equal(new Set(socketPaths).size, 1);
+  } finally {
+    await backend.stop();
+    await fs.rm(profileRoot, { recursive: true, force: true });
+  }
+});
+
+test("BrowserUseIabBackend treats concurrent starts as one listener", async (t) => {
+  const tempRoot = process.platform === "darwin" ? "/private/tmp" : os.tmpdir();
+  const socketPath = path.join(await fs.mkdtemp(path.join(tempRoot, "sense1-browser-use-iab-start-")), "browser.sock");
+  const browser = {
+    onBrowserUseCdpEvent() {
+      return () => {};
+    },
+  };
+  const backend = new BrowserUseIabBackend(browser, socketPath);
+
+  try {
+    try {
+      await Promise.all([backend.start(), backend.start(), backend.start()]);
+    } catch (error) {
+      if (error?.code === "EPERM") {
+        t.skip("sandbox does not allow binding a local Browser Use socket");
+        return;
+      }
+      throw error;
+    }
+
+    const client = createRpcClient(socketPath);
+    try {
+      assert.equal(await client.request("ping"), "pong");
+    } finally {
+      client.close();
+    }
+  } finally {
+    await backend.stop();
+    await fs.rm(path.dirname(socketPath), { recursive: true, force: true });
+  }
+});
+
 test("BrowserUseIabBackend speaks the Browser Use native pipe RPC protocol", async (t) => {
   const tempRoot = process.platform === "darwin" ? "/private/tmp" : os.tmpdir();
   const socketPath = path.join(await fs.mkdtemp(path.join(tempRoot, "sense1-browser-use-iab-")), "browser.sock");
