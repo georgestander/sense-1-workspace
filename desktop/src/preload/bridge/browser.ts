@@ -1,4 +1,4 @@
-import type { IpcRenderer } from "electron";
+import type { IpcRenderer, IpcRendererEvent } from "electron";
 
 import {
   IPC_CHANNELS,
@@ -28,6 +28,36 @@ export function createBrowserBridge(ipcRenderer: IpcRenderer): BrowserBridge {
       checkTrust: async (request) => ipcRenderer.invoke(IPC_CHANNELS.browserTrustCheck, request),
       updateTrust: async (request) => ipcRenderer.invoke(IPC_CHANNELS.browserTrustUpdate, request),
       getTrustState: async () => ipcRenderer.invoke(IPC_CHANNELS.browserTrustState),
+      onStateChange: (listener) => {
+        const wrapped = (_event: IpcRendererEvent, payload: unknown) => {
+          if (!payload || typeof payload !== "object") {
+            return;
+          }
+          const state = payload as { threadId?: unknown };
+          if (typeof state.threadId === "string" && state.threadId.trim()) {
+            listener(payload as Parameters<typeof listener>[0]);
+          }
+        };
+        ipcRenderer.on(IPC_CHANNELS.browserStateChanged, wrapped);
+        return () => {
+          ipcRenderer.off(IPC_CHANNELS.browserStateChanged, wrapped);
+        };
+      },
+      onBrowserUseOpen: (listener) => {
+        const wrapped = (_event: IpcRendererEvent, payload: unknown) => {
+          if (!payload || typeof payload !== "object") {
+            return;
+          }
+          const threadId = (payload as { threadId?: unknown }).threadId;
+          if (typeof threadId === "string" && threadId.trim()) {
+            listener({ threadId });
+          }
+        };
+        ipcRenderer.on(IPC_CHANNELS.browserUseOpen, wrapped);
+        return () => {
+          ipcRenderer.off(IPC_CHANNELS.browserUseOpen, wrapped);
+        };
+      },
     },
   };
 }

@@ -14,9 +14,6 @@ type BuildThreadViewPropsArgs = {
   ui: {
     setReasoning: Dispatch<SetStateAction<string>>;
   };
-  reportBug: {
-    onReportBug: () => void;
-  };
   composer: Pick<
     ThreadViewProps,
     | "clarificationAnswer"
@@ -133,12 +130,11 @@ export function buildThreadViewProps({
   sessionState,
   extensionOverview,
   ui,
-  reportBug,
   composer,
   modelState,
   rightRail,
   transcript,
-}: BuildThreadViewPropsArgs): Omit<ThreadViewProps, "browserOpen" | "setBrowserOpen"> | null {
+}: BuildThreadViewPropsArgs): Omit<ThreadViewProps, "browserOpen" | "browserRequestedUrl" | "browserSessionThreadId" | "onBrowserUsePrompt" | "setBrowserRequestedUrl" | "setBrowserSessionThreadId" | "setBrowserOpen"> | null {
   perfCount("build.ThreadViewProps");
   const selectedThread = sessionState.selectedThread;
   if (!selectedThread) {
@@ -201,7 +197,6 @@ export function buildThreadViewProps({
     transcriptEndRef: transcript.transcriptEndRef,
     configNotices: rightRail.configNotices,
     footerStatusText: rightRail.footerStatusText,
-    onReportBug: reportBug.onReportBug,
   }));
 }
 

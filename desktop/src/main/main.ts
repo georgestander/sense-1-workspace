@@ -18,7 +18,7 @@ import {
 } from "./window";
 import { resolveDesktopIconPath } from "./desktop-icon.js";
 import { registerRendererProtocolHandlers } from "./renderer-protocol.ts";
-import { emitDesktopRuntimeEvent, emitDesktopThreadDelta, registerDesktopIpcHandlers, unregisterDesktopIpcHandlers } from "./ipc";
+import { emitDesktopBrowserState, emitDesktopRuntimeEvent, emitDesktopThreadDelta, registerDesktopIpcHandlers, unregisterDesktopIpcHandlers } from "./ipc";
 import { DESKTOP_BRIDGE_API_VERSION } from "./contracts";
 import type { DesktopUpdateState } from "./contracts";
 import { mapDesktopRuntimeEvent } from "./runtime/runtime-events.ts";
@@ -29,6 +29,14 @@ import { collectOutOfWorkspacePathsFromRuntimeMessage } from "./workspace/worksp
 import { resolveDesktopInteractionState } from "./session/interaction-state.ts";
 import { ThreadInputQueueService } from "./session/thread-input-queue-service.ts";
 import { resolveBootstrapVisibleThreadId, shouldRestoreQueuedFollowUp } from "./session/thread-runtime-behavior.ts";
+import {
+  handleDynamicToolCallRequest,
+  isDynamicToolCallRequest,
+} from "./session/dynamic-tool-call-service.ts";
+import {
+  handleMcpServerElicitationRequest,
+  isMcpServerElicitationRequest,
+} from "./session/mcp-elicitation-service.ts";
 import { RuntimeFileChangeTracker } from "./session/runtime-file-change-tracker.ts";
 import {
   buildExhaustedCreditsEntry,
@@ -37,6 +45,10 @@ import {
 } from "./session/api-key-credits-notification.ts";
 import { DesktopBugReportingService } from "./bug-reporting/desktop-bug-reporting-service.ts";
 import { DesktopBrowserService } from "./browser/desktop-browser-service.ts";
+import {
+  BROWSER_USE_IAB_SOCKET_ENV,
+  BrowserUseIabBackend,
+} from "./browser/browser-use-iab-backend.ts";
 import {
   classifyBootstrapSetup,
   classifyRenderProcessGone,
@@ -97,7 +109,20 @@ Sentry.init({
 });
 app.setName(DESKTOP_APP_NAME);
 const isSingleInstance = shouldEnforceSingleInstance ? app.requestSingleInstanceLock() : true;
-const appServerManager = new AppServerProcessManager();
+const desktopBrowserService = new DesktopBrowserService(emitDesktopBrowserState);
+const browserUseIabBackend = new BrowserUseIabBackend(desktopBrowserService, null, (event) => {
+  const window = BrowserWindow.getAllWindows().find((candidate) => !candidate.isDestroyed()) ?? null;
+  window?.webContents.send("sense1:desktop:browser-use:open", event);
+});
+const appServerManager = new AppServerProcessManager({
+  beforeProfileChange: async (codexHome) => {
+    const socketPath = await browserUseIabBackend.configureForCodexHome(codexHome);
+    await browserUseIabBackend.start();
+    return {
+      [BROWSER_USE_IAB_SOCKET_ENV]: socketPath,
+    };
+  },
+});
 const appStartedAt = new Date().toISOString();
 const runtimeInfo = {
   apiVersion: DESKTOP_BRIDGE_API_VERSION,
@@ -682,7 +707,6 @@ const bugReportingService = new DesktopBugReportingService({
   getRecentMainSentryEvents: () => recentMainSentryEvents.snapshot(),
   captureManualBugReport: captureDesktopManualBugReport,
 });
-const desktopBrowserService = new DesktopBrowserService();
 let runtimeStartInFlight: Promise<void> | null = null;
 let isGracefulQuitInProgress = false;
 
@@ -722,6 +746,19 @@ appServerManager.on("transport:error", (error) => {
 });
 
 appServerManager.on("notification", (message) => {
+  if (isDynamicToolCallRequest(message)) {
+    void handleDynamicToolCallRequest({
+      manager: appServerManager,
+      message,
+    });
+  }
+  if (isMcpServerElicitationRequest(message)) {
+    void handleMcpServerElicitationRequest({
+      browser: desktopBrowserService,
+      manager: appServerManager,
+      message,
+    });
+  }
   // Log key lifecycle events (not streaming deltas) for debugging
   if (SHOULD_LOG_RUNTIME_EVENTS && message && typeof message === "object" && "method" in message) {
     const m = String(message.method);
@@ -1064,8 +1101,8 @@ async function bootstrapMainProcess(): Promise<void> {
     browserType: async (request) => await desktopBrowserService.type(request.threadId, request.x, request.y, request.text),
     browserConsole: async (request) => desktopBrowserService.console(request.threadId),
     browserNetwork: async (request) => desktopBrowserService.network(request.threadId),
-    browserTrustCheck: async (request) => desktopBrowserService.checkTrust(request.url),
-    browserTrustUpdate: async (request) => desktopBrowserService.updateTrust(request.origin, request.decision),
+    browserTrustCheck: async (request) => desktopBrowserService.checkTrust(request.url, request.threadId ?? null),
+    browserTrustUpdate: async (request) => desktopBrowserService.updateTrust(request.origin, request.decision, request.threadId ?? null),
     browserTrustState: async () => desktopBrowserService.getTrustState(),
     getDesktopSettings: async () => await desktopSessionController.getDesktopSettings(),
     getDesktopPolicyRules: async () => await desktopSessionController.getDesktopPolicyRules(),
@@ -1134,6 +1171,7 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", (event) => {
   runtimeProgressNarrator.clear();
+  void browserUseIabBackend.stop();
   if (isGracefulQuitInProgress) {
     return;
   }
@@ -1169,6 +1207,7 @@ function ensureRuntimeStarted(): void {
 async function stopRuntimeForQuit(): Promise<void> {
   try {
     await appServerManager.stop();
+    await browserUseIabBackend.stop();
   } catch (error) {
     console.error(`[desktop:runtime] Failed to stop app-server during quit: ${formatError(error)}`);
   } finally {

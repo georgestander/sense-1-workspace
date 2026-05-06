@@ -820,6 +820,15 @@ export function emitDesktopThreadDelta(delta: DesktopThreadDelta): void {
   scheduleThreadDeltaFlush();
 }
 
+export function emitDesktopBrowserState(state: DesktopBrowserState): void {
+  const window = getMainWindow();
+  if (!window || window.isDestroyed()) {
+    return;
+  }
+
+  window.webContents.send(IPC_CHANNELS.browserStateChanged, state);
+}
+
 function scheduleThreadDeltaFlush(): void {
   if (pendingThreadDeltaFlushTimer) {
     return;

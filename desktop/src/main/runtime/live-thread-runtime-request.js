@@ -255,6 +255,7 @@ export function buildDesktopThreadRequest({
   runtimeInstructions = null,
   settings = null,
   verbosity = null,
+  webSearch = "live",
   workspaceRoot = null,
 } = {}) {
   const resolvedModel = firstString(model) || DEFAULT_DESKTOP_MODEL;
@@ -284,6 +285,7 @@ export function buildDesktopThreadRequest({
       developer_instructions: instructionSet.developerInstructions,
       instructions: instructionSet.baseInstructions,
       model: resolvedModel,
+      web_search: webSearch === "disabled" ? "disabled" : "live",
     },
     cwd: runtimeCwd ?? null,
     developerInstructions: instructionSet.developerInstructions,

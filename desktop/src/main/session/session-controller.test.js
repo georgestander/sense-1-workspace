@@ -1369,11 +1369,12 @@ test("listModels applies persisted model restrictions", async () => {
       id: "gpt-5.4-mini",
       name: "GPT-5.4 Mini",
       supportedReasoningEfforts: ["medium"],
+      defaultReasoningEffort: "medium",
     },
   ]);
 });
 
-test("listModels preserves runtime default metadata for the renderer", async () => {
+test("listModels seeds current defaults and preserves runtime default metadata for the renderer", async () => {
   const root = await makeTempRoot();
   const env = createTestEnv(root);
   const controller = new DesktopSessionController(
@@ -1411,6 +1412,19 @@ test("listModels preserves runtime default metadata for the renderer", async () 
 
   const result = await controller.listModels();
   assert.deepEqual(result.models, [
+    {
+      id: "gpt-5.5",
+      isDefault: true,
+      name: "GPT-5.5",
+      defaultReasoningEffort: "medium",
+      supportedReasoningEfforts: ["low", "medium", "high", "xhigh"],
+    },
+    {
+      id: "gpt-5.4-mini",
+      name: "GPT-5.4 Mini",
+      defaultReasoningEffort: "medium",
+      supportedReasoningEfforts: ["low", "medium", "high", "xhigh"],
+    },
     {
       id: "gpt-5.4",
       isDefault: true,

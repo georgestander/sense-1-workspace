@@ -3,6 +3,7 @@ export const MODEL_CATALOG_CACHE_KEY = "sense1.desktop.modelCatalog.v1";
 const REASONING_HIGH_ONLY = ["high"];
 const REASONING_NONE_LOW_MEDIUM_HIGH = ["none", "low", "medium", "high"];
 const REASONING_LOW_MEDIUM_HIGH_XHIGH = ["low", "medium", "high", "xhigh"];
+const PREFERRED_FRONTIER_MODELS = ["gpt-5.5"];
 
 function getStorage(storage) {
   if (storage) {
@@ -133,7 +134,12 @@ function resolveDefaultModelEntry(models) {
     return null;
   }
 
-  return models.find((entry) => entry.isDefault) ?? models[0] ?? null;
+  return PREFERRED_FRONTIER_MODELS
+    .map((modelId) => models.find((entry) => entry.id === modelId) ?? null)
+    .find(Boolean)
+    ?? models.find((entry) => entry.isDefault)
+    ?? models[0]
+    ?? null;
 }
 
 export function readRuntimeReasoningEfforts(modelEntry) {

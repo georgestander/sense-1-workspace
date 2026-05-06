@@ -94,7 +94,10 @@ function ThreadEntryShortcutPills({
   }>;
   showBrowserUse?: boolean;
 }) {
-  if (matches.length === 0 && !showBrowserUse) {
+  const visibleMatches = showBrowserUse
+    ? matches.filter((match) => match.token !== "browser-use")
+    : matches;
+  if (visibleMatches.length === 0 && !showBrowserUse) {
     return null;
   }
 
@@ -102,22 +105,22 @@ function ThreadEntryShortcutPills({
     <div className="mb-2 flex flex-wrap items-center gap-2">
       {showBrowserUse ? (
         <span
-          className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[0.6875rem] font-semibold text-canvas shadow-[var(--shadow-raised)]"
+          className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-3 py-1 text-[0.6875rem] font-semibold text-[#111827] shadow-[var(--shadow-raised)]"
           title="@browser-use -> Browser Use"
         >
           <img alt="" className="size-3.5 rounded-sm" src={browserUseIconUrl} />
           <span className="font-bold">Browser Use</span>
         </span>
       ) : null}
-      {matches.map((match) => {
+      {visibleMatches.map((match) => {
         const Icon = match.kind === "app" ? Blocks : match.kind === "plugin" ? PlugZap : Sparkles;
         return (
           <span
-            className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[0.6875rem] font-semibold text-canvas shadow-[var(--shadow-raised)]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-3 py-1 text-[0.6875rem] font-semibold text-[#111827] shadow-[var(--shadow-raised)]"
             key={`${match.kind}:${match.token}:${match.label}`}
             title={`$${match.token} -> ${match.label}`}
           >
-            <Icon className="size-3.5 text-canvas/80" />
+            <Icon className="size-3.5 text-[#4B5563]" />
             <span className="font-bold">{match.label}</span>
           </span>
         );

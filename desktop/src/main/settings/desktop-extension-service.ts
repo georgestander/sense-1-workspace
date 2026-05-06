@@ -584,6 +584,57 @@ function normalizePlugins(rawPlugins: unknown, pluginConfig: Record<string, unkn
   return records.sort((left, right) => left.displayName.localeCompare(right.displayName));
 }
 
+async function addBundledBrowserUsePluginFallback(
+  plugins: DesktopPluginRecord[],
+  profileCodexHome: string,
+  pluginConfig: Record<string, unknown>,
+  shouldAddFallback: boolean,
+): Promise<DesktopPluginRecord[]> {
+  if (!shouldAddFallback) {
+    return plugins;
+  }
+  if (plugins.some((plugin) => plugin.id === "browser-use@openai-bundled" || plugin.name === "browser-use")) {
+    return plugins;
+  }
+
+  const sourcePath = path.join(profileCodexHome, "plugins", "cache", "openai-bundled", "browser-use", "0.1.0-alpha1");
+  const pluginJsonPath = path.join(sourcePath, ".codex-plugin", "plugin.json");
+  if (!(await fileExists(pluginJsonPath))) {
+    return plugins;
+  }
+
+  let manifest: Record<string, unknown> = {};
+  try {
+    manifest = asRecord(JSON.parse(await fs.readFile(pluginJsonPath, "utf8")));
+  } catch {
+    return plugins;
+  }
+
+  const interfaceRecord = asRecord(manifest.interface);
+  const pluginSettings = asRecord(pluginConfig["browser-use@openai-bundled"]) ?? asRecord(pluginConfig["browser-use"]);
+  return [
+    ...plugins,
+    {
+      id: "browser-use@openai-bundled",
+      name: firstString(manifest.name) ?? "browser-use",
+      displayName: firstString(interfaceRecord.displayName, manifest.name) ?? "Browser Use",
+      description: firstString(interfaceRecord.shortDescription, manifest.description),
+      appIds: [],
+      marketplaceName: "openai-bundled",
+      marketplacePath: path.join(profileCodexHome, ".agents", "plugins", "marketplace.json"),
+      installed: true,
+      enabled: asBoolean(pluginSettings.enabled, true),
+      installPolicy: "AVAILABLE",
+      authPolicy: "ON_INSTALL",
+      category: firstString(interfaceRecord.category),
+      capabilities: asStringArray(interfaceRecord.capabilities),
+      sourcePath,
+      websiteUrl: firstString(interfaceRecord.websiteURL, interfaceRecord.websiteUrl),
+      iconPath: firstString(interfaceRecord.logo, interfaceRecord.composerIcon),
+    },
+  ];
+}
+
 function resolveMarketplacePluginSourcePath(
   marketplacePath: string,
   marketplacePlugin: Record<string, unknown>,
@@ -963,7 +1014,10 @@ function mergeSkills(
   const merged = new Map<string, DesktopSkillRecord>();
 
   for (const skill of runtimeSkills) {
-    merged.set(skill.path, skill);
+    const key = skillMergeKey(skill);
+    if (!merged.has(key)) {
+      merged.set(key, skill);
+    }
   }
 
   for (const plugin of plugins) {
@@ -976,17 +1030,30 @@ function mergeSkills(
     }
 
     for (const skill of metadata.skills) {
-      if (merged.has(skill.path)) {
-        continue;
-      }
-      merged.set(skill.path, {
+      const key = skillMergeKey(skill);
+      const existing = merged.get(key);
+      merged.set(key, {
+        ...existing,
         ...skill,
+        description: skill.description ?? existing?.description ?? null,
         enabled: plugin.enabled,
       });
     }
   }
 
   return [...merged.values()].sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function skillMergeKey(skill: DesktopSkillRecord): string {
+  const name = firstString(skill.name)?.toLowerCase() ?? "";
+  const normalizedPath = normalizeStoredPath(skill.path).toLowerCase();
+  if (name === "browser-use:browser" || normalizedPath.includes("/browser-use/skills/browser/skill.md")) {
+    return "plugin:browser-use:browser";
+  }
+  if (skill.scope === "plugin" && name.includes(":")) {
+    return `plugin:${name}`;
+  }
+  return normalizedPath || name;
 }
 
 function backfillAppPluginDisplayNames(
@@ -1655,7 +1722,14 @@ export class DesktopExtensionService {
       }),
     };
 
-    const normalizedPlugins = normalizePlugins(pluginResult, asRecord(config?.plugins));
+    const pluginConfig = asRecord(config?.plugins);
+    const pluginListFailed = failedReads.some((entry) => entry.method === "plugin/list");
+    const normalizedPlugins = await addBundledBrowserUsePluginFallback(
+      normalizePlugins(pluginResult, pluginConfig),
+      profileCodexHome,
+      pluginConfig,
+      pluginListFailed,
+    );
     const pluginSourcePaths = uniqueStrings(normalizedPlugins.map((plugin) => plugin.sourcePath));
     if (pluginSourcePaths.length > 0) {
       try {

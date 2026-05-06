@@ -2,12 +2,19 @@ import { Blocks, PlugZap, Sparkles } from "lucide-react";
 
 import type { DesktopPromptShortcutSuggestion } from "../../../shared/prompt-shortcuts.ts";
 import { cn } from "../../lib/cn.js";
+import browserUseIconUrl from "../../assets/browser-use.png";
 
 type ShortcutSuggestionMenuProps = {
   activeIndex: number;
   onSelect: (suggestion: DesktopPromptShortcutSuggestion) => void;
   suggestions: DesktopPromptShortcutSuggestion[];
 };
+
+function isBrowserUseSuggestion(suggestion: DesktopPromptShortcutSuggestion): boolean {
+  return suggestion.token === "browser-use"
+    || suggestion.item.name === "browser-use:browser"
+    || suggestion.item.path.includes("/browser-use/");
+}
 
 export function ShortcutSuggestionMenu({
   activeIndex,
@@ -27,6 +34,8 @@ export function ShortcutSuggestionMenu({
         {suggestions.slice(0, 8).map((suggestion, index) => {
           const Icon = suggestion.kind === "app" ? Blocks : suggestion.kind === "plugin" ? PlugZap : Sparkles;
           const isActive = index === activeIndex;
+          const isBrowserUse = isBrowserUseSuggestion(suggestion);
+          const trigger = suggestion.trigger ?? "$";
           return (
             <button
               className={cn(
@@ -41,11 +50,15 @@ export function ShortcutSuggestionMenu({
               onClick={(event) => event.preventDefault()}
               type="button"
             >
-              <Icon className={cn("size-3.5 shrink-0", isActive ? "text-canvas" : "text-ink-muted")} />
+              {isBrowserUse ? (
+                <img alt="" className="size-3.5 shrink-0 rounded-sm" src={browserUseIconUrl} />
+              ) : (
+                <Icon className={cn("size-3.5 shrink-0", isActive ? "text-canvas" : "text-ink-muted")} />
+              )}
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold">{suggestion.label}</span>
                 <span className={cn("block truncate", isActive ? "text-canvas/70" : "text-ink-muted")}>
-                  ${suggestion.token}
+                  {trigger}{suggestion.token}
                   {suggestion.description ? ` · ${suggestion.description}` : ""}
                 </span>
               </span>

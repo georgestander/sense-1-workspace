@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 export const APP_NAME = "sense-1-workspace";
 export const DEFAULT_PROFILE_ID = "default";
@@ -24,6 +25,10 @@ const SENSE1_SKILL_CREATOR_OVERRIDE = [
   "- leave a finished, callable skill in the user's Sense-1 Skills library so it appears in the Skills page unless the user explicitly asked for scaffold-only output",
   "- when talking to the user, never mention `$CODEX_HOME`, `codex-home`, or raw filesystem install paths for skills; say `Sense-1 Skills library`, `installed skills`, or `Skills page` instead",
 ].join("\n");
+const OPENAI_BUNDLED_MARKETPLACE_ID = "openai-bundled";
+const NODE_REPL_MCP_SERVER_FILENAME = "node-repl-mcp-server.mjs";
+const BROWSER_CLIENT_NATIVE_PIPE_PATTERN = 'function P7(){return"privileged native pipe bridge is not available"}function L7(){let e=import.meta.__codexNativePipe;return e==null||typeof e.createConnection!="function"?null:e}';
+const BROWSER_CLIENT_NODE_SOCKET_FALLBACK = 'function P7(){return"privileged native pipe bridge is not available"}function L7(){let e=import.meta.__codexNativePipe;if(e!=null&&typeof e.createConnection=="function")return e;return{createConnection(t){return new Promise((n,r)=>{let i=net.createConnection(t),o=()=>{i.off("error",s),n(i)},s=a=>{i.off("connect",o),r(a)};i.once("connect",o),i.once("error",s)})}}}';
 
 function resolveSharedCodexHome(env = process.env) {
   const explicitCodexHome = env.CODEX_HOME?.trim();
@@ -287,6 +292,128 @@ async function syncProfileSystemSkills(codexHome, env = process.env) {
   await applySense1SystemSkillOverrides(targetSystemSkillsDir);
 }
 
+function resolveOpenAiBundledMarketplaceSource(env = process.env) {
+  const sharedCodexHome = resolveSharedCodexHome(env);
+  return path.join(sharedCodexHome, ".tmp", "bundled-marketplaces", OPENAI_BUNDLED_MARKETPLACE_ID);
+}
+
+function hasOpenAiBundledMarketplaceConfig(rawConfig) {
+  return /\[marketplaces\.(?:"openai-bundled"|'openai-bundled'|openai-bundled)\]/u.test(rawConfig)
+    || /marketplaces\.(?:"openai-bundled"|'openai-bundled'|openai-bundled)\.source\s*=/u.test(rawConfig);
+}
+
+function hasBrowserUsePluginConfig(rawConfig) {
+  return /\[plugins\.(?:"browser-use@openai-bundled"|'browser-use@openai-bundled'|browser-use@openai-bundled)\]/u.test(rawConfig)
+    || /plugins\.(?:"browser-use@openai-bundled"|'browser-use@openai-bundled'|browser-use@openai-bundled)\.enabled\s*=/u.test(rawConfig);
+}
+
+function hasNodeReplMcpConfig(rawConfig) {
+  return /\[mcp_servers\.(?:"node_repl"|'node_repl'|node_repl)\]/u.test(rawConfig)
+    || /mcp_servers\.(?:"node_repl"|'node_repl'|node_repl)\.command\s*=/u.test(rawConfig);
+}
+
+function resolveNodeReplMcpServerSource(env = process.env) {
+  const explicitPath = env.SENSE1_NODE_REPL_MCP_SERVER_PATH?.trim();
+  if (explicitPath) {
+    return path.resolve(explicitPath);
+  }
+
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  return [
+    path.resolve(process.cwd(), "resources", NODE_REPL_MCP_SERVER_FILENAME),
+    path.resolve(moduleDir, "..", "..", "resources", NODE_REPL_MCP_SERVER_FILENAME),
+    path.resolve(moduleDir, "..", "..", "..", "resources", NODE_REPL_MCP_SERVER_FILENAME),
+    path.resolve(process.resourcesPath ?? "", "resources", NODE_REPL_MCP_SERVER_FILENAME),
+  ].find((candidate) => existsSync(candidate)) ?? null;
+}
+
+async function ensureNodeReplMcpServer(codexHome, env = process.env) {
+  const source = resolveNodeReplMcpServerSource(env);
+  if (!source) {
+    return null;
+  }
+
+  const target = path.join(codexHome, "tools", NODE_REPL_MCP_SERVER_FILENAME);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.copyFile(source, target);
+  return target;
+}
+
+async function applyBrowserClientNodeSocketFallback(browserUseTarget) {
+  const browserClientPath = path.join(browserUseTarget, "scripts", "browser-client.mjs");
+  if (!(await fileExists(browserClientPath))) {
+    return;
+  }
+
+  const source = await fs.readFile(browserClientPath, "utf8");
+  if (source.includes("import net from\"node:net\"") || !source.includes(BROWSER_CLIENT_NATIVE_PIPE_PATTERN)) {
+    return;
+  }
+
+  const nextSource = source
+    .replace('import iT from"node:path";', 'import net from"node:net";import iT from"node:path";')
+    .replace(BROWSER_CLIENT_NATIVE_PIPE_PATTERN, BROWSER_CLIENT_NODE_SOCKET_FALLBACK);
+  await fs.writeFile(browserClientPath, nextSource, "utf8");
+}
+
+async function ensureOpenAiBundledMarketplaceConfig(codexHome, env = process.env) {
+  const marketplaceSource = resolveOpenAiBundledMarketplaceSource(env);
+  const marketplaceRecord = path.join(marketplaceSource, ".agents", "plugins", "marketplace.json");
+  if (!(await fileExists(marketplaceRecord))) {
+    return;
+  }
+
+  const browserUseSource = path.join(marketplaceSource, "plugins", "browser-use");
+  const browserUsePluginJson = path.join(browserUseSource, ".codex-plugin", "plugin.json");
+  if (await fileExists(browserUsePluginJson)) {
+    const browserUseTarget = path.join(codexHome, "plugins", "cache", OPENAI_BUNDLED_MARKETPLACE_ID, "browser-use", "0.1.0-alpha1");
+    await copyDirectoryEntriesIfMissing(browserUseSource, browserUseTarget);
+    await applyBrowserClientNodeSocketFallback(browserUseTarget);
+  }
+  const nodeReplMcpServerPath = await ensureNodeReplMcpServer(codexHome, env);
+
+  const configPath = path.join(codexHome, "config.toml");
+  let rawConfig = "";
+  try {
+    rawConfig = await fs.readFile(configPath, "utf8");
+  } catch (error) {
+    if (!isMissingPathError(error)) {
+      throw error;
+    }
+  }
+
+  const sections = [];
+  if (!hasOpenAiBundledMarketplaceConfig(rawConfig)) {
+    sections.push([
+      `[marketplaces.${OPENAI_BUNDLED_MARKETPLACE_ID}]`,
+      `source_type = "local"`,
+      `source = ${JSON.stringify(marketplaceSource)}`,
+    ].join("\n"));
+  }
+  if (!hasBrowserUsePluginConfig(rawConfig)) {
+    sections.push([
+      `[plugins."browser-use@${OPENAI_BUNDLED_MARKETPLACE_ID}"]`,
+      "enabled = true",
+    ].join("\n"));
+  }
+  if (nodeReplMcpServerPath && !hasNodeReplMcpConfig(rawConfig)) {
+    sections.push([
+      `[mcp_servers.node_repl]`,
+      `command = "node"`,
+      `args = [${JSON.stringify(nodeReplMcpServerPath)}]`,
+      "enabled = true",
+    ].join("\n"));
+  }
+  if (sections.length === 0) {
+    return;
+  }
+
+  const normalizedConfig = rawConfig.trimEnd();
+  const nextConfig = `${normalizedConfig ? `${normalizedConfig}\n\n` : ""}${sections.join("\n\n")}\n`;
+  await fs.mkdir(path.dirname(configPath), { recursive: true });
+  await fs.writeFile(configPath, nextConfig, "utf8");
+}
+
 async function applySense1SystemSkillOverrides(targetSystemSkillsDir) {
   const skillCreatorPath = path.join(targetSystemSkillsDir, "skill-creator", "SKILL.md");
   if (!(await fileExists(skillCreatorPath))) {
@@ -363,6 +490,7 @@ export async function ensureProfileDirectories(profileId, env = process.env) {
     await healProfileAuthFromLegacyDesktopRoot(profile, env);
     try {
       await syncProfileSystemSkills(codexHome, env);
+      await ensureOpenAiBundledMarketplaceConfig(codexHome, env);
     } catch (error) {
       if (!isMissingPathError(error)) {
         throw error;

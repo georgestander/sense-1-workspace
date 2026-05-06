@@ -54,6 +54,13 @@ async function createInstalledPluginFixture() {
   return pluginRoot;
 }
 
+async function createBrowserUsePluginFixture() {
+  const pluginRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-browser-use-plugin-"));
+  await fs.mkdir(path.join(pluginRoot, "skills", "browser"), { recursive: true });
+  await fs.writeFile(path.join(pluginRoot, "skills", "browser", "SKILL.md"), "# Browser Use\n", "utf8");
+  return pluginRoot;
+}
+
 function findManagedExtension(overview, kind, id) {
   return overview.managedExtensions.find((entry) => entry.kind === kind && entry.id === id) ?? null;
 }
@@ -417,6 +424,115 @@ test("getOverview emits normalized managed extensions with ownership, auth, and 
       canConnect: true,
       canReload: true,
     });
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+    await fs.rm(pluginRoot, { force: true, recursive: true });
+  }
+});
+
+test("getOverview deduplicates Browser Use plugin skills across runtime and local paths", async () => {
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  const pluginRoot = await createBrowserUsePluginFixture();
+  const localSkillPath = path.join(pluginRoot, "skills", "browser", "SKILL.md");
+  try {
+    const service = new DesktopExtensionService({
+      env,
+      manager: createManager(async (method) => {
+        if (method === "config/read") {
+          return {
+            config: {
+              apps: {},
+              mcp_servers: {},
+              plugins: {
+                "browser-use@openai-bundled": {
+                  enabled: true,
+                },
+              },
+            },
+          };
+        }
+
+        if (method === "plugin/list") {
+          return {
+            marketplaces: [
+              {
+                name: "OpenAI Bundled",
+                path: "/tmp/openai-bundled-marketplace.json",
+                plugins: [
+                  {
+                    id: "browser-use@openai-bundled",
+                    name: "browser-use",
+                    installed: true,
+                    enabled: true,
+                    source: {
+                      path: pluginRoot,
+                    },
+                    interface: {
+                      displayName: "Browser Use",
+                    },
+                  },
+                ],
+              },
+            ],
+          };
+        }
+
+        if (method === "app/list") {
+          return { data: [] };
+        }
+
+        if (method === "mcpServerStatus/list") {
+          return { data: [] };
+        }
+
+        if (method === "skills/list") {
+          return {
+            data: [
+              {
+                cwd: "/tmp/runtime",
+                skills: [
+                  {
+                    name: "browser-use:browser",
+                    description: "Global Browser Use copy",
+                    path: "/Users/george/.codex/plugins/cache/openai-bundled/browser-use/0.1.0-alpha1/skills/browser/SKILL.md",
+                    scope: "plugin",
+                    enabled: true,
+                  },
+                  {
+                    name: "browser-use:browser",
+                    description: "Profile Browser Use copy",
+                    path: "/Users/george/Library/Application Support/Sense-1/profiles/default/codex-home/plugins/cache/openai-bundled/browser-use/0.1.0-alpha1/skills/browser/SKILL.md",
+                    scope: "plugin",
+                    enabled: true,
+                  },
+                ],
+              },
+            ],
+          };
+        }
+
+        if (method === "account/read") {
+          return createAccountReadResult();
+        }
+
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
+
+    const overview = await service.getOverview({ forceRefetch: true });
+    const browserUseSkills = overview.skills.filter((skill) => skill.name === "browser-use:browser");
+    assert.equal(browserUseSkills.length, 1);
+    assert.equal(browserUseSkills[0]?.path, localSkillPath);
+    assert.equal(
+      overview.managedExtensions.filter((entry) => entry.kind === "skill" && entry.name === "browser-use:browser").length,
+      1,
+    );
   } finally {
     await fs.rm(runtimeStateRoot, { force: true, recursive: true });
     await fs.rm(pluginRoot, { force: true, recursive: true });
@@ -1024,55 +1140,65 @@ test("getOverview marks manually created profile plugins as uninstallable profil
 });
 
 test("getOverview ignores stale plugin and app config references without creating ghost inventory", async () => {
-  const service = new DesktopExtensionService({
-    manager: createManager(async (method) => {
-      if (method === "config/read") {
-        return {
-          config: {
-            apps: {
-              ghost_app: {
-                enabled: true,
+  const runtimeStateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-runtime-state-"));
+  const env = {
+    ...process.env,
+    SENSE1_RUNTIME_STATE_ROOT: runtimeStateRoot,
+  };
+  try {
+    const service = new DesktopExtensionService({
+      env,
+      manager: createManager(async (method) => {
+        if (method === "config/read") {
+          return {
+            config: {
+              apps: {
+                ghost_app: {
+                  enabled: true,
+                },
+              },
+              plugins: {
+                ghost_plugin: {
+                  enabled: true,
+                },
               },
             },
-            plugins: {
-              ghost_plugin: {
-                enabled: true,
-              },
-            },
-          },
-        };
-      }
+          };
+        }
 
-      if (method === "plugin/list") {
-        return { marketplaces: [] };
-      }
+        if (method === "plugin/list") {
+          return { marketplaces: [] };
+        }
 
-      if (method === "app/list") {
-        return { data: [] };
-      }
+        if (method === "app/list") {
+          return { data: [] };
+        }
 
-      if (method === "mcpServerStatus/list") {
-        return { data: [] };
-      }
+        if (method === "mcpServerStatus/list") {
+          return { data: [] };
+        }
 
-      if (method === "skills/list") {
-        return { data: [] };
-      }
+        if (method === "skills/list") {
+          return { data: [] };
+        }
 
-      if (method === "account/read") {
-        return createAccountReadResult();
-      }
+        if (method === "account/read") {
+          return createAccountReadResult();
+        }
 
-      throw new Error(`Unexpected method: ${method}`);
-    }),
-    openExternal: async () => {},
-    resolveProfile: async () => ({ id: "default" }),
-  });
+        throw new Error(`Unexpected method: ${method}`);
+      }),
+      openExternal: async () => {},
+      resolveProfile: async () => ({ id: "default" }),
+    });
 
-  const overview = await service.getOverview({ forceRefetch: true });
-  assert.deepEqual(overview.plugins, []);
-  assert.deepEqual(overview.apps, []);
-  assert.deepEqual(overview.managedExtensions, []);
+    const overview = await service.getOverview({ forceRefetch: true });
+    assert.deepEqual(overview.plugins, []);
+    assert.deepEqual(overview.apps, []);
+    assert.deepEqual(overview.managedExtensions, []);
+  } finally {
+    await fs.rm(runtimeStateRoot, { force: true, recursive: true });
+  }
 });
 
 test("installPlugin enables manifest-backed apps even when plugin/install omits app ids", async () => {

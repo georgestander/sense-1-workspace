@@ -159,6 +159,7 @@ function resolveEnvironmentContext() {
     home: process.env.HOME || null,
     openaiApiKeyPresent: Boolean(process.env.OPENAI_API_KEY),
     pathEntries: (process.env.PATH || "").split(path.delimiter).filter(Boolean),
+    browserUseIabSocketPath: process.env.SENSE1_BROWSER_USE_IAB_SOCKET_PATH || null,
     xdgCacheHome: process.env.XDG_CACHE_HOME || null,
     xdgConfigHome: process.env.XDG_CONFIG_HOME || null,
     xdgDataHome: process.env.XDG_DATA_HOME || null,

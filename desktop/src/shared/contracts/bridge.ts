@@ -11,6 +11,7 @@ import type {
   DesktopBrowserScreenshotResult,
   DesktopBrowserState,
   DesktopBrowserThreadRequest,
+  DesktopBrowserUseOpenEvent,
   DesktopBrowserTrustCheckRequest,
   DesktopBrowserTrustCheckResult,
   DesktopBrowserTrustRequest,
@@ -221,5 +222,7 @@ export interface DesktopBridge {
     checkTrust(request: DesktopBrowserTrustCheckRequest): Promise<DesktopBrowserTrustCheckResult>;
     updateTrust(request: DesktopBrowserTrustRequest): Promise<DesktopBrowserTrustState>;
     getTrustState(): Promise<DesktopBrowserTrustState>;
+    onBrowserUseOpen(listener: (event: DesktopBrowserUseOpenEvent) => void): () => void;
+    onStateChange(listener: (state: DesktopBrowserState) => void): () => void;
   };
 }

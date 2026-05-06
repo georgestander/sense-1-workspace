@@ -1,3 +1,25 @@
+const DEFAULT_RUNTIME_MODEL_CATALOG = [
+  {
+    id: "gpt-5.5",
+    name: "GPT-5.5",
+    supportedReasoningEfforts: ["low", "medium", "high", "xhigh"],
+    defaultReasoningEffort: "medium",
+    isDefault: true,
+  },
+  {
+    id: "gpt-5.4-mini",
+    name: "GPT-5.4 Mini",
+    supportedReasoningEfforts: ["low", "medium", "high", "xhigh"],
+    defaultReasoningEffort: "medium",
+  },
+  {
+    id: "gpt-5.4",
+    name: "GPT-5.4",
+    supportedReasoningEfforts: ["low", "medium", "high", "xhigh"],
+    defaultReasoningEffort: "medium",
+  },
+];
+
 function firstString(...values) {
   for (const value of values) {
     if (typeof value !== "string") {
@@ -59,13 +81,9 @@ function filterAllowedModels(models, allowedModels) {
   return models.filter((entry) => allowed.has(entry.id));
 }
 
-export function normalizeRuntimeModelCatalog(rawModels, {
-  accountType = null,
-  authMode = null,
-  allowedModels = null,
-} = {}) {
+function normalizeUniqueModelEntries(entries) {
   const seen = new Set();
-  const normalized = (Array.isArray(rawModels) ? rawModels : [])
+  return entries
     .map((entry) => normalizeRuntimeModelEntry(entry))
     .filter((entry) => {
       if (!entry || seen.has(entry.id)) {
@@ -74,6 +92,33 @@ export function normalizeRuntimeModelCatalog(rawModels, {
       seen.add(entry.id);
       return true;
     });
+}
+
+function mergeDefaultAndRuntimeModels(defaultModels, runtimeModels) {
+  const runtimeById = new Map(runtimeModels.map((entry) => [entry.id, entry]));
+  const merged = defaultModels.map((defaultEntry) => ({
+    ...defaultEntry,
+    ...(runtimeById.get(defaultEntry.id) ?? {}),
+  }));
+  const defaultIds = new Set(defaultModels.map((entry) => entry.id));
+
+  for (const runtimeEntry of runtimeModels) {
+    if (!defaultIds.has(runtimeEntry.id)) {
+      merged.push(runtimeEntry);
+    }
+  }
+
+  return merged;
+}
+
+export function normalizeRuntimeModelCatalog(rawModels, {
+  accountType = null,
+  authMode = null,
+  allowedModels = null,
+} = {}) {
+  const defaultModels = normalizeUniqueModelEntries(DEFAULT_RUNTIME_MODEL_CATALOG);
+  const runtimeModels = normalizeUniqueModelEntries(Array.isArray(rawModels) ? rawModels : []);
+  const normalized = mergeDefaultAndRuntimeModels(defaultModels, runtimeModels);
 
   return filterAllowedModels(normalized, allowedModels);
 }

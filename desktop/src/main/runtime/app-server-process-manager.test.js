@@ -16,6 +16,7 @@ const fixturePath = path.join(__dirname, "..", "test-fixtures", "fake-app-server
 
 function createManager(extraArgs = [], options = {}) {
   const {
+    beforeProfileChange,
     codexHome,
     command,
     env,
@@ -33,6 +34,7 @@ function createManager(extraArgs = [], options = {}) {
     restartDelayMs: options.restartDelayMs ?? 25,
     codexHome: resolvedCodexHome,
     env,
+    beforeProfileChange,
   });
 }
 
@@ -262,6 +264,38 @@ test("handleProfileChange does not restart when codex home is unchanged", async 
   await manager.stop();
 });
 
+test("handleProfileChange merges profile environment overrides before restart", async () => {
+  const tempBase = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-app-server-profile-env-"));
+  const firstCodexHome = path.join(tempBase, "profiles", "one", "codex-home");
+  const secondCodexHome = path.join(tempBase, "profiles", "two", "codex-home");
+  const calls = [];
+  const manager = createManager(["--report-env-context"], {
+    codexHome: firstCodexHome,
+    beforeProfileChange: (codexHome) => {
+      calls.push(codexHome);
+      return {
+        SENSE1_BROWSER_USE_IAB_SOCKET_PATH: path.join(path.dirname(codexHome), "browser-use-iab", "browser.sock"),
+      };
+    },
+  });
+
+  try {
+    await manager.start();
+    await manager.handleProfileChange(secondCodexHome);
+    const context = await manager.request("runtimeContext");
+
+    assert.deepEqual(calls, [secondCodexHome]);
+    assert.equal(manager.codexHome, secondCodexHome);
+    assert.equal(
+      context.environmentContext.browserUseIabSocketPath,
+      path.join(path.dirname(secondCodexHome), "browser-use-iab", "browser.sock"),
+    );
+  } finally {
+    await manager.stop().catch(() => {});
+    await fs.rm(tempBase, { force: true, recursive: true });
+  }
+});
+
 test("start runs the app-server inside the isolated codex home path", async () => {
   const tempBase = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-app-server-home-"));
   const codexHome = path.join(tempBase, "profiles", "test-profile", "codex-home");
@@ -470,6 +504,7 @@ test("start isolates child home, xdg roots, and path away from inherited global 
       home: path.join(profileRoot, "runtime-home"),
       openaiApiKeyPresent: false,
       pathEntries: context.environmentContext.pathEntries,
+      browserUseIabSocketPath: null,
       xdgCacheHome: path.join(profileRoot, "xdg", "cache"),
       xdgConfigHome: path.join(profileRoot, "xdg", "config"),
       xdgDataHome: path.join(profileRoot, "xdg", "data"),

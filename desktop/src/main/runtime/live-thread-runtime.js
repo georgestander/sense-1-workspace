@@ -83,6 +83,22 @@ function pushStructuredInputItem(input, seenPaths, item) {
   });
 }
 
+function isBrowserUseInputItem(item) {
+  if (!item || typeof item !== "object" || item.type !== "mention") {
+    return false;
+  }
+  const name = firstString(item.name)?.toLowerCase() ?? "";
+  const itemPath = firstString(item.path)?.toLowerCase() ?? "";
+  return name === "browser-use:browser"
+    || name === "browser-use"
+    || name === "browser"
+    || itemPath.includes("/browser-use/");
+}
+
+function hasBrowserUseInputItem(inputItems) {
+  return Array.isArray(inputItems) && inputItems.some(isBrowserUseInputItem);
+}
+
 function buildTurnInput(promptText, attachments, inputItems) {
   const input = [];
   const seenPaths = new Set();
@@ -229,6 +245,7 @@ export async function runDesktopTask(
     executionContext.grants.map((grant) => grant.rootPath),
   );
   const runtimeCwd = resolveRuntimePath(resolvedCwd);
+  const webSearch = hasBrowserUseInputItem(inputItems) ? "disabled" : "live";
   const ensuredThread = await ensureDesktopThread(manager, {
     contextPaths,
     cwd: resolvedCwd,
@@ -239,6 +256,7 @@ export async function runDesktopTask(
     runtimeInstructions,
     settings,
     verbosity,
+    webSearch,
     threadId: resolvedThreadId,
     workspaceRoot: resolvedWorkspaceRoot,
   });
@@ -304,6 +322,7 @@ export async function runDesktopTask(
         runtimeInstructions,
         settings,
         verbosity,
+        webSearch,
         workspaceRoot: resolvedWorkspaceRoot,
       });
       thread = restartedThread.thread;
@@ -389,6 +408,7 @@ export async function ensureDesktopThread(
     runtimeInstructions = null,
     settings = null,
     verbosity = null,
+    webSearch = "live",
     threadId = null,
     workspaceRoot = null,
   },
@@ -430,6 +450,7 @@ export async function ensureDesktopThread(
           runtimeInstructions,
           settings,
           verbosity,
+          webSearch,
           workspaceRoot: resolvedWorkspaceRoot,
         }),
         threadId: nextThreadId,
@@ -453,6 +474,7 @@ export async function ensureDesktopThread(
         runtimeInstructions,
         settings,
         verbosity,
+        webSearch,
         workspaceRoot: resolvedWorkspaceRoot,
       }),
       settings: {

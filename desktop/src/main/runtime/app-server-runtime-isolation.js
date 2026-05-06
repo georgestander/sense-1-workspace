@@ -207,6 +207,7 @@ export function buildIsolatedRuntimeEnv({
     "LC_CTYPE",
     "SSL_CERT_DIR",
     "SSL_CERT_FILE",
+    "SENSE1_BROWSER_USE_IAB_SOCKET_PATH",
     "TERM",
     "TMP",
     "TMPDIR",

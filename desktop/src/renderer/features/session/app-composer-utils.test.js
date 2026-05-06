@@ -218,3 +218,35 @@ test("buildSelectedThreadRunRequest retains seeded plugin mentions when the prom
     },
   );
 });
+
+test("buildDraftRunRequest retains Browser Use mentions by their shortcut token", () => {
+  assert.deepEqual(
+    buildDraftRunRequest({
+      attachedFiles: [],
+      draftPrompt: "  @browser-use open openai.com  ",
+      inputItems: [
+        {
+          type: "mention",
+          name: "browser-use:browser",
+          path: "/Users/georgestander/.codex/plugins/cache/openai-bundled/browser-use/skills/browser/SKILL.md",
+          token: "browser-use",
+        },
+      ],
+      workInFolder: false,
+      workspaceFolder: null,
+    }),
+    {
+      attachments: undefined,
+      inputItems: [
+        {
+          type: "mention",
+          name: "browser-use:browser",
+          path: "/Users/georgestander/.codex/plugins/cache/openai-bundled/browser-use/skills/browser/SKILL.md",
+          token: "browser-use",
+        },
+      ],
+      prompt: "@browser-use open openai.com",
+      workspaceRoot: null,
+    },
+  );
+});

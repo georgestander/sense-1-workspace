@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Send, X } from "lucide-react";
+import { Send } from "lucide-react";
 
 import type {
   DesktopBrowserBounds,
@@ -14,8 +14,8 @@ import { ThreadBrowserToolbar } from "./ThreadBrowserToolbar.js";
 interface ThreadBrowserPaneProps {
   threadId: string;
   requestedUrl?: string | null;
+  preserveCurrentPage?: boolean;
   submitSelectedThreadPrompt: (threadPrompt: string) => Promise<boolean>;
-  onClose: () => void;
   onStateChange?: (state: DesktopBrowserState | null) => void;
 }
 
@@ -29,7 +29,7 @@ type InteractionMode = "none" | "comment" | "click" | "type";
 const STORAGE_KEY = "sense1.thread-browser.v1";
 const DEFAULT_URL = "about:blank";
 
-export function ThreadBrowserPane({ threadId, requestedUrl = null, submitSelectedThreadPrompt, onClose, onStateChange }: ThreadBrowserPaneProps) {
+export function ThreadBrowserPane({ threadId, requestedUrl = null, preserveCurrentPage = false, submitSelectedThreadPrompt, onStateChange }: ThreadBrowserPaneProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const handledRequestedUrlRef = useRef<string | null>(null);
   const [state, setState] = useState<DesktopBrowserState | null>(null);
@@ -43,8 +43,8 @@ export function ThreadBrowserPane({ threadId, requestedUrl = null, submitSelecte
   const [trustCheck, setTrustCheck] = useState<DesktopBrowserTrustCheckResult | null>(null);
 
   const activeUrl = state?.url ?? address;
+  const trustTarget = state?.pendingBrowserUseOrigin ?? activeUrl;
   const canUseBrowser = trustCheck?.status === "allowed";
-  const needsTrust = trustCheck?.status === "needsApproval";
   const blocked = trustCheck?.status === "blocked";
 
   const rememberState = useCallback((nextState: DesktopBrowserState | null, nextViewport: DesktopBrowserViewportPreset) => {
@@ -77,25 +77,38 @@ export function ThreadBrowserPane({ threadId, requestedUrl = null, submitSelecte
     await window.sense1Desktop.browser.setBounds({ threadId, bounds });
   }, [measureBounds, threadId]);
 
+  const waitForBounds = useCallback(async (): Promise<DesktopBrowserBounds | null> => {
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const bounds = measureBounds();
+      if (bounds) {
+        return bounds;
+      }
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+    return null;
+  }, [measureBounds]);
+
   useEffect(() => {
     const stored = readStoredBrowserState()[threadId];
     const initialViewport = stored?.viewport ?? "desktop";
-    const initialUrl = requestedUrl ?? stored?.url ?? DEFAULT_URL;
+    const initialUrl = preserveCurrentPage ? null : requestedUrl ?? stored?.url ?? DEFAULT_URL;
     handledRequestedUrlRef.current = requestedUrl;
     setViewport(initialViewport);
-    setAddress(initialUrl);
-    const bounds = measureBounds();
-    if (!bounds) {
-      return;
-    }
+    setAddress(initialUrl ?? DEFAULT_URL);
     let cancelled = false;
-    void window.sense1Desktop.browser
-      .open({ threadId, bounds, url: initialUrl, viewport: initialViewport })
+    void waitForBounds()
+      .then((bounds) => {
+        if (cancelled || !bounds) {
+          return null;
+        }
+        return window.sense1Desktop.browser.open({ threadId, bounds, url: initialUrl, viewport: initialViewport });
+      })
       .then((nextState) => {
+        if (!nextState) return;
         if (cancelled) return;
         setState(nextState);
         onStateChange?.(nextState);
-        setAddress(nextState.url ?? initialUrl);
+        setAddress(nextState.url ?? initialUrl ?? DEFAULT_URL);
         rememberState(nextState, initialViewport);
       })
       .catch((error) => {
@@ -106,7 +119,7 @@ export function ThreadBrowserPane({ threadId, requestedUrl = null, submitSelecte
       onStateChange?.(null);
       void window.sense1Desktop.browser.close({ threadId });
     };
-  }, [measureBounds, onStateChange, rememberState, threadId]);
+  }, [onStateChange, preserveCurrentPage, rememberState, threadId, waitForBounds]);
 
   useEffect(() => {
     if (!state || !requestedUrl || handledRequestedUrlRef.current === requestedUrl) {
@@ -143,18 +156,31 @@ export function ThreadBrowserPane({ threadId, requestedUrl = null, submitSelecte
   }, [syncBounds]);
 
   useEffect(() => {
-    if (!activeUrl) {
+    if (!trustTarget) {
       setTrustCheck(null);
       return;
     }
     let cancelled = false;
-    void window.sense1Desktop.browser.checkTrust({ url: activeUrl }).then((result) => {
+    void window.sense1Desktop.browser.checkTrust({ threadId, url: trustTarget }).then((result) => {
       if (!cancelled) setTrustCheck(result);
     });
     return () => {
       cancelled = true;
     };
-  }, [activeUrl]);
+  }, [threadId, trustTarget]);
+
+  useEffect(() => {
+    return window.sense1Desktop.browser.onStateChange((nextState) => {
+      if (nextState.threadId !== threadId) {
+        return;
+      }
+      setState(nextState);
+      setViewport(nextState.viewport);
+      onStateChange?.(nextState);
+      setAddress(nextState.url ?? DEFAULT_URL);
+      rememberState(nextState, nextState.viewport);
+    });
+  }, [onStateChange, rememberState, threadId]);
 
   async function navigate() {
     setStatusText(null);
@@ -209,7 +235,7 @@ export function ThreadBrowserPane({ threadId, requestedUrl = null, submitSelecte
   }
 
   async function ensureTrusted(): Promise<boolean> {
-    const check = await window.sense1Desktop.browser.checkTrust({ url: activeUrl || address });
+    const check = await window.sense1Desktop.browser.checkTrust({ threadId, url: (state?.pendingBrowserUseOrigin ?? activeUrl) || address });
     setTrustCheck(check);
     if (check.status === "allowed") {
       return true;
@@ -219,21 +245,11 @@ export function ThreadBrowserPane({ threadId, requestedUrl = null, submitSelecte
       return false;
     }
     if (check.status === "needsApproval") {
-      setStatusText("Allow this origin before Browser Use can inspect or operate it.");
+      setStatusText("Approve this browser session in the composer before Browser Use can inspect or operate it.");
       return false;
     }
     setStatusText(check.message ?? "Browser Use is unavailable for this page.");
     return false;
-  }
-
-  async function updateTrust(decision: "allowOnce" | "alwaysAllow" | "block") {
-    if (!trustCheck?.origin) {
-      return;
-    }
-    const trustState = await window.sense1Desktop.browser.updateTrust({ origin: trustCheck.origin, decision });
-    const nextCheck = await window.sense1Desktop.browser.checkTrust({ url: activeUrl || address });
-    setTrustCheck(nextCheck);
-    setStatusText(`${trustState.allowedOrigins.length} allowed, ${trustState.blockedOrigins.length} blocked.`);
   }
 
   async function handleViewportClick(event: React.MouseEvent<HTMLElement>) {
@@ -286,12 +302,6 @@ export function ThreadBrowserPane({ threadId, requestedUrl = null, submitSelecte
 
   return (
     <aside className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-line bg-surface-high">
-      <div className="flex shrink-0 items-center gap-2 border-b border-line px-3 py-2">
-        <Button aria-label="Close browser" className="h-8 w-8 px-0" onClick={onClose} type="button" variant="secondary">
-          <X className="size-4" />
-        </Button>
-      </div>
-
       <ThreadBrowserToolbar
         address={address}
         blocked={blocked}
@@ -313,15 +323,6 @@ export function ThreadBrowserPane({ threadId, requestedUrl = null, submitSelecte
         threadId={threadId}
         viewport={viewport}
       />
-
-      {trustCheck?.origin && needsTrust ? (
-        <div className="flex shrink-0 items-center gap-2 border-b border-line bg-surface-soft px-3 py-2 text-xs text-ink-soft">
-          <span className="min-w-0 flex-1 truncate">Allow Browser Use on {trustCheck.origin}?</span>
-          <Button className="h-7 px-2 text-[0.7rem]" onClick={() => void updateTrust("allowOnce")} type="button" variant="secondary">Allow once</Button>
-          <Button className="h-7 px-2 text-[0.7rem]" onClick={() => void updateTrust("alwaysAllow")} type="button" variant="secondary">Always</Button>
-          <Button className="h-7 px-2 text-[0.7rem]" onClick={() => void updateTrust("block")} type="button" variant="secondary">Block</Button>
-        </div>
-      ) : null}
 
       {interactionMode === "comment" || interactionMode === "type" ? (
         <div className="flex shrink-0 items-center gap-2 border-b border-line bg-surface px-3 py-2">

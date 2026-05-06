@@ -8,14 +8,15 @@ import { ShortcutSuggestionMenu } from "../composer/shortcut-suggestion-menu.js"
 import { VoiceRecordingPill } from "../composer/voice-recording-pill.js";
 import { Input } from "../ui/input";
 import { cn } from "../../lib/cn";
-import type { DesktopBootstrapTeamSetup, DesktopBootstrapTenant, DesktopExtensionOverviewResult, DesktopModelEntry, DesktopThreadSnapshot, ProjectedSessionRecord, ProjectedWorkspaceRecord } from "../../../main/contracts";
+import type { DesktopAppServerInputItem, DesktopBootstrapTeamSetup, DesktopBootstrapTenant, DesktopExtensionOverviewResult, DesktopModelEntry, DesktopThreadSnapshot, ProjectedSessionRecord, ProjectedWorkspaceRecord } from "../../../main/contracts";
 import type { FolderOption } from "../../state/session/session-types.js";
 import { folderDisplayName } from "../../state/session/session-selectors.js";
 import { buildStartSurfaceIdentity } from "../../state/session/tenant-identity.js";
 import { applyFastModeSuggestion, resolveFastModeSuggestions } from "../../features/session/fast-mode-command.js";
 import { useComposerDictation } from "../../features/session/use-composer-dictation.js";
 import { formatSessionActivity, isResumableProjectedSession, workspaceDisplayName } from "./start-surface-utils.js";
-import { replaceActivePromptShortcut, resolvePromptShortcutSuggestions } from "../../../shared/prompt-shortcuts.ts";
+import { hasBrowserUseMention, inferBrowserUseRequestedUrl } from "../../../shared/browser-use-invocation.ts";
+import { replaceActivePromptShortcut, resolvePromptShortcutInputItems, resolvePromptShortcutSuggestions } from "../../../shared/prompt-shortcuts.ts";
 
 export type StartSurfaceLaunchPanelProps = {
   accountEmail: string | null;
@@ -39,7 +40,8 @@ export type StartSurfaceLaunchPanelProps = {
   handleServiceTierSelection: (nextServiceTier: "flex" | "fast") => void;
   modelOptions: string[];
   availableModels: DesktopModelEntry[];
-  submitDraftTask: () => void;
+  submitDraftTask: (draftPrompt?: string, inputItems?: DesktopAppServerInputItem[]) => void;
+  onBrowserUsePrompt: (url: string | null) => void;
   activeWorkspaceProjection: ProjectedWorkspaceRecord | null;
   workspaceSessions: ProjectedSessionRecord[];
   workspaceSessionsLoading: boolean;
@@ -84,6 +86,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
     modelOptions,
     availableModels,
     submitDraftTask,
+    onBrowserUsePrompt,
     activeWorkspaceProjection,
     workspaceSessions,
     workspaceSessionsLoading,
@@ -165,6 +168,33 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
       promptInputRef.current?.focus();
       promptInputRef.current?.setSelectionRange(nextSelection.cursorIndex, nextSelection.cursorIndex);
     });
+  }
+
+  function buildExecutableDraftPrompt(prompt: string): { prompt: string; inputItems: DesktopAppServerInputItem[] } {
+    const resolvedInputItems = extensionOverview ? resolvePromptShortcutInputItems(prompt, extensionOverview) : [];
+    if (!hasBrowserUseMention(prompt)) {
+      return {
+        prompt,
+        inputItems: resolvedInputItems,
+      };
+    }
+
+    return {
+      prompt,
+      inputItems: resolvedInputItems,
+    };
+  }
+
+  function submitExecutableDraftTask() {
+    const prompt = draftPrompt.trim();
+    if (!prompt) {
+      return;
+    }
+    if (hasBrowserUseMention(prompt)) {
+      onBrowserUsePrompt(inferBrowserUseRequestedUrl(prompt));
+    }
+    const executable = buildExecutableDraftPrompt(prompt);
+    submitDraftTask(executable.prompt, executable.inputItems);
   }
 
   async function handleCreateFirstTeam(): Promise<void> {
@@ -342,7 +372,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
               }
               if (event.key !== "Enter") return;
               event.preventDefault();
-              submitDraftTask();
+              submitExecutableDraftTask();
             }}
             placeholder={canStartWork ? "How can I help you today?" : "Sign in to start working."}
             ref={promptInputRef}
@@ -365,7 +395,7 @@ export function StartSurfaceLaunchPanel(props: StartSurfaceLaunchPanelProps) {
               <Mic />
             </Button>
           ) : null}
-          <Button aria-label="Send prompt" disabled={!canStartWork || taskPending || !draftPrompt.trim() || (workInFolder && !workspaceFolder)} onClick={submitDraftTask} size="icon" variant="default"><Send /></Button>
+          <Button aria-label="Send prompt" disabled={!canStartWork || taskPending || !draftPrompt.trim() || (workInFolder && !workspaceFolder)} onClick={submitExecutableDraftTask} size="icon" variant="default"><Send /></Button>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {selectedServiceTier === "fast" ? (
