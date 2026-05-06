@@ -4,6 +4,13 @@ All notable changes to Sense-1 Workspace are recorded here.
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-05-06
+
+### Fixed
+
+- Prevented concurrent desktop bootstrap calls from starting the Browser Use in-app-browser backend twice on the same private Unix socket.
+- Kept "Sign in with ChatGPT" on the Codex auth path by failing clearly when the runtime cannot provide a Codex login URL instead of opening plain ChatGPT.
+
 ## [0.14.0] - 2026-05-06
 
 ### Added
