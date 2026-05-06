@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/readme/home.png" alt="Sense-1 Workspace" width="720" />
+  <img src="assets/home.png" alt="Sense-1 Workspace" width="720" />
 </p>
 
 # Sense-1 Workspace
@@ -25,12 +25,12 @@ This isn't a chat wrapper. It's a native desktop workspace that treats the Codex
 
 <table>
 <tr>
-<td><img src="assets/readme/thread.png" alt="Thread view" /></td>
-<td><img src="assets/readme/settings.png" alt="Settings" /></td>
+<td><img src="assets/thread.png" alt="Thread view" /></td>
+<td><img src="assets/settings.png" alt="Settings" /></td>
 </tr>
 <tr>
-<td><img src="assets/readme/plugins.png" alt="Plugins" /></td>
-<td><img src="assets/readme/automations.png" alt="Automations" /></td>
+<td><img src="assets/plugins.png" alt="Plugins" /></td>
+<td><img src="assets/automations.png" alt="Automations" /></td>
 </tr>
 </table>
 
