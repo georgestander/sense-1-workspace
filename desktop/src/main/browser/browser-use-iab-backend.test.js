@@ -5,9 +5,16 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 
-import { BrowserUseIabBackend } from "./browser-use-iab-backend.ts";
+import {
+  BROWSER_USE_IAB_SOCKET_ENV,
+  BrowserUseIabBackend,
+} from "./browser-use-iab-backend.ts";
 
 const MESSAGE_LENGTH_BYTES = 4;
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function encodeMessage(message) {
   const payload = Buffer.from(JSON.stringify(message), "utf8");
@@ -104,6 +111,87 @@ test("BrowserUseIabBackend creates a private per-profile socket path", async () 
     assert.ok(socketPath.length < 100, `socket path must stay below macOS Unix socket limits: ${socketPath}`);
     assert.equal((await fs.stat(socketDirectory)).mode & 0o777, 0o700);
     assert.equal(await backend.configureForCodexHome(codexHome), socketPath);
+  } finally {
+    await backend.stop();
+    await fs.rm(profileRoot, { recursive: true, force: true });
+  }
+});
+
+test("BrowserUseIabBackend writes the active socket path into node_repl MCP config", async () => {
+  const profileRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-browser-profile-config-"));
+  const codexHome = path.join(profileRoot, "codex-home");
+  const configPath = path.join(codexHome, "config.toml");
+  const browser = {
+    onBrowserUseCdpEvent() {
+      return () => {};
+    },
+  };
+  const backend = new BrowserUseIabBackend(browser, null);
+
+  try {
+    await fs.mkdir(codexHome, { recursive: true });
+    await fs.writeFile(
+      configPath,
+      [
+        "model = \"gpt-5.4-mini\"",
+        "",
+        "[mcp_servers.node_repl]",
+        "command = \"node\"",
+        "args = [\"/profile/tools/node-repl-mcp-server.mjs\"]",
+        "enabled = true",
+        "",
+        "[plugins.\"browser-use@openai-bundled\"]",
+        "enabled = true",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const socketPath = await backend.configureForCodexHome(codexHome);
+    const profileConfig = await fs.readFile(configPath, "utf8");
+
+    assert.match(
+      profileConfig,
+      new RegExp(`env = \\{ ${BROWSER_USE_IAB_SOCKET_ENV} = ${escapeRegExp(JSON.stringify(socketPath))} \\}`, "u"),
+    );
+    assert.match(profileConfig, /\[plugins\."browser-use@openai-bundled"\]/u);
+  } finally {
+    await backend.stop();
+    await fs.rm(profileRoot, { recursive: true, force: true });
+  }
+});
+
+test("BrowserUseIabBackend refreshes a stale node_repl Browser Use socket env", async () => {
+  const profileRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sense1-browser-profile-config-stale-"));
+  const codexHome = path.join(profileRoot, "codex-home");
+  const configPath = path.join(codexHome, "config.toml");
+  const browser = {
+    onBrowserUseCdpEvent() {
+      return () => {};
+    },
+  };
+  const backend = new BrowserUseIabBackend(browser, null);
+
+  try {
+    await fs.mkdir(codexHome, { recursive: true });
+    await fs.writeFile(
+      configPath,
+      [
+        "[mcp_servers.node_repl]",
+        "command = \"node\"",
+        `env = { PATH = "/usr/bin", ${BROWSER_USE_IAB_SOCKET_ENV} = "/tmp/stale/browser.sock" }`,
+        "enabled = true",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const socketPath = await backend.configureForCodexHome(codexHome);
+    const profileConfig = await fs.readFile(configPath, "utf8");
+
+    assert.match(profileConfig, /env = \{ PATH = "\/usr\/bin", SENSE1_BROWSER_USE_IAB_SOCKET_PATH = /u);
+    assert.match(profileConfig, new RegExp(escapeRegExp(JSON.stringify(socketPath)), "u"));
+    assert.doesNotMatch(profileConfig, /\/tmp\/stale\/browser\.sock/u);
   } finally {
     await backend.stop();
     await fs.rm(profileRoot, { recursive: true, force: true });

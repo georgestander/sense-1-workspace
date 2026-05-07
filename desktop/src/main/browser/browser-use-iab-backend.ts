@@ -9,6 +9,8 @@ import type { DesktopBrowserService } from "./desktop-browser-service.ts";
 
 const MESSAGE_LENGTH_BYTES = 4;
 export const BROWSER_USE_IAB_SOCKET_ENV = "SENSE1_BROWSER_USE_IAB_SOCKET_PATH";
+const NODE_REPL_MCP_SECTION_PATTERN = /^\s*\[mcp_servers\.(?:"node_repl"|'node_repl'|node_repl)\]\s*$/u;
+const TOML_SECTION_PATTERN = /^\s*\[[^\]]+\]\s*$/u;
 
 type JsonRpcRequest = {
   readonly id?: number | string | null;
@@ -49,6 +51,72 @@ async function createPrivateSocketPathForCodexHome(codexHome: string): Promise<s
   const socketDirectory = await fs.mkdtemp(path.join(os.tmpdir(), `s1-iab-${profileHash}-`));
   await chmodPrivateDirectory(socketDirectory);
   return path.join(socketDirectory, "b.sock");
+}
+
+function formatTomlString(value: string): string {
+  return JSON.stringify(value);
+}
+
+function withBrowserUseSocketEnvLine(line: string, socketPath: string): string {
+  const envLineMatch = line.match(/^(\s*env\s*=\s*\{)(.*?)(\}\s*(?:#.*)?)$/u);
+  if (!envLineMatch) {
+    return `env = { ${BROWSER_USE_IAB_SOCKET_ENV} = ${formatTomlString(socketPath)} }`;
+  }
+
+  const [, prefix, rawBody, suffix] = envLineMatch;
+  const envValue = `${BROWSER_USE_IAB_SOCKET_ENV} = ${formatTomlString(socketPath)}`;
+  const envKeyPattern = new RegExp(`${BROWSER_USE_IAB_SOCKET_ENV}\\s*=\\s*(?:"(?:\\\\.|[^"])*"|'[^']*')`, "u");
+  const body = rawBody.trim();
+  const nextBody = envKeyPattern.test(body)
+    ? body.replace(envKeyPattern, () => envValue)
+    : `${body ? `${body}, ` : ""}${envValue}`;
+  return `${prefix} ${nextBody} ${suffix}`;
+}
+
+function withNodeReplBrowserUseSocketEnv(rawConfig: string, socketPath: string): string {
+  const lines = rawConfig.split("\n");
+  const sectionStart = lines.findIndex((line) => NODE_REPL_MCP_SECTION_PATTERN.test(line));
+  if (sectionStart < 0) {
+    return rawConfig;
+  }
+
+  const nextSectionOffset = lines
+    .slice(sectionStart + 1)
+    .findIndex((line) => TOML_SECTION_PATTERN.test(line));
+  const sectionEnd = nextSectionOffset < 0
+    ? lines.length
+    : sectionStart + 1 + nextSectionOffset;
+  const envIndex = lines.findIndex((line, index) =>
+    index > sectionStart
+    && index < sectionEnd
+    && /^\s*env\s*=/u.test(line)
+  );
+
+  if (envIndex >= 0) {
+    lines[envIndex] = withBrowserUseSocketEnvLine(lines[envIndex], socketPath);
+  } else {
+    lines.splice(sectionEnd, 0, withBrowserUseSocketEnvLine("", socketPath));
+  }
+
+  return lines.join("\n");
+}
+
+async function syncNodeReplBrowserUseSocketEnv(codexHome: string, socketPath: string): Promise<void> {
+  const configPath = path.join(codexHome, "config.toml");
+  let rawConfig: string;
+  try {
+    rawConfig = await fs.readFile(configPath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
+      return;
+    }
+    throw error;
+  }
+
+  const nextConfig = withNodeReplBrowserUseSocketEnv(rawConfig, socketPath);
+  if (nextConfig !== rawConfig) {
+    await fs.writeFile(configPath, nextConfig, "utf8");
+  }
 }
 
 function encodeMessage(message: Record<string, unknown>): Buffer {
@@ -157,6 +225,7 @@ export class BrowserUseIabBackend {
       socketPath = await socketPathPromise;
     }
     await this.#setSocketPath(socketPath);
+    await syncNodeReplBrowserUseSocketEnv(resolvedCodexHome, socketPath);
     return socketPath;
   }
 
