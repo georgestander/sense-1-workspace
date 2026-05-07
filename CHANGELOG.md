@@ -4,6 +4,12 @@ All notable changes to Sense-1 Workspace are recorded here.
 
 ## [Unreleased]
 
+## [0.14.3] - 2026-05-07
+
+### Fixed
+
+- Browser Use setup from the profile plugin cache now uses Sense-1's native in-app-browser bridge instead of the bundled client's pipe discovery, so Browser Use can find the active desktop browser backend.
+
 ## [0.14.2] - 2026-05-07
 
 ### Fixed
