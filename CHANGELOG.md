@@ -4,6 +4,12 @@ All notable changes to Sense-1 Workspace are recorded here.
 
 ## [Unreleased]
 
+## [0.14.4] - 2026-05-07
+
+### Fixed
+
+- Browser Use now writes the active in-app-browser socket into the profile `node_repl` MCP server config before app-server startup, so `pnpm dev:full` Browser Use turns can open and inspect pages instead of failing with `SENSE1_BROWSER_USE_IAB_SOCKET_PATH is not set`.
+
 ## [0.14.3] - 2026-05-07
 
 ### Fixed
