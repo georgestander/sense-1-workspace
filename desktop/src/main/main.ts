@@ -655,6 +655,9 @@ async function emitApprovalRefresh(threadId: string) {
 const desktopSessionController = new DesktopSessionController(appServerManager, {
   appStartedAt,
   env: process.env,
+  openAuth: async (url) => {
+    await openDesktopAuthWindow(url);
+  },
   openExternal: async (url) => {
     await shell.openExternal(url);
   },

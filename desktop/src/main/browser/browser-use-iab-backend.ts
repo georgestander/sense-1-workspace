@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -45,13 +45,10 @@ async function createPrivateSocketPathForCodexHome(codexHome: string): Promise<s
     return `\\\\.\\pipe\\sense1-browser-use-iab-${path.basename(path.dirname(resolvedCodexHome))}-${randomUUID()}`;
   }
 
-  const profileRoot = path.dirname(resolvedCodexHome);
-  const socketRoot = path.join(profileRoot, "browser-use-iab");
-  await fs.mkdir(socketRoot, { recursive: true, mode: 0o700 });
-  await chmodPrivateDirectory(socketRoot);
-  const socketDirectory = await fs.mkdtemp(path.join(socketRoot, "socket-"));
+  const profileHash = createHash("sha256").update(resolvedCodexHome).digest("hex").slice(0, 8);
+  const socketDirectory = await fs.mkdtemp(path.join(os.tmpdir(), `s1-iab-${profileHash}-`));
   await chmodPrivateDirectory(socketDirectory);
-  return path.join(socketDirectory, "browser.sock");
+  return path.join(socketDirectory, "b.sock");
 }
 
 function encodeMessage(message: Record<string, unknown>): Buffer {

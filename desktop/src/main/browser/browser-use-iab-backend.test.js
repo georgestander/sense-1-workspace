@@ -99,10 +99,10 @@ test("BrowserUseIabBackend creates a private per-profile socket path", async () 
       return;
     }
 
-    assert.equal(path.dirname(path.dirname(socketPath)), path.join(profileRoot, "browser-use-iab"));
-    assert.equal(path.basename(socketPath), "browser.sock");
+    assert.equal(path.basename(socketPath), "b.sock");
+    assert.match(path.basename(socketDirectory), /^s1-iab-[a-f0-9]{8}-/u);
+    assert.ok(socketPath.length < 100, `socket path must stay below macOS Unix socket limits: ${socketPath}`);
     assert.equal((await fs.stat(socketDirectory)).mode & 0o777, 0o700);
-    assert.equal((await fs.stat(path.dirname(socketDirectory))).mode & 0o777, 0o700);
     assert.equal(await backend.configureForCodexHome(codexHome), socketPath);
   } finally {
     await backend.stop();

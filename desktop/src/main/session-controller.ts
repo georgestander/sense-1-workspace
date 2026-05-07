@@ -131,6 +131,7 @@ export type DesktopSessionControllerOptions = {
   readonly appStartedAt: string;
   readonly desktopVoiceClient?: DesktopVoiceClient;
   readonly env?: NodeJS.ProcessEnv;
+  readonly openAuth?: (url: string) => Promise<void>;
   readonly openExternal: (url: string) => Promise<void>;
   readonly openManagedAuth?: (url: string) => Promise<void>;
   readonly onDesktopRunStarted?: (result: DesktopTaskRunResult) => void | Promise<void>;
@@ -184,6 +185,7 @@ export class DesktopSessionController {
   readonly #manager: AppServerProcessManager;
   readonly #appStartedAt: string;
   readonly #env: NodeJS.ProcessEnv;
+  readonly #openAuth: (url: string) => Promise<void>;
   readonly #openExternal: (url: string) => Promise<void>;
   readonly #openManagedAuth: (url: string) => Promise<void>;
   readonly #onDesktopRunStarted: ((result: DesktopTaskRunResult) => void | Promise<void>) | null;
@@ -218,6 +220,7 @@ export class DesktopSessionController {
     this.#manager = manager;
     this.#appStartedAt = options.appStartedAt;
     this.#env = options.env ?? process.env;
+    this.#openAuth = options.openAuth ?? options.openExternal;
     this.#openExternal = options.openExternal;
     this.#openManagedAuth = options.openManagedAuth ?? options.openExternal;
     this.#resolveProfile = async () => await this.#resolveCurrentProfile();
@@ -507,7 +510,7 @@ export class DesktopSessionController {
       appStartedAt: this.#appStartedAt,
       env: this.#env,
       runtimeInfo: this.#runtimeInfo,
-      openExternal: this.#openExternal,
+      openExternal: this.#openAuth,
     });
     this.#invalidateResolvedProfile();
     return result;
