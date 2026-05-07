@@ -4,6 +4,13 @@ All notable changes to Sense-1 Workspace are recorded here.
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-05-07
+
+### Fixed
+
+- Moved Browser Use's private in-app-browser socket to a short per-profile temp path so macOS no longer fails bootstrap with a misleading `EADDRINUSE` error.
+- Routed ChatGPT sign-in through the dedicated Sense-1 auth window, while keeping ordinary external links on the system browser path.
+
 ## [0.14.1] - 2026-05-06
 
 ### Fixed
