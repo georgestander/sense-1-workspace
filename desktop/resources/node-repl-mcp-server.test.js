@@ -275,6 +275,31 @@ test("node repl keeps fallback Browser Use globals for bundled marketplace brows
   assert.match(response.result.content[0].text, /object\n/);
 });
 
+test("node repl keeps fallback Browser Use globals for profile plugin-cache browser-client setup", async (t) => {
+  const server = startServer(t);
+  const modulePath = pathToFileURL(
+    "/Users/example/Library/Application Support/Sense-1/profiles/default/codex-home/plugins/cache/openai-bundled/browser-use/0.1.0-alpha1/scripts/browser-client.mjs",
+  ).href;
+
+  await server.request("initialize", { protocolVersion: "2024-11-05" });
+  const response = await server.request("tools/call", {
+    name: "js",
+    arguments: {
+      code: [
+        "if (!globalThis.agent) {",
+        `  const { setupAtlasRuntime } = await import(${JSON.stringify(modulePath)});`,
+        "  await setupAtlasRuntime({ globals: globalThis, backend: 'iab' });",
+        "}",
+        "console.log(typeof agent.browser);",
+      ].join("\n"),
+    },
+  });
+
+  assert.equal(response.error, undefined);
+  assert.equal(response.result.content[0].type, "text");
+  assert.match(response.result.content[0].text, /object\n/);
+});
+
 test("node repl routes Browser Use elicitations through the native IAB permission socket", async (t) => {
   const tempRoot = process.platform === "darwin" ? "/private/tmp" : os.tmpdir();
   const socketPath = path.join(await fs.mkdtemp(path.join(tempRoot, "sense1-node-repl-iab-")), "browser.sock");

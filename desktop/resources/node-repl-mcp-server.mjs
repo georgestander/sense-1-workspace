@@ -825,7 +825,12 @@ function codeRequestsBrowserUseSetup(code) {
 }
 
 function codeUsesBundledMarketplaceBrowserClient(code) {
-  return typeof code === "string" && code.includes("/.codex/.tmp/bundled-marketplaces/");
+  if (typeof code !== "string") {
+    return false;
+  }
+  const normalizedCode = code.replaceAll("\\", "/");
+  return normalizedCode.includes("/.codex/.tmp/bundled-marketplaces/")
+    || /\/browser-use(?:\/[^/ "'`]+)?\/scripts\/browser-client\.mjs/u.test(normalizedCode);
 }
 
 function codeUsesFallbackBrowserUseAgent(code) {
