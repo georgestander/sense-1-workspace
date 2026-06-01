@@ -66,7 +66,7 @@ function createEmptyDraft(): AutomationDraft {
     name: "",
     prompt: "",
     status: "ACTIVE",
-    model: "gpt-5.4-mini",
+    model: "gpt-5.5",
     reasoningEffort: "medium",
     executionEnvironment: "local",
     cwd: "",

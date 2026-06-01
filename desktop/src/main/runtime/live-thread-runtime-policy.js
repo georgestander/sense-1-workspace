@@ -34,7 +34,7 @@ export function normalizeDesktopPersonality(value) {
   return DEFAULT_DESKTOP_PERSONALITY;
 }
 
-export const DEFAULT_DESKTOP_MODEL = "gpt-5.4-mini";
+export const DEFAULT_DESKTOP_MODEL = "gpt-5.5";
 const DEFAULT_DESKTOP_PERSONALITY = "friendly";
 export const DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS = "Follow the Sense-1 desktop runtime contract.";
 export const DESKTOP_PROGRESS_COMMENTARY_INSTRUCTION =

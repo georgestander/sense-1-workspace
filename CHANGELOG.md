@@ -4,6 +4,13 @@ All notable changes to Sense-1 Workspace are recorded here.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-06-01
+
+### Changed
+
+- Updated the bundled Codex runtime from `0.128.0` to `0.135.0`.
+- Switched Sense-1 desktop defaults, seeded runtime profiles, and new automation drafts to `gpt-5.5`.
+
 ## [0.14.4] - 2026-05-07
 
 ### Fixed

@@ -829,7 +829,7 @@ test("updateDesktopSettings persists safe changes and records a settings audit t
     assert.equal(eventRow.verb, "settings.updated");
     assert.equal(eventRow.subject_type, "settings");
     assert.equal(eventRow.subject_id, "desktop.defaults");
-    assert.equal(JSON.parse(eventRow.before_state).model, "gpt-5.4-mini");
+    assert.equal(JSON.parse(eventRow.before_state).model, "gpt-5.5");
     assert.equal(JSON.parse(eventRow.after_state).model, "gpt-5.4");
     assert.equal(JSON.parse(eventRow.after_state).runtimeInstructions, "Custom desktop runtime policy text.");
     assert.deepEqual(JSON.parse(eventRow.detail).changedKeys, ["model", "personality", "runtimeInstructions"]);
@@ -2369,7 +2369,7 @@ test("runDesktopTask creates a substrate session, workspace, and lifecycle event
     assert.equal(sessionRows.length, 1);
     assert.equal(sessionRows[0].codex_thread_id, "thread-new-1");
     assert.equal(sessionRows[0].title, "Initial thread title");
-    assert.equal(sessionRows[0].model, "gpt-5.4-mini");
+    assert.equal(sessionRows[0].model, "gpt-5.5");
     assert.equal(sessionRows[0].effort, "xhigh");
     assert.deepEqual(JSON.parse(sessionRows[0].metadata), {
       titleContext: {

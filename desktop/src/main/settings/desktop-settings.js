@@ -1,7 +1,7 @@
 import { DEFAULT_DESKTOP_RUNTIME_INSTRUCTIONS } from "../runtime/live-thread-runtime.js";
 
 export const DEFAULT_DESKTOP_SETTINGS = Object.freeze({
-  model: "gpt-5.4-mini",
+  model: "gpt-5.5",
   reasoningEffort: "xhigh",
   serviceTier: "flex",
   verbosity: "medium",
